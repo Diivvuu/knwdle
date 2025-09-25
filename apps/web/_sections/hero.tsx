@@ -61,7 +61,7 @@ export default function Hero() {
         className="mt-10 flex gap-4"
       >
         <a
-          href="https://login.yourdomain.com"
+          href="https://login.knwdle.com"
           className="px-5 py-2.5 rounded-lg bg-[hsla(149,97%,14%,1)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md"
         >
           Explore Knwdle

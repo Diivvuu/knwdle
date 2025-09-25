@@ -67,7 +67,7 @@ export default function Header() {
         {/* Right: CTAs (smaller, subtle) */}
         <div className="justify-self-end flex items-center gap-3">
           <Link
-            href="https://login.yourdomain.com"
+            href="https://login.knwdle.com"
             className="text-sm font-medium text-foreground/70 hover:text-foreground transition"
           >
             Login
