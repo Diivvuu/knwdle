@@ -1,12 +1,17 @@
-import { Button } from "@workspace/ui/components/button"
+import CTA from './_sections/cta';
+import Features from './_sections/features';
+import Hero from './_sections/hero';
+import Screenshots from './_sections/screenshots';
+import Testimonials from './_sections/testimonials';
 
-export default function Page() {
+export default function HomePage() {
   return (
-    <div className="flex items-center justify-center min-h-svh">
-      <div className="flex flex-col items-center justify-center gap-4">
-        <h1 className="text-2xl font-bold">Hello World</h1>
-        <Button size="sm">Button</Button>
-      </div>
-    </div>
-  )
+    <>
+      <Hero />
+      <Features />
+      {/* <Screenshots /> */}
+      {/* <Testimonials /> */}
+      <CTA />
+    </>
+  );
 }

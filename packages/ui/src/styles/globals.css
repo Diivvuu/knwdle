@@ -1,9 +1,9 @@
-@import "tailwindcss";
+@import 'tailwindcss';
 @source "../../../apps/**/*.{ts,tsx}";
 @source "../../../components/**/*.{ts,tsx}";
 @source "../**/*.{ts,tsx}";
 
-@import "tw-animate-css";
+@import 'tw-animate-css';
 
 @custom-variant dark (&:is(.dark *));
 
@@ -41,6 +41,37 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+}
+
+/* ---------- Theme overrides you can toggle by adding the class to root ---------- */
+/* Blue theme (recommended if you want a blue primary) */
+.theme-blue {
+  --primary: oklch(0.45 0.18 250); /* brighter blue */
+  --primary-foreground: oklch(0.99 0 0); /* near-white text on primary */
+  --sidebar-primary: oklch(0.36 0.16 250);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.42 0.14 240); /* softer accent */
+  --accent-foreground: oklch(0.99 0 0);
+}
+
+/* Red theme */
+.theme-red {
+  --primary: oklch(0.45 0.18 28); /* warm red/orange */
+  --primary-foreground: oklch(0.99 0 0);
+  --sidebar-primary: oklch(0.45 0.18 28);
+  --sidebar-primary-foreground: oklch(0.99 0 0);
+  --accent: oklch(0.44 0.15 20);
+  --accent-foreground: oklch(0.99 0 0);
+}
+
+/* Green theme */
+.theme-green {
+  --primary: oklch(0.38 0.15 140); /* green */
+  --primary-foreground: oklch(0.18 0.02 80);
+  --sidebar-primary: oklch(0.38 0.15 140);
+  --sidebar-primary-foreground: oklch(0.02 0.01 80);
+  --accent: oklch(0.33 0.12 120);
+  --accent-foreground: oklch(0.99 0 0);
 }
 
 .dark {
