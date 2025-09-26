@@ -1,144 +1,313 @@
 import { Router } from 'express';
+import { date, z } from 'zod';
 import bcrypt from 'bcryptjs';
-import { randomBytes } from 'crypto';
-import {
-  signAccess,
-  signRefresh,
-  verifyRefresh,
-  verifyAccess,
-} from '../lib/jwt';
+import crypto from 'crypto';
+import { signAccess, signRefresh, verifyRefresh } from '../lib/jwt';
+import { PrismaClient } from '../generated/prisma';
+import { sendMail, wrapHtml } from '../lib/mailer';
+import { MailTemplates } from '../lib/mail-templates';
 
-const router = Router();
+const prisma = new PrismaClient();
+const r = Router();
 
-const COOKIE_NAME = process.env.AUTH_COOKIE_NAME || 'refresh_token';
-const COOKIE_DOMAIN = process.env.AUTH_COOKIE_DOMAIN || 'localhost';
+const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
+const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
+const secure = process.env.NODE_ENV === 'production';
 
-// In-memory stores (replace with DB/Prisma)
-type User = {
-  id: string;
-  email: string;
-  passwordHash: string;
-  role: string;
-  name?: string;
-};
-const USERS = new Map<string, User>(); // key = email
-const REFRESH_STORE = new Map<
-  string,
-  { tokenId: string; userEmail: string; expiresAt: number }
->();
-
-// Helper to create user (for dev)
-async function createUser(email: string, password: string, role = 'admin') {
-  const id = randomBytes(8).toString('hex');
-  const hash = await bcrypt.hash(password, 10);
-  const user: User = { id, email, passwordHash: hash, role };
-  USERS.set(email, user);
-  return user;
+/**
+ * Utils
+ */
+function generateToken(len = 32) {
+  return crypto.randomBytes(len).toString('hex');
 }
 
-router.post('/login', async (req, res) => {
-  const { email, password } = req.body;
-  if (!email || !password)
-    return res.status(400).json({ error: 'email and password required' });
+function generateOtp() {
+  return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
+}
 
-  let user = USERS.get(email);
-  if (!user) {
-    // auto-provision for dev convenience (REMOVE in prod)
-    user = await createUser(email, password, 'admin');
+/**
+ * ----------------- Signup -----------------
+ */
+const SignupBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+  name: z.string().optional(),
+});
+
+r.post('/signup', async (req, res) => {
+  const p = SignupBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: 'Invalid input' });
+  const { email, password, name } = p.data;
+
+  const existing = await prisma.user.findUnique({ where: { email } });
+
+  if (existing) {
+    if (existing.emailVerified) {
+      return res
+        .status(409)
+        .json({ error: 'User already exists and verified' });
+    }
+
+    // Not verified → resend same token or generate new
+    let v = await prisma.verificationToken.findFirst({
+      where: { userId: existing.id },
+    });
+    if (!v) {
+      const token = generateToken(16);
+      v = await prisma.verificationToken.create({
+        data: {
+          userId: existing.id,
+          token,
+          type: 'EMAIL_VERIFY',
+          expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24),
+        },
+      });
+    }
+
+    const verifyLink = `${process.env.APP_URL}/auth/verify?token=${v.token}`;
+    const t = MailTemplates.verifyEmail(verifyLink);
+    await sendMail(
+      email,
+      t.subject,
+      wrapHtml({ title: t.subject, bodyHtml: t.html })
+    );
+
+    return res.status(403).json({
+      error: 'User exists but not verified. Verification email resent.',
+    });
   }
 
-  const ok = await bcrypt.compare(password, user.passwordHash);
-  if (!ok) return res.status(401).json({ error: 'invalid credentials' });
+  // Fresh signup
+  const hash = await bcrypt.hash(password, 10);
+  const user = await prisma.user.create({
+    data: { email, password: hash, name },
+  });
 
-  // create refresh token id, store hashed or id (we store id for this demo)
-  const tokenId = randomBytes(16).toString('hex');
-  const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 30; // 30d
-  REFRESH_STORE.set(tokenId, { tokenId, userEmail: email, expiresAt });
+  const token = generateToken(16);
+  await prisma.verificationToken.create({
+    data: {
+      userId: user.id,
+      token,
+      type: 'EMAIL_VERIFY',
+      expiresAt: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+    },
+  });
 
-  const accessToken = signAccess({ sub: user.id, role: user.role });
-  const refreshTokenJwt = signRefresh({ sub: user.id, tid: tokenId });
+  const verifyLink = `${process.env.APP_URL}/auth/verify?token=${token}`;
+  const t = MailTemplates.verifyEmail(verifyLink);
+  await sendMail(
+    email,
+    t.subject,
+    wrapHtml({ title: t.subject, bodyHtml: t.html })
+  );
 
-  res.cookie(COOKIE_NAME, refreshTokenJwt, {
+  res.json({ message: 'Signup successfull. Check email to verify account' });
+});
+
+r.get('/verify', async (req, res) => {
+  const token = req.query.token as string;
+  if (!token) return res.status(400).json({ error: 'Missing token' });
+
+  const v = await prisma.verificationToken.findUnique({ where: { token } });
+  if (!v || v.expiresAt < new Date())
+    return res
+      .status(400)
+      .json({ error: `Invalid/expired token, ${v?.token}` });
+
+  const user = await prisma.user.update({
+    where: { id: v.userId },
+    data: { emailVerified: new Date() },
+  });
+
+  await prisma.verificationToken.delete({ where: { id: v.id } });
+
+  const session = await prisma.session.create({
+    data: { userId: user.id, refreshToken: '' },
+  });
+
+  const access = signAccess(user.id);
+  const refresh = signRefresh(user.id, session.id);
+  await prisma.session.update({
+    where: { id: session.id },
+    data: { refreshToken: refresh },
+  });
+
+  res.cookie(COOKIE_NAME, refresh, {
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production',
-    domain: COOKIE_DOMAIN,
     sameSite: 'lax',
+    secure,
+    domain: COOKIE_DOMAIN,
     path: '/',
-    maxAge: 1000 * 60 * 60 * 24 * 30,
   });
 
-  return res.json({
-    accessToken,
-    user: { id: user.id, email: user.email, role: user.role },
+  res.json({ message: 'Email verified', accessToken: access, user });
+});
+
+const LoginBody = z.object({
+  email: z.string().email(),
+  password: z.string().min(6),
+});
+
+r.post('/login', async (req, res) => {
+  const p = LoginBody.safeParse(req.body);
+  if (!p.success) return res.status(400).json({ error: 'Invalid body' });
+  const { email, password } = p.data;
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return res.status(401).json({ error: 'Invalid credentials' });
+  if (!user.emailVerified)
+    return res.status(403).json({ error: 'Email not verified' });
+
+  const ok = await bcrypt.compare(password, user.password);
+  if (!ok) return res.status(401).json({ error: 'Invalid credentials' });
+
+  const session = await prisma.session.create({
+    data: { userId: user.id, refreshToken: '' },
+  });
+
+  const access = signAccess(user.id);
+  const refresh = signRefresh(user.id, session.id);
+  await prisma.session.update({
+    where: { id: session.id },
+    data: {
+      refreshToken: refresh,
+    },
+  });
+
+  res.cookie(COOKIE_NAME, refresh, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure,
+    domain: COOKIE_DOMAIN,
+    path: '/',
+  });
+
+  res.json({
+    accessToken: access,
+    user: { id: user.id, email: user.email, name: user.name },
   });
 });
 
-router.post('/refresh', async (req, res) => {
-  const token = req.cookies[COOKIE_NAME];
-  if (!token) return res.status(401).json({ error: 'missing refresh' });
-  try {
-    const payload: any = verifyRefresh(token) as any;
-    const tokenId = payload.tid;
-    const userId = payload.sub;
+//otp based routes
+r.post('/request-otp', async (req, res) => {
+  const { email } = req.body;
+  if (!email) return res.status(400).json({ error: 'Email required' });
 
-    const record = REFRESH_STORE.get(tokenId);
-    if (!record) return res.status(401).json({ error: 'invalid refresh' });
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
 
-    // rotate: create new token id
-    const newId = randomBytes(16).toString('hex');
-    const expiresAt = Date.now() + 1000 * 60 * 60 * 24 * 30;
-    REFRESH_STORE.delete(tokenId);
-    REFRESH_STORE.set(newId, {
-      tokenId: newId,
-      userEmail: record.userEmail,
-      expiresAt,
+  const code = generateOtp();
+  await prisma.otpToken.create({
+    data: {
+      userId: user.id,
+      code,
+      expiresAt: new Date(Date.now() + 1000 * 60 * 10),
+    },
+  });
+
+  const t = MailTemplates.otp(code);
+  await sendMail(
+    email,
+    t.subject,
+    wrapHtml({ title: t.subject, bodyHtml: t.html })
+  );
+
+  res.json({ message: 'OTP sent to email' });
+});
+
+// verify routes
+r.post('/verify-otp', async (req, res) => {
+  const { email, code } = req.body;
+  if (!email || !code)
+    return res.status(400).json({ error: 'Email + code required' });
+
+  const user = await prisma.user.findUnique({ where: { email } });
+  if (!user) return res.status(404).json({ error: 'User not found' });
+
+  const otp = await prisma.otpToken.findFirst({
+    where: { userId: user.id, code },
+    orderBy: { createdAt: 'desc' },
+  });
+
+  if (!otp || otp.expiresAt < new Date())
+    return res.status(400).json({ error: 'Invalid/expired OTP' });
+
+  await prisma.otpToken.delete({ where: { id: otp.id } });
+
+  if (!user.emailVerified) {
+    await prisma.user.update({
+      where: { id: user.id },
+      data: { emailVerified: new Date() },
     });
-
-    const accessToken = signAccess({ sub: userId, role: 'user' });
-    const newRefreshJwt = signRefresh({ sub: userId, tid: newId });
-
-    res.cookie(COOKIE_NAME, newRefreshJwt, {
-      httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      domain: COOKIE_DOMAIN,
-      sameSite: 'lax',
-      path: '/',
-      maxAge: 1000 * 60 * 60 * 24 * 30,
-    });
-
-    return res.json({ accessToken });
-  } catch (_e) {
-    return res.status(401).json({ error: 'invalid token' });
   }
+
+  const session = await prisma.session.create({
+    data: { userId: user.id, refreshToken: '' },
+  });
+
+  const access = signAccess(user.id);
+  const refresh = signRefresh(user.id, session.id);
+  await prisma.session.update({
+    where: { id: session.id },
+    data: { refreshToken: refresh },
+  });
+
+  res.cookie(COOKIE_NAME, refresh, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure,
+    domain: COOKIE_DOMAIN,
+    path: '/',
+  });
+
+  res.json({ message: 'OTP login success', accessToken: access, user });
 });
 
-router.post('/logout', (_req, res) => {
-  const token = _req.cookies ? _req.cookies[COOKIE_NAME] : null;
-  if (token) {
-    try {
-      const payload: any = verifyRefresh(token);
-      const tokenId = payload.tid;
-      REFRESH_STORE.delete(tokenId);
-    } catch {}
-  }
-  res.clearCookie(COOKIE_NAME, { domain: COOKIE_DOMAIN, path: '/' });
-  res.json({ ok: true });
-});
+//refresh routes
 
-router.get('/me', (req, res) => {
-  // expects Authorization: Bearer <accessToken>
-  const auth = req.headers.authorization;
-  if (!auth) return res.status(401).end();
-  const token = auth.split(' ')[1];
+r.post('/refresh', async (req, res) => {
+  const token = req.cookies?.[COOKIE_NAME];
+  if (!token) return res.status(401).json({ error: 'No session' });
+  let payload: { sub: string; jti: string };
   try {
-    const decoded = verifyAccess(token) as any; // uses lib/jwt verifyAccess
-    // find user by sub
-    const user = Array.from(USERS.values()).find((u) => u.id === decoded.sub);
-    if (!user) return res.status(401).end();
-    res.json({ id: user.id, email: user.email, role: user.role });
-  } catch (e) {
-    res.status(401).end();
+    payload = verifyRefresh(token) as any;
+  } catch {
+    return res.status(401).json({ error: 'Invalid session' });
   }
+
+  const sess = await prisma.session.findUnique({ where: { id: payload.jti } });
+  if (!sess || sess.refreshToken !== token)
+    return res.status(401).json({ error: 'Session not found/rotated' });
+
+  const newAccess = signAccess(payload.sub);
+  const newRefresh = signRefresh(payload.sub, sess.id);
+  await prisma.session.update({
+    where: { id: sess.id },
+    data: { refreshToken: newRefresh },
+  });
+
+  res.cookie(COOKIE_NAME, newRefresh, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure,
+    domain: COOKIE_DOMAIN,
+    path: '/',
+  });
+
+  res.json({ accessToken: newAccess });
 });
 
-export default router;
+//logout
+
+r.post('/logout', async (req, res) => {
+  res.clearCookie(COOKIE_NAME, {
+    httpOnly: true,
+    sameSite: 'lax',
+    secure,
+    domain: COOKIE_DOMAIN,
+    path: '/',
+  });
+  res.sendStatus(204);
+});
+
+export default r;

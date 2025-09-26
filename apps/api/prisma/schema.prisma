@@ -1,0 +1,152 @@
+// Prisma schema
+
+generator client {
+  provider = "prisma-client-js"
+  // use either output or omit it; this is fine:
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider          = "postgresql"
+  url               = env("DATABASE_URL")
+  shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
+}
+
+/**
+ * -------------------- Core Auth --------------------
+ */
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  password      String
+  name          String?
+  emailVerified DateTime?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  sessions       Session[]
+  memberships    OrgMembership[]
+  studentProfile StudentProfile?
+  // relation name must match the relation on GuardianLink.parent
+  guardianLinks  GuardianLink[]  @relation("ParentLinks")
+  parentLinks    GuardianLink[]  @relation("StudentLinks")
+
+  verificationTokens VerificationToken[]
+  otpTokens          OtpToken[]
+}
+
+model VerificationToken {
+  id        String   @id @default(cuid())
+  userId    String
+  token     String   @unique
+  type      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model OtpToken {
+  id        String   @id @default(cuid())
+  userId    String
+  code      String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, code])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+/**
+ * -------------------- Org & Roles --------------------
+ */
+
+model Organisation {
+  id        String   @id @default(cuid())
+  name      String
+  createdAt DateTime @default(now())
+
+  units   OrgUnit[]
+  members OrgMembership[]
+  invites Invite[]
+}
+
+model OrgUnit {
+  id        String   @id @default(cuid())
+  orgId     String
+  name      String
+  createdAt DateTime @default(now())
+
+  org     Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  members OrgMembership[]
+}
+
+model OrgMembership {
+  id     String  @id @default(cuid())
+  orgId  String
+  userId String
+  role   String // "admin" | "staff" | "student" | "parent" | "volunteer"
+  unitId String?
+
+  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit OrgUnit?     @relation(fields: [unitId], references: [id])
+
+  @@index([orgId, userId, role])
+}
+
+/**
+ * -------------------- Student / Parent links --------------------
+ */
+
+model StudentProfile {
+  id     String  @id @default(cuid())
+  userId String  @unique
+  rollNo String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GuardianLink {
+  id        String  @id @default(cuid())
+  parentId  String
+  studentId String
+  relation  String? // "mother" | "father" | "guardian"
+
+  // name this relation "ParentLinks" to pair with User.guardianLinks
+  parent  User @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  student User @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+}
+
+/**
+ * -------------------- Invites --------------------
+ */
+
+model Invite {
+  id         String   @id @default(cuid())
+  email      String
+  orgId      String
+  role       String // "student" | "parent" | "staff"
+  unitId     String?
+  token      String   @unique
+  expiresAt  DateTime
+  acceptedBy String?
+  createdAt  DateTime @default(now())
+  meta       Json?
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+}

@@ -156,3 +156,10 @@
     @apply bg-background text-foreground;
   }
 }
+
+/* globals.css */
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+}

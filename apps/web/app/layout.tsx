@@ -2,6 +2,7 @@ import { Geist, Geist_Mono } from 'next/font/google';
 import '@workspace/ui/globals.css';
 import { Providers } from '@/_components/providers';
 import Header from '@/_components/header';
+import { RoleProvider } from '@/hooks/role-provider';
 
 const fontSans = Geist({
   subsets: ['latin'],
@@ -24,8 +25,12 @@ export default function RootLayout({
         className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased `}
       >
         <Providers>
-          <Header />
-          {children}
+          <RoleProvider>
+            <Header />
+            <main className="pt-[calc(var(--header-h,64px)+12px)]">
+              {children}
+            </main>
+          </RoleProvider>
         </Providers>
       </body>
     </html>
