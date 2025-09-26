@@ -1,7 +1,7 @@
 'use client';
 
 import { roleCopy } from '@/hooks/role-copy';
-import { useRole } from '@/hooks/role-provider';
+import { useRole } from '@/providers/role-provider';
 
 export default function FeatureGrid() {
   const { audience } = useRole();

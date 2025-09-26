@@ -1,4 +1,4 @@
-import { AudienceKey } from "./role-provider";
+import { AudienceKey } from '../providers/role-provider';
 
 export const roleCopy: Record<
   AudienceKey,

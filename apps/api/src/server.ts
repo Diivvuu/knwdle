@@ -13,12 +13,21 @@ app.use(
     origin: (origin, cb) => {
       const allow = (process.env.CORS_ORIGINS || '')
         .split(',')
-        .map((s) => s.trim())
+        .map((s) => s.trim().replace(/\/+$/, '')) // strip trailing slash
         .filter(Boolean);
-      if (!origin || allow.includes(origin)) return cb(null, true);
-      return cb(new Error('Not allowed by CORS'));
+
+      // Allow server-to-server or curl (no Origin header)
+      if (!origin) return cb(null, true);
+
+      const normalized = origin.replace(/\/+$/, '');
+      if (allow.includes(normalized)) return cb(null, true);
+
+      return cb(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
+    methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
+    allowedHeaders: ['Content-Type', 'Authorization'],
+    exposedHeaders: ['Set-Cookie'],
   })
 );
 

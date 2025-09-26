@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { useRole } from '@/hooks/role-provider';
+import { useRole } from '@/providers/role-provider';
 
 const OPTIONS = [
   { key: 'students', label: 'Students' },

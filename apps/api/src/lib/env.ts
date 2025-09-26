@@ -17,7 +17,9 @@ const EnvSchema = z.object({
   REFRESH_EXPIRES_DAYS: z.coerce.number().default(30),
 
   COOKIE_NAME: z.string().default('__knwdle_session'),
-  COOKIE_DOMAIN: z.string().default('localhost'),
+    COOKIE_DOMAIN: z.string().default('localhost'),
+  
+    
 
   // Mail (SMTP)
   SMTP_HOST: z.string(),

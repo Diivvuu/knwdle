@@ -1,8 +1,10 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import '@workspace/ui/globals.css';
-import { Providers } from '@/_components/providers';
+import { Providers } from '@/providers/providers';
 import Header from '@/_components/header';
-import { RoleProvider } from '@/hooks/role-provider';
+import { RoleProvider } from '@/providers/role-provider';
+import { ReduxWrapper } from '@/providers/store-provider';
+import AppInit from '@/providers/app-init';
 
 const fontSans = Geist({
   subsets: ['latin'],
@@ -24,14 +26,17 @@ export default function RootLayout({
       <body
         className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased `}
       >
-        <Providers>
-          <RoleProvider>
-            <Header />
-            <main className="pt-[calc(var(--header-h,64px)+12px)]">
-              {children}
-            </main>
-          </RoleProvider>
-        </Providers>
+        <ReduxWrapper>
+          <AppInit />
+          <Providers>
+            <RoleProvider>
+              <Header />
+              <main className="pt-[calc(var(--header-h,64px)+12px)]">
+                {children}
+              </main>
+            </RoleProvider>
+          </Providers>
+        </ReduxWrapper>
       </body>
     </html>
   );

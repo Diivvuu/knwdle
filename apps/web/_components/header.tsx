@@ -97,7 +97,7 @@ export default function Header() {
           {/* Right: CTAs / Burger */}
           <div className="flex items-center gap-2 pr-2 sm:pr-3">
             <Link
-              href="https://login.knwdle.com"
+              href="/auth"
               className="hidden sm:inline-block text-sm font-medium text-foreground/70 hover:text-foreground transition"
             >
               Login
@@ -159,7 +159,7 @@ export default function Header() {
               ))}
               <div className="h-px mx-2 my-1 bg-black/5 dark:bg-white/10" />
               <Link
-                href="https://login.knwdle.com"
+                href="/auth"
                 onClick={() => setOpen(false)}
                 className="rounded-lg px-3 py-2 text-[15px] text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10"
               >

@@ -1,8 +1,8 @@
 'use client';
 
-import RoleSwitcher from '@/_components/role-switcher';
+import RoleSwitcher from '@/hooks/role-switcher';
 import { roleCopy } from '@/hooks/role-copy';
-import { useRole } from '@/hooks/role-provider';
+import { useRole } from '@/providers/role-provider';
 import { useAutoHeight } from '@/hooks/use-auto-height';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
