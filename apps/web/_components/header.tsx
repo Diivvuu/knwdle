@@ -71,11 +71,8 @@ export default function Header() {
     "
           />
           {/* Left: Logo */}
-          <Link
-            href="/"
-            className="flex items-center gap-2 pl-3 sm:pl-4 py-2.5"
-          >
-            <span className="relative block h-9 w-9 sm:h-10 sm:w-10">
+          <Link href="/" className="flex items-center gap-2 pl-3 sm:pl-4">
+            <span className="relative block h-20 w-20">
               <Image src="/knwdle.svg" alt="Knwdle" fill priority />
             </span>
           </Link>

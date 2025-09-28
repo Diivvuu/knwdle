@@ -22,9 +22,16 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="en" suppressHydrationWarning>
+    <html
+      lang="en"
+      className="light"
+      suppressHydrationWarning
+      style={{ colorScheme: 'light' }}
+    >
       <body
-        className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased `}
+        className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}
+        suppressHydrationWarning
+        suppressContentEditableWarning
       >
         <ReduxWrapper>
           <AppInit />

@@ -41,23 +41,19 @@ export default function Hero() {
       "
     >
       {/* Blobs are now centered & clipped inside the section */}
+      {/* mesh gradient */}
       <div
         aria-hidden
-        className="
-          pointer-events-none absolute
-          left-1/2 -translate-x-1/2 -top-28
-          h-56 w-56 sm:h-72 sm:w-72
-          rounded-full bg-[hsla(149,97%,14%,0.06)] blur-3xl
-        "
+        className="pointer-events-none absolute inset-0 -z-10
+             [background:radial-gradient(60%_40%_at_20%_20%,hsl(152_70%_92%)/.9,transparent_60%),radial-gradient(40%_30%_at_80%_10%,hsl(152_70%_85%)/.6,transparent_60%),radial-gradient(30%_50%_at_50%_80%,hsl(152_70%_90%)/.7,transparent_60%)]"
       />
+
+      {/* grain overlay */}
       <div
         aria-hidden
-        className="
-          pointer-events-none absolute
-          right-1/2 translate-x-1/2 top-56
-          h-56 w-56 sm:h-96 sm:w-96
-          rounded-full bg-[hsla(149,97%,14%,0.05)] blur-3xl
-        "
+        className="pointer-events-none absolute inset-0 -z-10 opacity-[0.06]
+             [background-image:radial-gradient(black_1px,transparent_1px)]
+             [background-size:5px_5px]"
       />
 
       {/* Logo */}

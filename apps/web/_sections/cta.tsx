@@ -21,7 +21,7 @@ export default function CTA() {
         className="mt-8"
       >
         <a
-          href="https://login.knwdle.com"
+          href="/auth"
           className="px-8 py-4 rounded-lg bg-card text-card-foreground font-medium hover:opacity-90 transition"
         >
           Create Your Account

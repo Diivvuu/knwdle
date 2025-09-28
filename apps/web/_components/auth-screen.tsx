@@ -28,6 +28,7 @@ import EmailField from './email-field';
 import PasswordField from './password-field';
 import OrDivider from './or-divider';
 import SSOButtons from './sso-buttons';
+import Image from 'next/image';
 
 const LoginSchema = z.object({
   email: z.string().email(),
@@ -111,7 +112,14 @@ export default function AuthScreen() {
   return (
     <AuthShell>
       <CardHeader className="pb-3">
-        <CardTitle className="text-center text-2xl">Welcome</CardTitle>
+        {/* <CardTitle className="text-center text-2xl">Welcome</CardTitle> */}
+        <Image
+          src={'/knwdle.svg'}
+          width={100}
+          height={100}
+          alt="logo"
+          className="mx-auto"
+        />
       </CardHeader>
 
       <CardContent className="pt-0">
@@ -160,8 +168,8 @@ export default function AuthScreen() {
               </div>
             </form>
 
-            <OrDivider />
-            <SSOButtons />
+            {/* <OrDivider /> */}
+            {/* <SSOButtons /> */}
           </TabsContent>
 
           {/* SIGNUP */}
@@ -215,8 +223,8 @@ export default function AuthScreen() {
               </div>
             </form>
 
-            <OrDivider />
-            <SSOButtons />
+            {/* <OrDivider />
+            <SSOButtons /> */}
           </TabsContent>
         </Tabs>
 
