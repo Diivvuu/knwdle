@@ -32,12 +32,14 @@ export default function Hero() {
   return (
     <section
       className="
-        relative overflow-hidden   /* 🔒 prevents blob overflow causing horizontal scroll */
+        relative overflow-hidden
         flex flex-col items-center justify-center
         text-center
         px-4 sm:px-6
-        pt-20 pb-10
+        pb-10
         min-h-[85vh]
+        -mt-[calc(var(--header-h,64px)+12px)]
+        pt-[calc(var(--header-h,64px)+80px)]
       "
     >
       {/* Blobs are now centered & clipped inside the section */}

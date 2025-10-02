@@ -2,7 +2,7 @@
 
 import { ReactNode } from 'react';
 import { ReduxProvider } from '@workspace/state';
-import { store } from '@/redux/store'; // your ready-made store
+import { store } from '@/store/store';
 
 export function ReduxWrapper({ children }: { children: ReactNode }) {
   return <ReduxProvider store={store}>{children}</ReduxProvider>;

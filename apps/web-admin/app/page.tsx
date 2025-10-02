@@ -3,5 +3,5 @@ import styles from './page.module.css';
 import { Button } from '@workspace/ui/components/button';
 
 export default function Home() {
-  return <div></div>;
+  return <div>nice</div>;
 }

@@ -1,6 +1,10 @@
-import type { Metadata } from 'next';
 import { Geist, Geist_Mono } from 'next/font/google';
+import type { Metadata } from 'next';
 import '@workspace/ui/globals.css';
+import { ReduxWrapper } from '@/providers/store-provider';
+import { Toaster } from '@workspace/ui/components/sonner';
+import AppInit from '@/providers/app-init';
+import { Providers } from '@workspace/ui/components/provider'// import { Providers } from '@workspace/ui/lib/provider';
 
 const geistSans = Geist({
   variable: '--font-geist-sans',
@@ -25,7 +29,15 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body className={`${geistSans.variable} ${geistMono.variable}`}>
-        {children}
+        <ReduxWrapper>
+          <Toaster />
+          <AppInit />
+          <Providers>
+            <main className="pt-[calc(var(--header-h,64px)+12px)]">
+              {children}
+            </main>
+          </Providers>
+        </ReduxWrapper>
       </body>
     </html>
   );

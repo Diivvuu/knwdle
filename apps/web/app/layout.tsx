@@ -1,10 +1,11 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import '@workspace/ui/globals.css';
-import { Providers } from '@/providers/providers';
 import Header from '@/_components/header';
 import { RoleProvider } from '@/providers/role-provider';
 import { ReduxWrapper } from '@/providers/store-provider';
 import AppInit from '@/providers/app-init';
+import { Toaster } from '@workspace/ui/components/sonner';
+import { Providers } from '@workspace/ui/components/provider';
 
 const fontSans = Geist({
   subsets: ['latin'],
@@ -26,6 +27,7 @@ export default function RootLayout({
       lang="en"
       className="light"
       suppressHydrationWarning
+      suppressContentEditableWarning
       style={{ colorScheme: 'light' }}
     >
       <body
@@ -34,6 +36,7 @@ export default function RootLayout({
         suppressContentEditableWarning
       >
         <ReduxWrapper>
+          <Toaster />
           <AppInit />
           <Providers>
             <RoleProvider>

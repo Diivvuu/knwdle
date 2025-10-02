@@ -29,8 +29,11 @@ model User {
   memberships    OrgMembership[]
   studentProfile StudentProfile?
   // relation name must match the relation on GuardianLink.parent
-  guardianLinks  GuardianLink[]  @relation("ParentLinks")
-  parentLinks    GuardianLink[]  @relation("StudentLinks")
+  guardianLinks  GuardianLink[]     @relation("ParentLinks")
+  parentLinks    GuardianLink[]     @relation("StudentLinks")
+  feeInvoices    FeeInvoice[]       @relation("UserInvoices")
+  submissions    Submission[]       @relation("UserSubmissions")
+  attendance     AttendanceRecord[] @relation("UserAttendance")
 
   verificationTokens VerificationToken[]
   otpTokens          OtpToken[]
@@ -72,32 +75,85 @@ model Session {
 /**
  * -------------------- Org & Roles --------------------
  */
+enum OrgType {
+  SCHOOL
+  COACHING_CENTER
+  TUITION_CENTER
+  COLLEGE
+  UNIVERSITY
+  EDTECH
+  TRAINING
+  NGO
+}
 
 model Organisation {
-  id        String   @id @default(cuid())
-  name      String
-  createdAt DateTime @default(now())
+  id           String   @id @default(cuid())
+  name         String
+  type         OrgType
+  description  String?
+  teamSize     String?
+  country      String?
+  timezone     String?
+  logoUrl      String?
+  coverUrl     String?
+  brand_color  String?
+  address      String?
+  contactPhone String?
+  createdAt    DateTime @default(now())
 
-  units   OrgUnit[]
-  members OrgMembership[]
-  invites Invite[]
+  units       OrgUnit[]
+  members     OrgMembership[]
+  invites     Invite[]
+  settings    OrgSettings[]
+  profile     OrgProfile?
+  roles       Role[]
+  taxProfiles TaxProfile[]
+}
+
+model OrgProfile {
+  id    String @id @default(cuid())
+  orgId String @unique
+
+  meta Json
+  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
 model OrgUnit {
   id        String   @id @default(cuid())
   orgId     String
+  parentId  String?
   name      String
+  code      String?
+  path      String   @default("")
   createdAt DateTime @default(now())
 
-  org     Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  members OrgMembership[]
+  org      Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parent   OrgUnit?        @relation("UnitParent", fields: [parentId], references: [id])
+  children OrgUnit[]       @relation("UnitParent")
+  members  OrgMembership[]
+
+  attendanceSessions AttendanceSession[]
+  contentItems       ContentItem[]
+  feeInvoices        FeeInvoice[]
+  announcements      Announcement[]
+  invites            Invite[]
+
+  @@index([orgId, parentId])
+  @@index([orgId, path])
+}
+
+enum ParentRole {
+  admin
+  staff
+  student
+  parent
 }
 
 model OrgMembership {
-  id     String  @id @default(cuid())
+  id     String     @id @default(cuid())
   orgId  String
   userId String
-  role   String // "admin" | "staff" | "student" | "parent" | "volunteer"
+  role   ParentRole
   unitId String?
 
   org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
@@ -105,6 +161,41 @@ model OrgMembership {
   unit OrgUnit?     @relation(fields: [unitId], references: [id])
 
   @@index([orgId, userId, role])
+  @@index([userId, orgId, role, unitId])
+  @@index([orgId, role])
+}
+
+model Role {
+  id         String     @id @default(cuid())
+  orgId      String
+  key        String
+  name       String
+  scope      String
+  parentRole ParentRole
+  createdAt  DateTime   @default(now())
+
+  org         Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  permissions RolePermission[]
+
+  @@unique([orgId, key])
+}
+
+model Permission {
+  id    String           @id @default(cuid())
+  code  String           @unique
+  name  String
+  roles RolePermission[]
+}
+
+model RolePermission {
+  id           String @id @default(cuid())
+  roleId       String
+  permissionId String
+
+  role       Role       @relation(fields: [roleId], references: [id], onDelete: Cascade)
+  permission Permission @relation(fields: [permissionId], references: [id], onDelete: Cascade)
+
+  @@unique([roleId, permissionId])
 }
 
 /**
@@ -137,16 +228,196 @@ model GuardianLink {
  */
 
 model Invite {
-  id         String   @id @default(cuid())
+  id         String     @id @default(cuid())
   email      String
   orgId      String
-  role       String // "student" | "parent" | "staff"
+  role       ParentRole
   unitId     String?
-  token      String   @unique
+  token      String     @unique
+  joinCode   String?    @unique
   expiresAt  DateTime
   acceptedBy String?
-  createdAt  DateTime @default(now())
+  createdAt  DateTime   @default(now())
   meta       Json?
 
+  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  unit OrgUnit?     @relation(fields: [unitId], references: [id])
+}
+
+// academics
+model AttendanceSession {
+  id        String   @id @default(cuid())
+  orgId     String
+  unitId    String
+  date      DateTime
+  period    String?
+  takenById String?
+  notes     String?
+  createdAt DateTime @default(now())
+
+  unit    OrgUnit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  records AttendanceRecord[]
+
+  @@unique([orgId, unitId, date, period])
+  @@index([orgId, unitId, date])
+}
+
+model AttendanceRecord {
+  id        String   @id @default(cuid())
+  sessionId String
+  studentId String
+  status    String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  session AttendanceSession @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  student User              @relation("UserAttendance", fields: [studentId], references: [id])
+
+  @@unique([sessionId, studentId])
+  @@unique([studentId, createdAt])
+}
+
+model ContentItem {
+  id        String    @id @default(cuid())
+  orgId     String
+  unitId    String
+  type      String // note, assignment, test
+  title     String
+  body      String?
+  dueAt     DateTime?
+  createdBy String
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+
+  unit        OrgUnit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  submissions Submission[]
+
+  @@index([orgId, unitId, type, dueAt])
+}
+
+model Submission {
+  id          String    @id @default(cuid())
+  contentId   String
+  studentId   String
+  submittedAt DateTime?
+  grade       Float?
+  feedback    String?
+  meta        Json?
+  createdAt   DateTime  @default(now())
+
+  content ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  student User        @relation("UserSubmissions", fields: [studentId], references: [id])
+
+  @@unique([contentId, studentId])
+  @@index([studentId, submittedAt])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  orgId     String
+  unitId    String?
+  title     String
+  body      String?
+  createdBy String
+  pin       Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  unit OrgUnit? @relation(fields: [unitId], references: [id])
+
+  @@index([orgId, unitId, createdAt])
+}
+
+// finance
+model TaxProfile {
+  id        String   @id @default(cuid())
+  orgId     String
+  country   String
+  gstNo     String?
+  vatNo     String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, country])
+}
+
+model FeeInvoice {
+  id        String   @id @default(cuid())
+  orgId     String
+  unitId    String?
+  studentId String
+  number    String   @unique
+  title     String
+  amount    Int
+  currency  String   @default("INR")
+  dueAt     DateTime
+  status    String   @default("unpaid")
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  student User     @relation("UserInvoices", fields: [studentId], references: [id])
+  unit    OrgUnit? @relation(fields: [unitId], references: [id])
+
+  payments FeePayment[]
+
+  @@index([orgId, studentId, status, dueAt])
+}
+
+model FeePayment {
+  id        String   @id @default(cuid())
+  invoiceId String
+  amount    Int
+  method    String
+  reference String?
+  paidAt    DateTime @default(now())
+  meta      Json?
+
+  invoice FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
+
+  @@index([invoiceId, paidAt])
+}
+
+// platform plumbing
+
+model FileAsset {
+  id        String   @id @default(cuid())
+  orgId     String
+  unitId    String?
+  ownerId   String?
+  name      String
+  mime      String
+  size      Int
+  url       String
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, unitId, ownerId])
+}
+
+model OrgSettings {
+  id    String @id @default(cuid())
+  orgId String
+  key   String
+  value Json
+
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+
+  @@unique([orgId, key])
+  @@index([orgId, key])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  orgId     String
+  actorId   String?
+  action    String
+  entity    String?
+  entityId  String?
+  meta      Json?
+  ip        String?
+  createdAt DateTime @default(now())
+
+  @@index([orgId, action, createdAt])
+  @@index([entity, entityId])
 }

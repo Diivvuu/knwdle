@@ -1,10 +1,16 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { api, setAuthToken } from '@workspace/state';
+import { api, setAuthToken } from '../api';
 
+export interface MemberShipSummary {
+  org: { id: string; name: string; type: string };
+  role: string | null;
+}
 export interface User {
   id: string;
   email: string;
   name?: string;
+  image?: string;
+  memberships?: MemberShipSummary[];
 }
 
 export type AuthState = {
@@ -69,6 +75,11 @@ export const logout = createAsyncThunk('auth/logout', async () => {
   return {};
 });
 
+export const getMe = createAsyncThunk('auth/getMe', async () => {
+  const res = await api.get('/auth/me');
+  return res.data as User;
+});
+
 const authSlice = createSlice({
   name: 'auth',
   initialState,
@@ -88,6 +99,9 @@ const authSlice = createSlice({
     b.addCase(logout.fulfilled, (s) => {
       s.accessToken = null;
       s.user = null;
+    });
+    b.addCase(getMe.fulfilled, (s, a) => {
+      s.user = s.user ? { ...s.user, ...a.payload } : a.payload;
     });
   },
 });

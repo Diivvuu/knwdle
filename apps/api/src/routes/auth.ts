@@ -6,6 +6,8 @@ import { signAccess, signRefresh, verifyRefresh } from '../lib/jwt';
 import { PrismaClient } from '../generated/prisma';
 import { sendMail, wrapHtml } from '../lib/mailer';
 import { MailTemplates } from '../lib/mail-templates';
+import { sessionCookieOptions } from '../lib/cookies';
+import { requireAuth } from '../middleware/auth';
 
 const prisma = new PrismaClient();
 const r = Router();
@@ -14,9 +16,6 @@ const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
 const secure = process.env.NODE_ENV === 'production';
 
-/**
- * Utils
- */
 function generateToken(len = 32) {
   return crypto.randomBytes(len).toString('hex');
 }
@@ -25,9 +24,7 @@ function generateOtp() {
   return Math.floor(100000 + Math.random() * 900000).toString(); // 6-digit
 }
 
-/**
- * ----------------- Signup -----------------
- */
+/*----------------- Signup -----------------*/
 const SignupBody = z.object({
   email: z.string().email(),
   password: z.string().min(6),
@@ -64,7 +61,7 @@ r.post('/signup', async (req, res) => {
       });
     }
 
-    const verifyLink = `${process.env.APP_URL}/auth/verify?token=${v.token}`;
+    const verifyLink = `${process.env.APP_ORIGIN}/auth/verify?token=${v.token}`;
     const t = MailTemplates.verifyEmail(verifyLink);
     await sendMail(
       email,
@@ -93,7 +90,7 @@ r.post('/signup', async (req, res) => {
     },
   });
 
-  const verifyLink = `${process.env.APP_URL}/auth/verify?token=${token}`;
+  const verifyLink = `${process.env.APP_ORIGIN}/auth/verify?token=${token}`;
   const t = MailTemplates.verifyEmail(verifyLink);
   await sendMail(
     email,
@@ -132,14 +129,7 @@ r.get('/verify', async (req, res) => {
     data: { refreshToken: refresh },
   });
 
-  res.cookie(COOKIE_NAME, refresh, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
-    domain: COOKIE_DOMAIN,
-    path: '/',
-  });
-
+  res.cookie(COOKIE_NAME, refresh, sessionCookieOptions());
   res.json({ message: 'Email verified', accessToken: access, user });
 });
 
@@ -174,13 +164,7 @@ r.post('/login', async (req, res) => {
     },
   });
 
-  res.cookie(COOKIE_NAME, refresh, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
-    domain: COOKIE_DOMAIN,
-    path: '/',
-  });
+  res.cookie(COOKIE_NAME, refresh, sessionCookieOptions());
 
   res.json({
     accessToken: access,
@@ -252,13 +236,7 @@ r.post('/verify-otp', async (req, res) => {
     data: { refreshToken: refresh },
   });
 
-  res.cookie(COOKIE_NAME, refresh, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
-    domain: COOKIE_DOMAIN,
-    path: '/',
-  });
+  res.cookie(COOKIE_NAME, refresh, sessionCookieOptions());
 
   res.json({ message: 'OTP login success', accessToken: access, user });
 });
@@ -286,28 +264,34 @@ r.post('/refresh', async (req, res) => {
     data: { refreshToken: newRefresh },
   });
 
-  res.cookie(COOKIE_NAME, newRefresh, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
-    domain: COOKIE_DOMAIN,
-    path: '/',
-  });
-
+  res.cookie(COOKIE_NAME, newRefresh, sessionCookieOptions());
   res.json({ accessToken: newAccess });
 });
 
 //logout
 
 r.post('/logout', async (req, res) => {
-  res.clearCookie(COOKIE_NAME, {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure,
-    domain: COOKIE_DOMAIN,
-    path: '/',
-  });
+  res.clearCookie(COOKIE_NAME, sessionCookieOptions());
   res.sendStatus(204);
+});
+
+r.get('/me', requireAuth, async (req, res) => {
+  const userId = req.user!.id;
+  const user = await prisma.user.findUnique({
+    where: { id: userId },
+    select: {
+      id: true,
+      email: true,
+      name: true,
+      memberships: {
+        select: {
+          org: { select: { id: true, name: true, type: true } },
+          role: true,
+        },
+      },
+    },
+  });
+  res.json(user);
 });
 
 export default r;

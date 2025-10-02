@@ -3,6 +3,8 @@ import express from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import authRoutes from './routes/auth';
+import orgTypeRoutes from './routes/org-types';
+import orgRoutes from './routes/org';
 
 const app = express();
 const PORT = Number(process.env.API_PORT || 4000);
@@ -33,5 +35,8 @@ app.use(
 
 app.get('/health', (_req, res) => res.json({ ok: true }));
 app.use('/auth', authRoutes);
+app.use('/dashboard', orgRoutes);
+app.use('/api', orgTypeRoutes);
+// app.use('/api', orgTypeRoutes);
 
 app.listen(PORT, () => console.log(`AP running at http://localhost:${PORT}`));

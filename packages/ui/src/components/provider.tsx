@@ -7,7 +7,7 @@ export function Providers({ children }: { children: React.ReactNode }) {
   return (
     <NextThemesProvider
       attribute="class"
-      defaultTheme="light" // 👈 matches <html className="light">
+      defaultTheme="system" // 👈 matches <html className="light">
       enableSystem // you can keep this on
       disableTransitionOnChange
       enableColorScheme // client will set color-scheme; we pre-set style on server

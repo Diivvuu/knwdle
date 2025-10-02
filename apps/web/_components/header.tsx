@@ -5,6 +5,37 @@ import { motion } from 'framer-motion';
 import Image from 'next/image';
 import Link from 'next/link';
 import './header.css';
+import {
+  LayoutDashboard,
+  Settings,
+  LogOut,
+  User as UserIcon,
+} from 'lucide-react';
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuLabel,
+} from '@workspace/ui/components/dropdown-menu';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@workspace/ui/components/avatar';
+import { Button } from '@workspace/ui/components/button';
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+  SheetTrigger,
+  SheetClose,
+} from '@workspace/ui/components/sheet';
+import { Separator } from '@workspace/ui/components/separator';
+import { useSelector } from 'react-redux';
+import { RootState } from '@/store/store';
 
 const navLinks = [
   { name: 'Features', href: '#features' },
@@ -13,15 +44,23 @@ const navLinks = [
   { name: 'Contact', href: '#contact' },
 ];
 
+function useMounted() {
+  const [m, setM] = useState(false);
+  useEffect(() => setM(true), []);
+  return m;
+}
+
 export default function Header() {
+  const mounted = useMounted();
   const [scrolled, setScrolled] = useState(false);
-  const [open, setOpen] = useState(false);
   const ref = useRef<HTMLElement>(null);
+  const { user, accessToken } = useSelector((s: RootState) => s.auth);
+  const isAuthed = Boolean(user && accessToken);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
-    window.addEventListener('scroll', onScroll);
+    window.addEventListener('scroll', onScroll, { passive: true });
     return () => window.removeEventListener('scroll', onScroll);
   }, []);
 
@@ -52,28 +91,31 @@ export default function Header() {
       <div className="pointer-events-auto mx-auto max-w-7xl px-3 sm:px-6">
         <div
           className={[
-            'mt-4 sm:mt-5 flex items-center justify-between rounded-2xl',
-            'glass glass-pop', // <— Vista glass helper
+            'mt-4 sm:mt-5 flex h-16 min-h-16 items-center justify-between rounded-2xl px-2 sm:px-3',
+            'glass glass-pop', // Vista glass helper
             scrolled ? 'glass-strong' : '',
           ].join(' ')}
         >
-          {/* add a very soft aura glow behind the shell */}
+          {/* aura glow behind the shell (no layout impact) */}
           <div
             aria-hidden
-            className="absolute -z-10 inset-0 rounded-2xl
-      shadow-[0_0_0_1px_rgba(255,255,255,0.25)]
-      before:content-[''] before:absolute before:inset-[-20%] before:rounded-[28px]
-      before:bg-[radial-gradient(50%_40%_at_50%_0%,rgba(255,255,255,0.45),transparent_60%)]
-      before:opacity-60
-      after:content-[''] after:absolute after:inset-[-25%] after:rounded-[32px]
-      after:bg-[radial-gradient(60%_60%_at_50%_120%,rgba(16,185,129,0.14),transparent_70%)]
-      after:opacity-60
-    "
+            className="absolute -z-10 inset-0 rounded-2xl shadow-[0_0_0_1px_rgba(255,255,255,0.25)]
+              before:content-[''] before:absolute before:inset-[-20%] before:rounded-[28px]
+              before:bg-[radial-gradient(50%_40%_at_50%_0%,rgba(255,255,255,0.45),transparent_60%)] before:opacity-60
+              after:content-[''] after:absolute after:inset-[-25%] after:rounded-[32px]
+              after:bg-[radial-gradient(60%_60%_at_50%_120%,rgba(16,185,129,0.14),transparent_70%)] after:opacity-60"
           />
-          {/* Left: Logo */}
-          <Link href="/" className="flex items-center gap-2 pl-3 sm:pl-4">
-            <span className="relative block h-20 w-20">
-              <Image src="/knwdle.svg" alt="Knwdle" fill priority />
+
+          {/* Left: Logo (slightly larger, fixed box to avoid shift) */}
+          <Link href="/" className="flex items-center gap-2 pl-1 sm:pl-2">
+            <span className="relative block h-16 w-16 md:h-20 md:w-20">
+              <Image
+                src="/knwdle.svg"
+                alt="Knwdle"
+                fill
+                priority
+                className="object-contain"
+              />
             </span>
           </Link>
 
@@ -83,96 +125,255 @@ export default function Header() {
               <Link
                 key={l.name}
                 href={l.href}
-                className="group relative font-medium text-foreground/70 hover:text-foreground transition"
+                className="group relative font-medium text-foreground/70 hover:text-foreground transition-colors"
               >
                 {l.name}
-                <span className="pointer-events-none absolute left-0 -bottom-1 h-[1px] w-0 bg-[hsla(149,97%,14%,1)] transition-all duration-300 group-hover:w-full" />
+                <span className="pointer-events-none absolute left-0 -bottom-1 h-px w-0 bg-[hsla(149,97%,14%,1)] transition-all duration-300 group-hover:w-full" />
               </Link>
             ))}
           </nav>
 
-          {/* Right: CTAs / Burger */}
-          <div className="flex items-center gap-2 pr-2 sm:pr-3">
-            <Link
-              href="/auth"
-              className="hidden sm:inline-block text-sm font-medium text-foreground/70 hover:text-foreground transition"
-            >
-              Login
-            </Link>
-            <Link
-              href="#get-started"
-              className="hidden md:inline-block px-3 py-1.5 rounded-md bg-[hsla(149,97%,14%,0.92)] text-white text-sm font-medium hover:bg-[hsla(149,97%,14%,1)] transition"
-            >
-              Get&nbsp;Started
-            </Link>
+          {/* Right: desktop actions + mobile hamburger (no role switcher) */}
+          <div className="flex items-center gap-1 pr-1 sm:pr-2">
+            {/* Desktop (auth-aware) */}
+            {!mounted ? (
+              <>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                >
+                  <Link href="/auth">Login</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className="hidden md:inline-flex bg-[hsla(149,97%,14%,0.96)] hover:bg-[hsla(149,97%,14%,1)] text-white"
+                >
+                  <Link href="#get-started">Get&nbsp;Started</Link>
+                </Button>
+              </>
+            ) : isAuthed ? (
+              <>
+                {/* Dashboard icon button */}
+                <Button
+                  asChild
+                  variant="outline"
+                  size="icon"
+                  className="hidden md:inline-flex"
+                >
+                  <Link href="/dashboard" aria-label="Dashboard">
+                    <LayoutDashboard className="h-4 w-4" />
+                  </Link>
+                </Button>
 
-            {/* Mobile burger */}
-            <button
-              aria-label="Menu"
-              onClick={() => setOpen((v) => !v)}
-              className="md:hidden inline-flex items-center justify-center h-9 w-9 rounded-lg hover:bg-black/5 dark:hover:bg-white/10 transition"
-            >
-              {/* simple burger/cross */}
-              <div className="relative h-4 w-5">
-                <span
-                  className={`absolute inset-x-0 top-0 h-0.5 bg-current transition-transform ${
-                    open ? 'translate-y-2 rotate-45' : ''
-                  }`}
-                />
-                <span
-                  className={`absolute inset-x-0 top-2 h-0.5 bg-current transition-opacity ${
-                    open ? 'opacity-0' : 'opacity-100'
-                  }`}
-                />
-                <span
-                  className={`absolute inset-x-0 top-4 h-0.5 bg-current transition-transform ${
-                    open ? '-translate-y-2 -rotate-45' : ''
-                  }`}
-                />
-              </div>
-            </button>
+                {/* Avatar dropdown */}
+                <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      className="h-9 w-9 rounded-full p-0"
+                      aria-label="Account menu"
+                    >
+                      <Avatar className="h-8 w-8">
+                        {user?.image && (
+                          <AvatarImage
+                            src={user?.image || ''}
+                            alt={user?.name || user?.email || 'User'}
+                          />
+                        )}
+                        <AvatarFallback className="text-[11px]">
+                          {(user?.name || user?.email || 'U')
+                            .slice(0, 2)
+                            .toUpperCase()}
+                        </AvatarFallback>
+                      </Avatar>
+                    </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent align="end" className="w-64">
+                    <DropdownMenuLabel>
+                      <div className="flex items-center gap-3">
+                        <Avatar className="h-9 w-9">
+                          <AvatarImage
+                            src={user?.image || ''}
+                            alt={user?.name || user?.email || 'User'}
+                          />
+                          <AvatarFallback className="text-[11px]">
+                            {(user?.name || user?.email || 'U')
+                              .slice(0, 2)
+                              .toUpperCase()}
+                          </AvatarFallback>
+                        </Avatar>
+                        <div className="min-w-0">
+                          <div className="truncate text-sm font-medium">
+                            {user?.name || 'User'}
+                          </div>
+                          <div className="truncate text-xs text-muted-foreground">
+                            {user?.email}
+                          </div>
+                        </div>
+                      </div>
+                    </DropdownMenuLabel>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem asChild>
+                      <Link
+                        href="/settings"
+                        className="flex items-center gap-2"
+                      >
+                        <Settings className="h-4 w-4" />
+                        Settings
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuSeparator />
+                    <DropdownMenuItem
+                      onClick={() => {
+                        // onSignOut?.();
+                      }}
+                      className="text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                    >
+                      <LogOut className="mr-2 h-4 w-4" />
+                      Sign out
+                    </DropdownMenuItem>
+                  </DropdownMenuContent>
+                </DropdownMenu>
+              </>
+            ) : (
+              <>
+                <Button
+                  asChild
+                  variant="ghost"
+                  size="sm"
+                  className="hidden sm:inline-flex"
+                >
+                  <Link href="/auth">Login</Link>
+                </Button>
+                <Button
+                  asChild
+                  size="sm"
+                  className="hidden md:inline-flex bg-[hsla(149,97%,14%,0.96)] hover:bg-[hsla(149,97%,14%,1)] text-white"
+                >
+                  <Link href="#get-started">Get&nbsp;Started</Link>
+                </Button>
+              </>
+            )}
+
+            {/* Mobile: Sheet hamburger menu */}
+            <Sheet>
+              <SheetTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="md:hidden h-9 w-9 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
+                  aria-label="Open menu"
+                >
+                  {/* hamburger icon */}
+                  <span className="relative block h-4 w-5">
+                    <span className="absolute inset-x-0 top-0 h-0.5 bg-current" />
+                    <span className="absolute inset-x-0 top-2 h-0.5 bg-current" />
+                    <span className="absolute inset-x-0 top-4 h-0.5 bg-current" />
+                  </span>
+                </Button>
+              </SheetTrigger>
+              <SheetContent side="right" className="w-full max-w-sm p-0">
+                <SheetHeader className="border-b px-5">
+                  <SheetTitle className="flex items-center gap-3">
+                    <span className="relative h-8 w-full flex justify-start">
+                      <Image
+                        src="/knwdle.svg"
+                        alt="Knwdle"
+                        fill
+                        className="object-contain object-left"
+                      />
+                    </span>
+                  </SheetTitle>
+                </SheetHeader>
+                <div className="flex h-full flex-col gap-4 p-5">
+                  <nav className="space-y-2">
+                    {navLinks.map((l) => (
+                      <SheetClose asChild key={l.name}>
+                        <Link
+                          href={l.href}
+                          className="block rounded-lg px-4 py-3 text-[15px] text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10"
+                        >
+                          {l.name}
+                        </Link>
+                      </SheetClose>
+                    ))}
+                  </nav>
+                  <Separator />
+                  <div className="mt-auto space-y-3">
+                    {!isAuthed ? (
+                      <div className="grid grid-cols-2 gap-3">
+                        <SheetClose asChild>
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="lg"
+                            className="w-full"
+                          >
+                            <Link href="/auth">Login</Link>
+                          </Button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Button
+                            asChild
+                            size="lg"
+                            className="w-full bg-[hsla(149,97%,14%,0.96)] hover:bg-[hsla(149,97%,14%,1)] text-white"
+                          >
+                            <Link href="#get-started">Get Started</Link>
+                          </Button>
+                        </SheetClose>
+                      </div>
+                    ) : (
+                      <>
+                        <SheetClose asChild>
+                          <Button
+                            asChild
+                            variant="outline"
+                            size="lg"
+                            className="w-full justify-start"
+                          >
+                            <Link href="/dashboard">
+                              <LayoutDashboard className="mr-3 h-5 w-5" />{' '}
+                              Dashboard
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                        <SheetClose asChild>
+                          <Button
+                            asChild
+                            variant="ghost"
+                            size="lg"
+                            className="w-full justify-start"
+                          >
+                            <Link href="/settings">
+                              <Settings className="mr-3 h-5 w-5" /> Settings
+                            </Link>
+                          </Button>
+                        </SheetClose>
+                        <Button
+                          variant="ghost"
+                          size="lg"
+                          className="w-full justify-start text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                          onClick={() => {
+                            // onSignOut?.();
+                          }}
+                        >
+                          <LogOut className="mr-3 h-5 w-5" /> Sign Out
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </SheetContent>
+            </Sheet>
           </div>
         </div>
       </div>
 
-      {/* Mobile sheet */}
-      <motion.div
-        initial={false}
-        animate={{ height: open ? 'auto' : 0, opacity: open ? 1 : 0 }}
-        className="md:hidden overflow-hidden"
-      >
-        <div className="mx-auto max-w-7xl px-3 sm:px-6">
-          <div className="mt-2 rounded-2xl sheet-glass shadow-lg">
-            <nav className="flex flex-col p-2">
-              {navLinks.map((l) => (
-                <Link
-                  key={l.name}
-                  href={l.href}
-                  onClick={() => setOpen(false)}
-                  className="rounded-lg px-3 py-2 text-[15px] text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10"
-                >
-                  {l.name}
-                </Link>
-              ))}
-              <div className="h-px mx-2 my-1 bg-black/5 dark:bg-white/10" />
-              <Link
-                href="/auth"
-                onClick={() => setOpen(false)}
-                className="rounded-lg px-3 py-2 text-[15px] text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10"
-              >
-                Login
-              </Link>
-              <Link
-                href="#get-started"
-                onClick={() => setOpen(false)}
-                className="mx-2 mt-2 mb-1 px-3 py-2 rounded-md bg-[hsla(149,97%,14%,0.95)] text-white text-[15px] font-medium text-center"
-              >
-                Get Started
-              </Link>
-            </nav>
-          </div>
-        </div>
-      </motion.div>
+      {/* Spacer uses --header-h elsewhere if needed */}
     </motion.header>
   );
 }

@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '@/redux/store';
+import type { AppDispatch, RootState } from '@/store/store';
 import { useRouter, useSearchParams } from 'next/navigation';
 
 import {
@@ -21,13 +21,13 @@ import { Label } from '@workspace/ui/components/label';
 import { z } from 'zod';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
-import { login, signup } from '@/redux/slices/auth';
+import { login, signup, requestOtp, verifyOtp } from '@workspace/state';
 import AuthShell from './auth-shell';
 import ErrorBanner from './error-banner';
 import EmailField from './email-field';
 import PasswordField from './password-field';
 import OrDivider from './or-divider';
-import SSOButtons from './sso-buttons';
+// import SSOButtons from './sso-buttons';
 import Image from 'next/image';
 
 const LoginSchema = z.object({
@@ -46,14 +46,14 @@ export default function AuthScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get('redirect') || '/';
+
   const dispatch = useDispatch<AppDispatch>();
   const { user, status, error, accessToken } = useSelector(
     (s: RootState) => s.auth
   );
 
-  const [tab, setTab] = useState<'login' | 'signup'>(
-    (params.get('mode') as 'login' | 'signup') || 'login'
-  );
+  const initialMode = (params.get('mode') as 'login' | 'signup') || 'login';
+  const [tab, setTab] = useState<'login' | 'signup'>(initialMode);
 
   const isLoading = status === 'loading';
 
@@ -79,6 +79,11 @@ export default function AuthScreen() {
     mode: 'onBlur',
   });
 
+  // OTP local state
+  const [otpStage, setOtpStage] = useState<'idle' | 'sent'>('idle');
+  const [otpEmail, setOtpEmail] = useState('');
+  const [otpCode, setOtpCode] = useState('');
+
   const onLogin = useCallback(
     (values: LoginValues) => void dispatch(login(values)),
     [dispatch]
@@ -88,12 +93,37 @@ export default function AuthScreen() {
     [dispatch]
   );
 
+  // OTP handlers
+  const sendOtp = useCallback(async () => {
+    if (!otpEmail) return;
+    await dispatch(requestOtp({ email: otpEmail }));
+    setOtpStage('sent');
+  }, [dispatch, otpEmail]);
+
+  const confirmOtp = useCallback(async () => {
+    if (!otpEmail || !otpCode) return;
+    await dispatch(verifyOtp({ email: otpEmail, code: otpCode }));
+    // success redirect handled by effect below
+  }, [dispatch, otpEmail, otpCode]);
+
   // redirect after successful auth
   useEffect(() => {
     if (user && accessToken) router.replace(redirectTo);
   }, [user, accessToken, router, redirectTo]);
 
   const visibleError = useMemo(() => error ?? null, [error]);
+
+  // keep ?mode in sync when switching tabs
+  const onTabChange = useCallback(
+    (v: string) => {
+      const mode = (v === 'signup' ? 'signup' : 'login') as 'login' | 'signup';
+      setTab(mode);
+      const search = new URLSearchParams(params.toString());
+      search.set('mode', mode);
+      router.replace(`?${search.toString()}`, { scroll: false });
+    },
+    [params, router]
+  );
 
   // ⌘/Ctrl + Enter submits active tab
   useEffect(() => {
@@ -111,28 +141,33 @@ export default function AuthScreen() {
 
   return (
     <AuthShell>
-      <CardHeader className="pb-3">
-        {/* <CardTitle className="text-center text-2xl">Welcome</CardTitle> */}
-        <Image
-          src={'/knwdle.svg'}
-          width={100}
-          height={100}
-          alt="logo"
-          className="mx-auto"
-        />
+      <CardHeader className="pb-4">
+        <div className="mx-auto grid place-items-center gap-2">
+          <Image
+            src="/knwdle.svg"
+            width={96}
+            height={96}
+            alt="logo"
+            className="opacity-95"
+          />
+          <CardTitle className="text-lg text-muted-foreground">
+            Welcome to knwdle
+          </CardTitle>
+        </div>
       </CardHeader>
 
-      <CardContent className="pt-0">
+      <CardContent className="pt-0 rounded-xl bg-gradient-to-b from-background to-muted/30">
         {visibleError && <ErrorBanner message={visibleError} />}
 
-        <Tabs value={tab} onValueChange={(v: string) => setTab(v as any)}>
-          <TabsList className="grid grid-cols-2 w-full mb-4">
+        <Tabs value={tab} onValueChange={onTabChange}>
+          <TabsList className="mb-4 grid w-full grid-cols-2 rounded-lg">
             <TabsTrigger value="login">Log in</TabsTrigger>
             <TabsTrigger value="signup">Sign up</TabsTrigger>
           </TabsList>
 
           {/* LOGIN */}
-          <TabsContent value="login" className="space-y-4">
+          <TabsContent value="login" className="space-y-5">
+            {/* Password login */}
             <form
               className="grid gap-4"
               onSubmit={submitLogin(onLogin)}
@@ -144,6 +179,7 @@ export default function AuthScreen() {
                 error={errorsLogin.email?.message}
               />
 
+              {/* Your PasswordField should render eye/eye-off toggle internally */}
               <PasswordField
                 label="Password"
                 autoComplete="current-password"
@@ -168,8 +204,68 @@ export default function AuthScreen() {
               </div>
             </form>
 
-            {/* <OrDivider /> */}
-            {/* <SSOButtons /> */}
+            <OrDivider />
+
+            {/* OTP login */}
+            <div className="grid gap-3 rounded-lg border bg-background/60 p-4">
+              <div className="grid gap-2">
+                <Label htmlFor="otp-email">Email</Label>
+                <input
+                  id="otp-email"
+                  type="email"
+                  className="h-9 rounded-md border bg-background px-3 text-sm"
+                  placeholder="you@example.com"
+                  value={otpEmail}
+                  onChange={(e) => setOtpEmail(e.target.value)}
+                />
+              </div>
+
+              {otpStage === 'sent' ? (
+                <>
+                  <div className="grid gap-2">
+                    <Label htmlFor="otp-code">OTP code</Label>
+                    <input
+                      id="otp-code"
+                      inputMode="numeric"
+                      pattern="[0-9]*"
+                      maxLength={6}
+                      className="h-9 rounded-md border bg-background px-3 text-sm tracking-widest"
+                      placeholder="• • • • • •"
+                      value={otpCode}
+                      onChange={(e) =>
+                        setOtpCode(e.target.value.replace(/\D/g, ''))
+                      }
+                    />
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={confirmOtp}
+                      disabled={isLoading || otpCode.length < 4}
+                    >
+                      {isLoading ? 'Verifying…' : 'Verify & Log in'}
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      onClick={() => {
+                        setOtpStage('idle');
+                        setOtpCode('');
+                      }}
+                    >
+                      Change email
+                    </Button>
+                  </div>
+                </>
+              ) : (
+                <div className="flex items-center gap-2">
+                  <Button onClick={sendOtp} disabled={isLoading || !otpEmail}>
+                    {isLoading ? 'Sending…' : 'Send OTP'}
+                  </Button>
+                  <Label className="text-xs text-muted-foreground">
+                    We’ll email a 6-digit code
+                  </Label>
+                </div>
+              )}
+            </div>
           </TabsContent>
 
           {/* SIGNUP */}
@@ -222,7 +318,6 @@ export default function AuthScreen() {
                 </Button>
               </div>
             </form>
-
             {/* <OrDivider />
             <SSOButtons /> */}
           </TabsContent>

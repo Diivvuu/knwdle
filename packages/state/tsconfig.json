@@ -2,14 +2,14 @@
   "compilerOptions": {
     "target": "ES2020",
     "module": "ESNext",
-    "declaration": true,
-    "declarationDir": "dist",
-    "outDir": "dist",
     "strict": true,
     "esModuleInterop": true,
     "skipLibCheck": true,
     "jsx": "react-jsx",
-    "moduleResolution": "Node"
+    "moduleResolution": "Bundler",
+    "noEmit": true, // 🔸 important: do not write dist in dev
+    "composite": false
   },
-  "include": ["src"]
+  "include": ["src", "turbo"],
+  "exclude": ["node_modules", "dist"]
 }

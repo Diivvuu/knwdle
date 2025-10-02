@@ -34,7 +34,7 @@ export const roleCopy: Record<
     headline: 'Track classes, assignments & dues in one place',
     subline:
       'See attendance, download notes, submit work, and never miss a deadline.',
-    primaryCta: { href: '/auth', label: 'Sign in as Student' },
+    primaryCta: { href: '/auth', label: 'Login' },
     secondaryCta: { href: '#features', label: 'See Features' },
     badges: ['Timetable', 'Assignments', 'Announcements', 'Results'],
     features: [
@@ -88,7 +88,7 @@ export const roleCopy: Record<
     headline: 'Stay on top of your child’s progress',
     subline:
       'Attendance, fees, announcements and results — all in a simple app.',
-    primaryCta: { href: '/auth', label: 'Parent Login' },
+    primaryCta: { href: '/auth', label: 'Login' },
     secondaryCta: { href: '#features', label: 'Explore Features' },
     badges: ['Attendance', 'Fees', 'Announcements', 'Progress'],
     features: [
@@ -133,7 +133,7 @@ export const roleCopy: Record<
     headline: 'Fast attendance, simple assignments, clear reports',
     subline:
       'Teachers and tutors manage classes with less admin and more teaching.',
-    primaryCta: { href: '/auth', label: 'Educator Login' },
+    primaryCta: { href: '/auth', label: 'Login' },
     secondaryCta: { href: '#features', label: 'See How It Works' },
     badges: ['Attendance', 'Assignments', 'Results', 'Messages'],
     features: [
@@ -183,7 +183,7 @@ export const roleCopy: Record<
   institutions: {
     headline: 'One platform for Schools & Colleges',
     subline: 'Organise units, roles, fees and academics — campus to classroom.',
-    primaryCta: { href: '/auth', label: 'Admin Login' },
+    primaryCta: { href: '/auth', label: 'Login' },
     secondaryCta: { href: '#features', label: 'View Capabilities' },
     badges: ['Org Units', 'Roles & Permissions', 'Fees', 'Attendance'],
     features: [

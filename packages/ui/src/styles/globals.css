@@ -8,39 +8,117 @@
 @custom-variant dark (&:is(.dark *));
 
 :root {
-  --background: oklch(1 0 0);
-  --foreground: oklch(0.145 0 0);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.145 0 0);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.145 0 0);
-  --primary: oklch(0.205 0 0);
-  --primary-foreground: oklch(0.985 0 0);
-  --secondary: oklch(0.97 0 0);
-  --secondary-foreground: oklch(0.205 0 0);
-  --muted: oklch(0.97 0 0);
-  --muted-foreground: oklch(0.556 0 0);
-  --accent: oklch(0.97 0 0);
-  --accent-foreground: oklch(0.205 0 0);
-  --destructive: oklch(0.577 0.245 27.325);
-  --destructive-foreground: oklch(0.577 0.245 27.325);
-  --border: oklch(0.922 0 0);
-  --input: oklch(0.922 0 0);
-  --ring: oklch(0.708 0 0);
-  --chart-1: oklch(0.646 0.222 41.116);
-  --chart-2: oklch(0.6 0.118 184.704);
-  --chart-3: oklch(0.398 0.07 227.392);
-  --chart-4: oklch(0.828 0.189 84.429);
-  --chart-5: oklch(0.769 0.188 70.08);
-  --radius: 0.625rem;
-  --sidebar: oklch(0.985 0 0);
-  --sidebar-foreground: oklch(0.145 0 0);
-  --sidebar-primary: oklch(0.205 0 0);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.97 0 0);
-  --sidebar-accent-foreground: oklch(0.205 0 0);
-  --sidebar-border: oklch(0.922 0 0);
-  --sidebar-ring: oklch(0.708 0 0);
+  /* ---------- Neutrals (foundation) ---------- */
+  --background: #f8faf9; /* app bg */
+  --foreground: #0d1b16; /* near-black with a green tint */
+  --card: #ffffff;
+  --card-foreground: #0d1b16;
+  --popover: #ffffff;
+  --popover-foreground: #0d1b16;
+  --border: #e6eae8;
+  --input: #e6eae8;
+  --ring: #105417; /* brand ring */
+
+  /* ---------- Brand & UI Roles ---------- */
+  --primary: #105417; /* Royal Green (brand) */
+  --primary-foreground: #ffffff;
+
+  --secondary: #5ca6c3; /* Carolina Blue (visible secondary) */
+  --secondary-foreground: #06262f;
+
+  --accent: #c0de7b; /* Yellow-Green (sparingly for highlights) */
+  --accent-foreground: #102a0f;
+
+  --muted: #f0f3f2; /* neutral muted bg */
+  --muted-foreground: #5d6a65;
+
+  --destructive: #d24b4b; /* enterprise red */
+  --destructive-foreground: #ffffff;
+
+  /* ---------- Status (semantics) ---------- */
+  --success: #1b7f3a; /* success (deeper green than brand) */
+  --success-foreground: #ffffff;
+  --warning: #e5a700; /* amber */
+  --warning-foreground: #231a00;
+  --info: #5ca6c3; /* align info with secondary */
+  --info-foreground: #06262f;
+
+  /* ---------- Charts (distinct, colorblind-friendly-ish) ---------- */
+  --chart-1: #105417; /* royal green */
+  --chart-2: #5ca6c3; /* carolina blue */
+  --chart-3: #ff8a3d; /* orange (adds warmth for contrast) */
+  --chart-4: #7a5af8; /* indigo-violet for variety */
+  --chart-5: #c0de7b; /* yellow-green */
+
+  --radius: 10px;
+
+  /* ---------- Sidebar ---------- */
+  --sidebar: #ffffff;
+  --sidebar-foreground: #11382b;
+  --sidebar-primary: #105417;
+  --sidebar-primary-foreground: #ffffff;
+  --sidebar-accent: #eff6f8; /* blue-tinted neutral */
+  --sidebar-accent-foreground: #16424d;
+  --sidebar-border: #e6eae8;
+  --sidebar-ring: #105417;
+}
+
+.dark {
+  /* ---------- Neutrals (foundation) ---------- */
+  --background: #111a16; /* +3% lighter than before */
+  --foreground: #e6f1ec;
+
+  /* surfaces */
+  --card: #14211c; /* readable against background */
+  --card-foreground: #e6f1ec;
+  --popover: #14211c;
+  --popover-foreground: #e6f1ec;
+
+  /* separators / inputs */
+  --border: #25342e; /* a step brighter */
+  --input: #22322b;
+  --ring: #c0de7b; /* bright ring in dark */
+
+  /* ---------- Brand & UI Roles ---------- */
+  --primary: #c0de7b; /* flip: bright brand pop in dark */
+  --primary-foreground: #142214;
+
+  --secondary: #6fb4cf; /* + clarity for text/icons on muted */
+  --secondary-foreground: #08171c;
+
+  --accent: #105417; /* deep green accent blocks */
+  --accent-foreground: #eaf5ea;
+
+  --muted: #192821; /* lighter muted panels */
+  --muted-foreground: #a6b9b1;
+
+  --destructive: #e35c5c;
+  --destructive-foreground: #170202;
+
+  /* ---------- Status ---------- */
+  --success: #1fa04a;
+  --success-foreground: #07150d;
+  --warning: #f1c232;
+  --warning-foreground: #1c1400;
+  --info: #86c9df;
+  --info-foreground: #06141a;
+
+  /* ---------- Charts ---------- */
+  --chart-1: #c0de7b;
+  --chart-2: #7ac0d9;
+  --chart-3: #ff9a57;
+  --chart-4: #9a84ff;
+  --chart-5: #3b8e63;
+
+  /* ---------- Sidebar ---------- */
+  --sidebar: #12221b;
+  --sidebar-foreground: #e9f3ef;
+  --sidebar-primary: #c0de7b;
+  --sidebar-primary-foreground: #0e1a0e;
+  --sidebar-accent: #152820;
+  --sidebar-accent-foreground: #c6d9d2;
+  --sidebar-border: #25342e;
+  --sidebar-ring: #c0de7b;
 }
 
 /* ---------- Theme overrides you can toggle by adding the class to root ---------- */
@@ -72,41 +150,6 @@
   --sidebar-primary-foreground: oklch(0.02 0.01 80);
   --accent: oklch(0.33 0.12 120);
   --accent-foreground: oklch(0.99 0 0);
-}
-
-.dark {
-  --background: oklch(0.145 0 0);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.145 0 0);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.145 0 0);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.985 0 0);
-  --primary-foreground: oklch(0.205 0 0);
-  --secondary: oklch(0.269 0 0);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.269 0 0);
-  --muted-foreground: oklch(0.708 0 0);
-  --accent: oklch(0.269 0 0);
-  --accent-foreground: oklch(0.985 0 0);
-  --destructive: oklch(0.396 0.141 25.723);
-  --destructive-foreground: oklch(0.637 0.237 25.331);
-  --border: oklch(0.269 0 0);
-  --input: oklch(0.269 0 0);
-  --ring: oklch(0.556 0 0);
-  --chart-1: oklch(0.488 0.243 264.376);
-  --chart-2: oklch(0.696 0.17 162.48);
-  --chart-3: oklch(0.769 0.188 70.08);
-  --chart-4: oklch(0.627 0.265 303.9);
-  --chart-5: oklch(0.645 0.246 16.439);
-  --sidebar: oklch(0.205 0 0);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.269 0 0);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(0.269 0 0);
-  --sidebar-ring: oklch(0.439 0 0);
 }
 
 @theme inline {
@@ -162,4 +205,35 @@
   .text-balance {
     text-wrap: balance;
   }
+
+  .elev-1 {
+    box-shadow:
+      0 1px 0 0 hsl(var(--border) / 0.8),
+      0 8px 24px -12px rgba(0, 0, 0, 0.35);
+  }
+  .elev-2 {
+    box-shadow:
+      0 1px 0 0 hsl(var(--border) / 0.9),
+      0 12px 30px -12px rgba(0, 0, 0, 0.45);
+  }
+}
+
+/* Hide scrollbars globally */
+
+/* Chrome, Safari, Edge */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Firefox */
+* {
+  scrollbar-width: none; /* hides scrollbar */
+  -ms-overflow-style: none; /* IE/Edge legacy */
+}
+
+/* Make sure content still scrolls */
+html,
+body {
+  overflow: auto;
 }
