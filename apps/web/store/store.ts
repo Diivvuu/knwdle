@@ -10,12 +10,16 @@ import {
   REGISTER,
 } from 'redux-persist';
 import storage from 'redux-persist/lib/storage';
-import { authReducer, orgReducer, orgTypeReducer } from '@workspace/state';
+import {
+  authReducer,
+  orgDashboardReducer,
+  orgTypeReducer,
+} from '@workspace/state';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   orgType: orgTypeReducer,
-  org: orgReducer,
+  org: orgDashboardReducer,
 });
 
 const persistConfig = {

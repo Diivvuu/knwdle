@@ -45,7 +45,7 @@ type SignupValues = z.infer<typeof SignupSchema>;
 export default function AuthScreen() {
   const router = useRouter();
   const params = useSearchParams();
-  const redirectTo = params.get('redirect') || '/';
+  const redirectTo = params.get('redirect') || '/dashboard';
 
   const dispatch = useDispatch<AppDispatch>();
   const { user, status, error, accessToken } = useSelector(

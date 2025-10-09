@@ -41,6 +41,7 @@ import {
   Search,
 } from 'lucide-react';
 import { OrgCard } from '@workspace/ui/components/mega-dashboard/org-card';
+import { ADMIN_BASE } from '@/lib/env';
 
 // If you exported this from @workspace/ui/dashboard, feel free to swap:
 // import { OrgCard } from '@workspace/ui/dashboard'
@@ -318,7 +319,11 @@ export function DashboardScreen() {
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {filteredItems.map((org: any) => (
-              <Link key={org.id} href={`/org/${org.id}`} className="block">
+              <Link
+                key={org.id}
+                href={`${ADMIN_BASE}/org/${org.id}`}
+                className="block"
+              >
                 <motion.div
                   whileHover={{
                     y: -2,

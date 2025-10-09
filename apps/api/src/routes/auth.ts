@@ -1,12 +1,15 @@
 import { Router } from 'express';
-import { date, z } from 'zod';
+import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-import { signAccess, signRefresh, verifyRefresh } from '../lib/jwt';
+
 import { PrismaClient } from '../generated/prisma';
+
+import { signAccess, signRefresh, verifyRefresh } from '../lib/jwt';
 import { sendMail, wrapHtml } from '../lib/mailer';
 import { MailTemplates } from '../lib/mail-templates';
 import { sessionCookieOptions } from '../lib/cookies';
+
 import { requireAuth } from '../middleware/auth';
 
 const prisma = new PrismaClient();
@@ -61,7 +64,7 @@ r.post('/signup', async (req, res) => {
       });
     }
 
-    const verifyLink = `${process.env.APP_ORIGIN}/auth/verify?token=${v.token}`;
+    const verifyLink = `${process.env.AUTH_ORIGIN}/auth/verify?token=${v.token}`;
     const t = MailTemplates.verifyEmail(verifyLink);
     await sendMail(
       email,
@@ -90,7 +93,7 @@ r.post('/signup', async (req, res) => {
     },
   });
 
-  const verifyLink = `${process.env.APP_ORIGIN}/auth/verify?token=${token}`;
+  const verifyLink = `${process.env.AUTH_ORIGIN}/auth/verify?token=${token}`;
   const t = MailTemplates.verifyEmail(verifyLink);
   await sendMail(
     email,
@@ -292,6 +295,38 @@ r.get('/me', requireAuth, async (req, res) => {
     },
   });
   res.json(user);
+});
+
+r.get('/invites/:token/preview', async (req, res) => {
+  const { token } = req.params;
+
+  const inv = await prisma.invite.findUnique({
+    where: { token },
+    select: {
+      orgId: true,
+      unitId: true,
+      email: true,
+      role: true,
+      roleId: true,
+      expiresAt: true,
+      org: { select: { name: true } },
+      unit: { select: { name: true } },
+      roleRef: { select: { name: true, parentRole: true } },
+    },
+  });
+
+  if (!inv) return res.status(404).json({ error: 'Invite not found' });
+  if (inv.expiresAt < new Date())
+    return res.status(410).json({ error: 'Invite Expired' });
+
+  res.json({
+    orgId: inv.orgId,
+    orgName: inv.org?.name ?? 'Organisation',
+    unitName: inv.unit?.name ?? null,
+    invitedEmail: inv.roleRef?.parentRole ?? inv.role,
+    roleName: inv.roleRef?.name ?? null,
+    expiresAt: inv.expiresAt.toISOString(),
+  });
 });
 
 export default r;

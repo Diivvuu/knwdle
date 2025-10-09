@@ -1,5 +1,12 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
-import { authReducer } from '@workspace/state';
+import {
+  authReducer,
+  invitesReducer,
+  orgDashboardReducer,
+  orgReducer,
+  orgTypeReducer,
+  rolesReducer,
+} from '@workspace/state';
 import {
   persistStore,
   persistReducer,
@@ -14,6 +21,11 @@ import storage from 'redux-persist/lib/storage';
 
 const rootReducer = combineReducers({
   auth: authReducer,
+  orgType: orgTypeReducer,
+  org: orgDashboardReducer,
+  orgAdmin: orgReducer,
+  roles: rolesReducer,
+  invites: invitesReducer,
 });
 
 const persistConfig = {

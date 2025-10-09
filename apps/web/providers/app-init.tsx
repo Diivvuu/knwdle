@@ -16,11 +16,11 @@ export default function AppInit() {
 
     (async () => {
       // If in-memory token is empty (reload/HMR), try one refresh first.
-      if (!accessToken) {
-        try {
-          await dispatch(refreshSession()).unwrap();
-        } catch {}
-      }
+      // if (!accessToken) {
+      try {
+        await dispatch(refreshSession()).unwrap();
+      } catch {}
+      // }
       // Then fetch profile (interceptor still protects with refresh-on-401).
       try {
         await dispatch(getMe()).unwrap();

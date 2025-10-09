@@ -150,19 +150,26 @@ enum ParentRole {
 }
 
 model OrgMembership {
-  id     String     @id @default(cuid())
-  orgId  String
-  userId String
-  role   ParentRole
-  unitId String?
+  id        String     @id @default(cuid())
+  orgId     String
+  userId    String
+  role      ParentRole
+  unitId    String?
+  createdAt DateTime   @default(now())
 
-  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  user User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  unit OrgUnit?     @relation(fields: [unitId], references: [id])
+  roleId       String?
+  customerRole Role?        @relation("MembershipCustomRole", fields: [roleId], references: [id])
+  org          Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  unit         OrgUnit?     @relation(fields: [unitId], references: [id])
 
+  @@unique([orgId, userId, unitId], name: "orgId_userId_unitId")
   @@index([orgId, userId, role])
   @@index([userId, orgId, role, unitId])
   @@index([orgId, role])
+  @@index([orgId, createdAt])
+  @@index([orgId, unitId, createdAt])
+  @@index([orgId, role, createdAt])
 }
 
 model Role {
@@ -176,6 +183,9 @@ model Role {
 
   org         Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
   permissions RolePermission[]
+
+  memberships OrgMembership[] @relation("MembershipCustomRole")
+  Invite      Invite[]
 
   @@unique([orgId, key])
 }
@@ -240,8 +250,13 @@ model Invite {
   createdAt  DateTime   @default(now())
   meta       Json?
 
-  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  unit OrgUnit?     @relation(fields: [unitId], references: [id])
+  roleId  String?
+  roleRef Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  unit    OrgUnit?     @relation(fields: [unitId], references: [id])
+
+  @@index([orgId, createdAt])
+  @@index([orgId, expiresAt])
 }
 
 // academics
