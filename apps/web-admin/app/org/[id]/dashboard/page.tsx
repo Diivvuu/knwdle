@@ -18,12 +18,12 @@ function Page() {
   const params = useParams();
   const orgId = (params?.id as string) || '';
 
-  const { basic, summary, units, refresh } = useAdminOrg(orgId);
+  // const { basic, summary, refresh } = useAdminOrg(orgId);
   const members = useOrgMembers({ orgId, limit: 10 });
 
   return (
     <DashboardShell>
-      <OrgHero
+      {/* <OrgHero
         orgId={orgId}
         basic={basic}
         onRefresh={() => {
@@ -31,23 +31,23 @@ function Page() {
           refresh.summary();
           refresh.units();
         }}
-      />
-      <KpiDeck summary={summary} />
+      /> */}
+      {/* <KpiDeck summary={summary} /> */}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         <div className="lg:col-span-7 space-y-6">
-          <UnitsSnapshot orgId={orgId} units={units} />
-          <FinanceSnapshot orgId={orgId} />
-          <AttendanceSnapshot orgId={orgId} />
+          {/* <UnitsSnapshot orgId={orgId} units={units} /> */}
+          {/* <FinanceSnapshot orgId={orgId} /> */}
+          {/* <AttendanceSnapshot orgId={orgId} /> */}
         </div>
         <div className="lg:col-span-5 space-y-6">
-          <MembersRecent orgId={orgId} members={members} />
-          <AnnouncementsList orgId={orgId} />
+          {/* <MembersRecent orgId={orgId} members={members} /> */}
+          {/* <AnnouncementsList orgId={orgId} /> */}
         </div>
       </div>
 
-      <AiInsightsRow orgId={orgId} />
-      <ShortcutsRow orgId={orgId} />
+      {/* <AiInsightsRow orgId={orgId} /> */}
+      {/* <ShortcutsRow orgId={orgId} /> */}
     </DashboardShell>
   );
 }

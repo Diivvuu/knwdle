@@ -2,8 +2,7 @@ import { Router } from 'express';
 import { z } from 'zod';
 import bcrypt from 'bcryptjs';
 import crypto from 'crypto';
-
-import { PrismaClient } from '../generated/prisma';
+import { prisma } from '../lib/prisma';
 
 import { signAccess, signRefresh, verifyRefresh } from '../lib/jwt';
 import { sendMail, wrapHtml } from '../lib/mailer';
@@ -12,7 +11,6 @@ import { sessionCookieOptions } from '../lib/cookies';
 
 import { requireAuth } from '../middleware/auth';
 
-const prisma = new PrismaClient();
 const r = Router();
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
@@ -110,9 +108,7 @@ r.get('/verify', async (req, res) => {
 
   const v = await prisma.verificationToken.findUnique({ where: { token } });
   if (!v || v.expiresAt < new Date())
-    return res
-      .status(400)
-      .json({ error: `Invalid/expired token, ${v?.token}` });
+    return res.status(400).json({ error: `Invalid/expired token` });
 
   const user = await prisma.user.update({
     where: { id: v.userId },
@@ -143,6 +139,7 @@ const LoginBody = z.object({
 
 r.post('/login', async (req, res) => {
   const p = LoginBody.safeParse(req.body);
+  console.log('all good', p);
   if (!p.success) return res.status(400).json({ error: 'Invalid body' });
   const { email, password } = p.data;
 
@@ -272,10 +269,19 @@ r.post('/refresh', async (req, res) => {
 });
 
 //logout
-
 r.post('/logout', async (req, res) => {
-  res.clearCookie(COOKIE_NAME, sessionCookieOptions());
-  res.sendStatus(204);
+  try {
+    const token = req.cookies?.[COOKIE_NAME];
+    if (token) {
+      try {
+        const { jti } = verifyRefresh(token) as any;
+        await prisma.session.delete({ where: { id: jti } }).catch(() => {});
+      } catch {}
+    }
+  } finally {
+    res.clearCookie(COOKIE_NAME, sessionCookieOptions());
+    return res.sendStatus(204);
+  }
 });
 
 r.get('/me', requireAuth, async (req, res) => {
@@ -323,7 +329,8 @@ r.get('/invites/:token/preview', async (req, res) => {
     orgId: inv.orgId,
     orgName: inv.org?.name ?? 'Organisation',
     unitName: inv.unit?.name ?? null,
-    invitedEmail: inv.roleRef?.parentRole ?? inv.role,
+    invitedEmail: inv.email,
+    parentRole: inv.roleRef?.parentRole ?? inv.role,
     roleName: inv.roleRef?.name ?? null,
     expiresAt: inv.expiresAt.toISOString(),
   });

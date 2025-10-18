@@ -5,7 +5,7 @@ import Hero from '../_sections/hero';
 export default function HomePage() {
   return (
     <>
-      <Hero />
+      < Hero />
       <Features />
       {/* <Screenshots /> */}
       {/* <Testimonials /> */}

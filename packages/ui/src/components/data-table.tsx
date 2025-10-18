@@ -1,6 +1,7 @@
 'use client';
+
 import * as React from 'react';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Table,
@@ -14,10 +15,19 @@ import { Input } from '@workspace/ui/components/input';
 import { Button } from '@workspace/ui/components/button';
 import { Badge } from '@workspace/ui/components/badge';
 import { Skeleton } from '@workspace/ui/components/skeleton';
-import { ChevronDown, ChevronUp, Search, RefreshCw } from 'lucide-react';
+import { ChevronDown, ChevronUp, Search, RefreshCw, X } from 'lucide-react';
 import { cn } from '@workspace/ui/lib/utils';
+import { useReducedMotion } from 'framer-motion';
 
-/* ---------------------------------- types --------------------------------- */
+/* ----------------------------- Public types ------------------------------ */
+const CONTROL_H = 'h-9';
+const CONTROL_RADIUS = 'rounded-md';
+const CONTROL_PX = 'px-3';
+const CONTROL_TEXT = 'text-sm';
+const CONTROL_BG = 'bg-background';
+const CONTROL_INPUT = `${CONTROL_H} ${CONTROL_RADIUS} ${CONTROL_BG} ${CONTROL_PX} ${CONTROL_TEXT}`;
+const CONTROL_SELECT = `${CONTROL_H} ${CONTROL_RADIUS} ${CONTROL_BG} ${CONTROL_PX} ${CONTROL_TEXT}`;
+const CONTROL_BUTTON_OUTLINE = `${CONTROL_RADIUS}`;
 
 export type SortDir = 'asc' | 'desc';
 export type Density = 'comfortable' | 'compact';
@@ -27,11 +37,8 @@ export type Column<T> = {
   header: string | React.ReactNode;
   width?: string | number;
   align?: 'left' | 'right' | 'center';
-  // set true to allow sorting
   sortable?: boolean;
-  // returns primitive/string/number used for sorting (optional; falls back to rendered text if not provided)
   sortAccessor?: (row: T) => string | number | null | undefined;
-  // custom cell renderer
   render: (row: T) => React.ReactNode;
 };
 
@@ -42,15 +49,9 @@ export type FilterDef =
       label: string;
       options: Array<{ label: string; value: string }>;
     }
-  | {
-      type: 'text';
-      key: string;
-      label: string;
-      placeholder?: string;
-    };
+  | { type: 'text'; key: string; label: string; placeholder?: string };
 
 type ServerHandlers = {
-  // called whenever any of: page, pageSize, query, sort, filters change
   onQueryChange?: (q: {
     page: number;
     pageSize: number;
@@ -60,55 +61,53 @@ type ServerHandlers = {
   }) => void;
 };
 
-type Props<T> = {
+export type CleanTableUI = {
+  zebra?: boolean;
+  stickyHeader?: boolean;
+  rounded?: 'md' | 'lg' | 'xl' | 'none';
+  headerUppercase?: boolean;
+  compactHeader?: boolean;
+  showDensityToggle?: boolean;
+  border?: boolean;
+  showSearchButton?: boolean;
+  searchPlaceholder?: string;
+  hideSearch?: boolean;
+};
+
+export type CleanDataTableProps<T> = {
   columns: Column<T>[];
   rows: T[];
   rowKey: (r: T) => string;
 
-  /* UX / chrome */
   title?: string;
-  toolbarActions?: React.ReactNode; // right-aligned actions in toolbar
-  density?: Density;
+  toolbarActions?: React.ReactNode;
+  filters?: FilterDef[];
 
-  /* table state (controlled or uncontrolled) */
+  density?: Density;
   initialQuery?: string;
   initialSort?: { key: string; dir: SortDir } | null;
   initialFilters?: Record<string, string>;
   initialPage?: number;
   initialPageSize?: number;
 
-  // pagination display; for client mode derive it from rows; for server mode pass total from backend
   totalCount?: number;
-
-  // server mode handlers (if provided, table becomes controlled/driver)
   handlers?: ServerHandlers;
+  serverSearchMode?: 'auto' | 'manual';
 
-  // filters config
-  filters?: FilterDef[];
-
-  /* visuals */
   loading?: boolean;
   errorText?: string;
   empty?: React.ReactNode;
-
-  /* right-side per-row actions */
   rightActionsFor?: (r: T) => React.ReactNode;
-
-  /* misc */
   className?: string;
   onRefresh?: () => void;
+
+  ui?: CleanTableUI;
+
+  activeRowId?: string;
+  onRowClick?: (row: T) => void;
 };
 
-/* --------------------------------- utils ---------------------------------- */
-
-function useDebounced<T>(value: T, delay = 300) {
-  const [v, setV] = useState(value);
-  useEffect(() => {
-    const t = setTimeout(() => setV(value), delay);
-    return () => clearTimeout(t);
-  }, [value, delay]);
-  return v;
-}
+/* ------------------------------ Utilities -------------------------------- */
 
 function defaultSort<T>(
   arr: T[],
@@ -121,48 +120,64 @@ function defaultSort<T>(
     if (va == null && vb == null) return 0;
     if (va == null) return 1;
     if (vb == null) return -1;
-    if (typeof va === 'number' && typeof vb === 'number') {
-      return va - vb;
-    }
+    if (typeof va === 'number' && typeof vb === 'number') return va - vb;
     return String(va).localeCompare(String(vb));
   });
   return dir === 'asc' ? s : s.reverse();
 }
 
-/* -------------------------------- component -------------------------------- */
+/* ------------------------------ Component --------------------------------- */
 
-export default function DataTable<T>({
+export default function DataTableClean<T>({
   columns,
   rows,
   rowKey,
 
   title,
   toolbarActions,
-  density = 'comfortable',
+  filters = [],
 
+  density: densityProp = 'comfortable',
   initialQuery = '',
   initialSort = null,
   initialFilters = {},
   initialPage = 1,
-  initialPageSize = 10,
+  initialPageSize = 25,
 
   totalCount,
   handlers,
-  filters = [],
+  serverSearchMode = 'manual',
 
   loading,
   errorText,
   empty,
   rightActionsFor,
-
   className,
   onRefresh,
-}: Props<T>) {
+
+  ui,
+
+  activeRowId,
+  onRowClick,
+}: CleanDataTableProps<T>) {
+  const {
+    zebra = true,
+    stickyHeader = true,
+    rounded = 'xl',
+    headerUppercase = true,
+    compactHeader = true,
+    showDensityToggle = false,
+    border = true,
+    showSearchButton = true,
+    searchPlaceholder = 'Search…',
+  } = ui ?? {};
+
+  const prefersReduced = useReducedMotion();
   const serverMode = Boolean(handlers?.onQueryChange);
 
-  // state
   const [query, setQuery] = useState(initialQuery);
-  const debouncedQuery = useDebounced(query, 250);
+  const submittedQueryRef = useRef(initialQuery);
+  const [isSearching, setIsSearching] = useState(false);
 
   const [sort, setSort] = useState<typeof initialSort>(initialSort);
   const [page, setPage] = useState(initialPage);
@@ -170,54 +185,81 @@ export default function DataTable<T>({
   const [filterState, setFilterState] =
     useState<Record<string, string>>(initialFilters);
 
-  // announce to server
+  const [density, setDensity] = useState<Density>(densityProp);
+  useEffect(() => setDensity(densityProp), [densityProp]);
+
+  const [refreshing, setRefreshing] = useState(false);
+
+  /* ---------- server announcements ---------- */
   useEffect(() => {
     if (!serverMode) return;
+    const currentQuery =
+      serverSearchMode === 'manual' ? submittedQueryRef.current : query;
+
     handlers!.onQueryChange?.({
       page,
       pageSize,
-      query: debouncedQuery,
+      query: currentQuery,
       sort: sort ?? null,
       filters: filterState,
     });
-  }, [serverMode, handlers, page, pageSize, debouncedQuery, sort, filterState]);
+  }, [
+    serverMode,
+    handlers,
+    page,
+    pageSize,
+    sort,
+    filterState,
+    serverSearchMode === 'auto' ? query : undefined,
+  ]);
 
-  // client-mode derived data
+  function triggerSearch() {
+    setIsSearching(true);
+    submittedQueryRef.current = query.trim();
+    if (serverMode) {
+      handlers?.onQueryChange?.({
+        page,
+        pageSize,
+        query: submittedQueryRef.current,
+        sort: sort ?? null,
+        filters: filterState,
+      });
+    }
+    setTimeout(() => setIsSearching(false), 600);
+  }
+
+  function handleRefresh() {
+    setRefreshing(true);
+    onRefresh?.();
+    setTimeout(() => setRefreshing(false), 600);
+  }
+
+  /* ---------- client-mode processing ---------- */
   const processed = useMemo(() => {
     if (serverMode) return rows;
-
     let output = [...rows];
 
-    // client filters
     for (const f of filters) {
       const val = filterState[f.key];
       if (!val) continue;
-      output = output.filter((r: any) => {
-        if (f.type === 'text') {
-          return JSON.stringify(r).toLowerCase().includes(val.toLowerCase());
-        } else {
-          // select
-          return JSON.stringify(r).toLowerCase().includes(val.toLowerCase());
-        }
-      });
+      output = output.filter((r: any) =>
+        JSON.stringify(r).toLowerCase().includes(val.toLowerCase())
+      );
     }
 
-    // client search
-    const q = debouncedQuery.trim().toLowerCase();
+    const q = query.trim().toLowerCase();
     if (q) {
       output = output.filter((r) =>
         JSON.stringify(r).toLowerCase().includes(q)
       );
     }
 
-    // client sort
     if (sort) {
       const col = columns.find((c) => c.key === sort.key);
       if (col?.sortable) {
         const accessor =
           col.sortAccessor ??
           ((row: any) => {
-            // fallback: try to stringify the rendered content
             const rendered = col.render(row);
             if (typeof rendered === 'string' || typeof rendered === 'number')
               return rendered;
@@ -226,11 +268,9 @@ export default function DataTable<T>({
         output = defaultSort(output, accessor, sort.dir);
       }
     }
-
     return output;
-  }, [rows, serverMode, filters, filterState, debouncedQuery, sort, columns]);
+  }, [rows, serverMode, filters, filterState, query, sort, columns]);
 
-  // pagination (client mode compute; server mode relies on totalCount prop)
   const clientTotal = processed.length;
   const effectiveTotal = serverMode ? (totalCount ?? rows.length) : clientTotal;
 
@@ -240,7 +280,6 @@ export default function DataTable<T>({
     return processed.slice(start, start + pageSize);
   }, [processed, page, pageSize, serverMode, rows]);
 
-  // header sorting toggle
   function toggleSort(col: Column<T>) {
     if (!col.sortable) return;
     setPage(1);
@@ -252,96 +291,241 @@ export default function DataTable<T>({
   }
 
   const densityRowClass =
-    density === 'compact' ? 'h-9 text-sm' : 'h-12 text-sm md:text-[15px]';
+    density === 'compact' ? 'h-10 text-[13px]' : 'h-12 text-sm';
+  const hasActiveFilters = Object.values(filterState).some((v) => v);
 
   return (
-    <div className={cn('w-full', className)}>
+    <div
+      className={cn(
+        'w-full bg-background shadow-sm overflow-hidden',
+        rounded !== 'none' && 'rounded-xl',
+        border && 'border border-border/40',
+        className
+      )}
+    >
       {/* toolbar */}
-      <div className="mb-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+      <div
+        className={cn(
+          'flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between',
+          'border-b border-border/30 backdrop-blur-sm bg-gradient-to-r from-muted/20 via-background to-muted/30'
+        )}
+      >
         <div className="flex items-center gap-2">
-          {title ? <div className="text-base font-medium">{title}</div> : null}
+          {title ? (
+            <motion.div
+              initial={{ opacity: 0, x: -10 }}
+              animate={{ opacity: 1, x: 0 }}
+              className="text-[15px] font-semibold tracking-tight"
+            >
+              {title}
+            </motion.div>
+          ) : null}
           {errorText ? (
-            <Badge variant="destructive" className="ml-2">
-              {errorText}
-            </Badge>
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+            >
+              <Badge variant="destructive" className="ml-2">
+                {errorText}
+              </Badge>
+            </motion.div>
           ) : null}
         </div>
+
         <div className="flex flex-wrap items-center gap-2">
-          {/* filters */}
-          {filters.map((f) => {
-            if (f.type === 'select') {
-              return (
-                <select
+          {/* animated filters */}
+          <AnimatePresence mode="popLayout">
+            {filters.map((f) =>
+              f.type === 'select' ? (
+                <motion.div
                   key={f.key}
-                  className="h-9 rounded-md border bg-background px-2 text-sm"
-                  value={filterState[f.key] ?? ''}
-                  onChange={(e) =>
-                    setFilterState((s) => ({ ...s, [f.key]: e.target.value }))
-                  }
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                  className={`inline-flex items-center gap-1 ${CONTROL_H} ${CONTROL_RADIUS} border border-border/50 ${CONTROL_BG} ${CONTROL_PX} ${CONTROL_TEXT} shadow-sm hover:shadow-md transition-shadow`}
                 >
-                  <option value="">{f.label}</option>
-                  {f.options.map((o) => (
-                    <option key={o.value} value={o.value}>
-                      {o.label}
-                    </option>
-                  ))}
-                </select>
-              );
-            }
-            // text
-            return (
-              <Input
-                key={f.key}
-                placeholder={f.placeholder ?? f.label}
-                className="h-9 w-[200px]"
-                value={filterState[f.key] ?? ''}
-                onChange={(e) =>
-                  setFilterState((s) => ({ ...s, [f.key]: e.target.value }))
-                }
-              />
-            );
-          })}
+                  <span className="px-2 text-muted-foreground text-xs font-medium">
+                    {f.label}
+                  </span>
+                  <select
+                    className={`${CONTROL_H} ${CONTROL_RADIUS} bg-transparent px-2 outline-none cursor-pointer text-foreground`}
+                    value={filterState[f.key] ?? ''}
+                    onChange={(e) =>
+                      setFilterState((s) => ({ ...s, [f.key]: e.target.value }))
+                    }
+                  >
+                    <option value="">All</option>
+                    {f.options.map((o) => (
+                      <option key={o.value} value={o.value}>
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </motion.div>
+              ) : (
+                <motion.div
+                  key={f.key}
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  exit={{ opacity: 0, scale: 0.95 }}
+                  transition={{ type: 'spring', stiffness: 200, damping: 20 }}
+                  className="inline-flex items-center h-9 rounded-full border border-border/50 bg-background/70 px-3 shadow-sm hover:shadow-md transition-shadow"
+                >
+                  <span className="px-1 text-muted-foreground text-xs font-medium whitespace-nowrap">
+                    {f.label}
+                  </span>
+                  <Input
+                    placeholder={f.placeholder ?? 'Type…'}
+                    className={`h-8 w-[150px] rounded-full border-0 bg-transparent focus-visible:ring-0 placeholder:text-xs`}
+                    value={filterState[f.key] ?? ''}
+                    onChange={(e) =>
+                      setFilterState((s) => ({ ...s, [f.key]: e.target.value }))
+                    }
+                  />
+                </motion.div>
+              )
+            )}
+          </AnimatePresence>
 
-          {/* search */}
-          <div className="relative">
-            <Search className="absolute left-2 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-            <Input
-              className="pl-8 h-9 w-[220px]"
-              placeholder="Search…"
-              value={query}
-              onChange={(e) => {
-                setQuery(e.target.value);
-                setPage(1);
-              }}
-            />
-          </div>
+          {/* search input - FIXED CSS */}
+          {!ui?.hideSearch && (
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="relative flex items-center gap-2"
+            >
+              <div className="relative">
+                <Input
+                  className={cn(
+                    CONTROL_INPUT, // has px-3
+                    'pl-9', // override LEFT padding (must come after)
+                    'pr-3 w-full border border-border/50 shadow-sm',
+                    'focus-visible:shadow-md focus-visible:ring-1 focus-visible:ring-blue-500 transition-all'
+                  )}
+                  placeholder={searchPlaceholder}
+                  value={query}
+                  onChange={(e) => {
+                    setQuery(e.target.value);
+                    setPage(1);
+                  }}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      triggerSearch();
+                    }
+                  }}
+                />
+                <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground pointer-events-none" />
+              </div>
 
-          {/* refresh */}
+              {showSearchButton ? (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={triggerSearch}
+                  disabled={isSearching}
+                  className={cn(
+                    'h-9 px-3 rounded-md border border-border/50 bg-background/70 text-sm font-medium flex items-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer',
+                    isSearching && 'opacity-70'
+                  )}
+                >
+                  <motion.div
+                    animate={isSearching ? { rotate: 360 } : { rotate: 0 }}
+                    transition={{
+                      duration: 0.6,
+                      repeat: isSearching ? Infinity : 0,
+                    }}
+                  >
+                    <Search className="h-4 w-4" />
+                  </motion.div>
+                  <span className="hidden sm:inline">Search</span>
+                </motion.button>
+              ) : null}
+            </motion.div>
+          )}
+
+          {/* refresh button */}
           {onRefresh ? (
-            <Button variant="outline" size="sm" onClick={onRefresh}>
-              <RefreshCw className="h-4 w-4 mr-2" />
-              Refresh
-            </Button>
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={handleRefresh}
+              disabled={refreshing}
+              className={cn(
+                'h-9 px-3 rounded-md border border-border/50 bg-background/70 text-sm font-medium flex items-center gap-2 shadow-sm hover:shadow-md transition-all cursor-pointer',
+                refreshing && 'opacity-70'
+              )}
+            >
+              <motion.div
+                animate={refreshing ? { rotate: 360 } : { rotate: 0 }}
+                transition={{
+                  duration: 0.6,
+                  repeat: refreshing ? Infinity : 0,
+                }}
+              >
+                <RefreshCw className="h-4 w-4" />
+              </motion.div>
+              <span className="hidden sm:inline">Refresh</span>
+            </motion.button>
           ) : null}
 
-          {/* external actions */}
+          {/* active filters badge */}
+          <AnimatePresence>
+            {hasActiveFilters && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.8 }}
+                animate={{ opacity: 1, scale: 1 }}
+                exit={{ opacity: 0, scale: 0.8 }}
+              >
+                <Badge variant="secondary" className="text-xs">
+                  {Object.values(filterState).filter((v) => v).length} active
+                </Badge>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
           {toolbarActions}
         </div>
       </div>
 
-      {/* table wrapper for x-scroll */}
-      <div className="relative w-full overflow-x-auto rounded-lg border bg-card">
+      {/* table */}
+      <div className="relative w-full overflow-x-auto">
         <Table>
-          <TableHeader className="sticky top-0 z-[1] bg-card">
+          <TableHeader
+            className={cn(
+              stickyHeader && 'sticky top-0 z-[1]',
+              'bg-gradient-to-r from-muted/40 to-muted/20',
+              'border-y border-border/30',
+              compactHeader ? 'text-[11px]' : 'text-xs',
+              headerUppercase &&
+                'uppercase tracking-[0.08em] text-muted-foreground'
+            )}
+          >
             <TableRow className="hover:bg-transparent">
               {columns.map((c) => {
                 const active = sort?.key === c.key;
-                const icon =
-                  active && sort?.dir === 'asc' ? (
-                    <ChevronUp className="h-4 w-4" />
-                  ) : active && sort?.dir === 'desc' ? (
-                    <ChevronDown className="h-4 w-4" />
-                  ) : null;
+                const icon = active ? (
+                  sort?.dir === 'asc' ? (
+                    <motion.div
+                      key="up"
+                      initial={{ opacity: 0, y: 4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                    >
+                      <ChevronUp className="h-4 w-4" />
+                    </motion.div>
+                  ) : (
+                    <motion.div
+                      key="down"
+                      initial={{ opacity: 0, y: -4 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: 4 }}
+                    >
+                      <ChevronDown className="h-4 w-4" />
+                    </motion.div>
+                  )
+                ) : null;
                 return (
                   <TableHead
                     key={c.key}
@@ -352,35 +536,46 @@ export default function DataTable<T>({
                     }}
                     onClick={() => toggleSort(c)}
                     className={cn(
-                      'select-none',
-                      c.sortable && 'hover:bg-muted/40 transition-colors',
-                      active && 'text-foreground'
+                      'select-none px-3 py-2',
+                      c.sortable &&
+                        'hover:bg-primary/10 transition-colors duration-200',
+                      active && 'text-foreground font-semibold'
                     )}
                   >
-                    <div className="flex items-center gap-1">
+                    <motion.div className="flex items-center gap-1" layout>
                       <span className="whitespace-nowrap">{c.header}</span>
-                      {icon}
-                    </div>
+                      <AnimatePresence mode="wait">{icon}</AnimatePresence>
+                    </motion.div>
                   </TableHead>
                 );
               })}
               {rightActionsFor ? (
-                <TableHead className="text-right">Actions</TableHead>
+                <TableHead className="px-3 py-2 text-right">Actions</TableHead>
               ) : null}
             </TableRow>
           </TableHeader>
 
           <TableBody>
-            {/* loading skeletons */}
             {loading ? (
-              Array.from({ length: 6 }).map((_, i) => (
-                <TableRow key={`sk-${i}`}>
-                  <TableCell
-                    colSpan={columns.length + (rightActionsFor ? 1 : 0)}
-                  >
-                    <Skeleton className="h-10 w-full" />
-                  </TableCell>
-                </TableRow>
+              Array.from({ length: Math.min(10, pageSize) }).map((_, i) => (
+                <motion.tr
+                  key={`sk-${i}`}
+                  initial={{ opacity: 0 }}
+                  animate={{ opacity: 1 }}
+                  transition={{ delay: i * 0.02 }}
+                  className={cn(
+                    'border-t border-border/20',
+                    zebra && i % 2 === 1 && 'bg-primary/[0.02]'
+                  )}
+                >
+                  {Array.from({
+                    length: columns.length + (rightActionsFor ? 1 : 0),
+                  }).map((__, j) => (
+                    <TableCell key={`sk-${i}-${j}`} className="p-3">
+                      <Skeleton className="h-5 w-full" />
+                    </TableCell>
+                  ))}
+                </motion.tr>
               ))
             ) : (serverMode ? rows.length === 0 : paged.length === 0) ? (
               <TableRow>
@@ -392,33 +587,43 @@ export default function DataTable<T>({
                 </TableCell>
               </TableRow>
             ) : (
-              <AnimatePresence initial={false}>
-                {(serverMode ? rows : paged).map((r) => {
+              <AnimatePresence mode="popLayout">
+                {(serverMode ? rows : paged).map((r, i) => {
                   const id = rowKey(r);
+                  const active = activeRowId && id === activeRowId;
                   return (
                     <motion.tr
                       key={id}
-                      initial={{ opacity: 0, y: 6 }}
+                      layout
+                      initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
-                      exit={{ opacity: 0, y: -6 }}
-                      transition={{ duration: 0.18 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{
+                        type: 'spring',
+                        stiffness: 200,
+                        damping: 20,
+                      }}
+                      onClick={onRowClick ? () => onRowClick(r) : undefined}
                       className={cn(
-                        'border-b bg-background/40',
-                        densityRowClass,
-                        'hover:bg-muted/40 transition-colors'
+                        'border-t border-border/20',
+                        zebra && i % 2 === 1 && 'bg-primary/[0.02]',
+                        'transition-colors',
+                        active && 'bg-blue-50',
+                        onRowClick && 'cursor-pointer hover:bg-primary/5',
+                        densityRowClass
                       )}
                     >
                       {columns.map((c) => (
                         <TableCell
                           key={`${id}-${c.key}`}
                           style={{ textAlign: c.align }}
-                          className="align-middle"
+                          className="align-middle px-3 py-2"
                         >
                           {c.render(r)}
                         </TableCell>
                       ))}
                       {rightActionsFor ? (
-                        <TableCell className="text-right align-middle">
+                        <TableCell className="px-3 py-2 text-right align-middle">
                           {rightActionsFor(r)}
                         </TableCell>
                       ) : null}
@@ -431,65 +636,89 @@ export default function DataTable<T>({
         </Table>
       </div>
 
-      {/* footer / pagination */}
-      <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-        <div className="text-xs text-muted-foreground">
+      {/* footer */}
+      <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between border-t border-border/30 p-4 bg-gradient-to-r from-muted/20 via-background to-muted/20">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="text-xs text-muted-foreground font-medium"
+        >
           {loading
             ? 'Loading…'
-            : `Showing ${
-                serverMode ? rows.length : paged.length
-              } of ${effectiveTotal} item(s)`}
-        </div>
+            : `Showing ${serverMode ? rows.length : paged.length} of ${effectiveTotal} item(s)`}
+        </motion.div>
 
-        <div className="flex items-center gap-2">
-          {/* density */}
-          <div className="hidden md:flex items-center gap-1 text-xs">
-            <span className="text-muted-foreground mr-1">Density</span>
-            <Badge
-              variant={density === 'comfortable' ? 'default' : 'outline'}
-              className="cursor-default"
-            >
-              Comfortable
-            </Badge>
-            <span> / </span>
-            <Badge
-              variant={density === 'compact' ? 'default' : 'outline'}
-              className="cursor-default"
-            >
-              Compact
-            </Badge>
-          </div>
+        <div className="flex items-center gap-3">
+          {showDensityToggle ? (
+            <div className="hidden md:flex items-center gap-2">
+              <span className="text-xs text-muted-foreground font-medium">
+                Density
+              </span>
+              <motion.div
+                className="inline-flex overflow-hidden rounded-full border border-border/50 bg-background/70 shadow-sm"
+                layout
+              >
+                {['comfortable', 'compact'].map((d) => (
+                  <motion.button
+                    key={d}
+                    onClick={() => setDensity(d as Density)}
+                    className={cn(
+                      'px-3 py-1 text-xs font-medium transition-colors',
+                      density === d
+                        ? 'bg-blue-500 text-white'
+                        : 'bg-transparent text-foreground hover:bg-primary/5'
+                    )}
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                  >
+                    {d.charAt(0).toUpperCase() + d.slice(1)}
+                  </motion.button>
+                ))}
+              </motion.div>
+            </div>
+          ) : null}
 
-          {/* page size */}
-          <select
-            className="h-9 rounded-md border bg-background px-2 text-sm"
+          <motion.select
+            className="h-9 rounded-full border border-border/50 bg-background/70 px-3 text-sm font-medium shadow-sm hover:shadow-md transition-shadow cursor-pointer"
             value={pageSize}
             onChange={(e) => {
               setPageSize(parseInt(e.target.value, 10));
               setPage(1);
             }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.98 }}
           >
             {[10, 25, 50, 100].map((n) => (
               <option key={n} value={n}>
                 {n} / page
               </option>
             ))}
-          </select>
+          </motion.select>
 
-          {/* pager */}
-          <div className="flex items-center gap-1">
-            <Button
-              variant="outline"
-              size="sm"
+          <motion.div
+            className="inline-flex overflow-hidden rounded-full border border-border/50 bg-background/70 shadow-sm"
+            layout
+          >
+            <motion.button
+              className="rounded-none h-9 px-3 text-sm font-medium"
               onClick={() => setPage((p) => Math.max(1, p - 1))}
               disabled={page <= 1 || loading}
+              whileHover={page > 1 && !loading ? { scale: 1.05 } : {}}
+              whileTap={page > 1 && !loading ? { scale: 0.95 } : {}}
             >
               Prev
-            </Button>
-            <div className="px-2 text-sm tabular-nums">{page}</div>
-            <Button
-              variant="outline"
-              size="sm"
+            </motion.button>
+            <motion.div
+              className="px-3 text-sm font-semibold tabular-nums self-center text-foreground"
+              key={page}
+              initial={{ opacity: 0, y: -8 }}
+              animate={{ opacity: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 200 }}
+            >
+              {page}
+            </motion.div>
+            <motion.button
+              className="rounded-none h-9 px-3 text-sm font-medium border-l border-border/30"
               onClick={() => setPage((p) => p + 1)}
               disabled={
                 loading ||
@@ -497,10 +726,30 @@ export default function DataTable<T>({
                   ? rows.length < pageSize
                   : page * pageSize >= processed.length)
               }
+              whileHover={
+                !(
+                  loading ||
+                  (serverMode
+                    ? rows.length < pageSize
+                    : page * pageSize >= processed.length)
+                )
+                  ? { scale: 1.05 }
+                  : {}
+              }
+              whileTap={
+                !(
+                  loading ||
+                  (serverMode
+                    ? rows.length < pageSize
+                    : page * pageSize >= processed.length)
+                )
+                  ? { scale: 0.95 }
+                  : {}
+              }
             >
               Next
-            </Button>
-          </div>
+            </motion.button>
+          </motion.div>
         </div>
       </div>
     </div>

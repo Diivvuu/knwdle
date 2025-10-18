@@ -1,15 +1,14 @@
 import { Router } from 'express';
-import z from 'zod';
+import { ParentRole } from '../generated/prisma';
 import crypto from 'crypto';
-
-import { ParentRole, PrismaClient } from '../generated/prisma';
+import z from 'zod';
 import { requireAuth } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
-import { generateJoinCode } from './invite';
+import { sseAttach, ssePush } from '../lib/sse';
 import { MailTemplates } from '../lib/mail-templates';
-import { sendMail, wrapHtml } from '../lib/mailer';
+import { sendBulkWithProgress, wrapHtml } from '../lib/mailer';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const r = Router();
 
 const InviteItem = z
@@ -39,6 +38,9 @@ function token() {
   return crypto.randomBytes(20).toString('hex');
 }
 
+const AUTH_ORIGIN = process.env.AUTH_ORIGIN!;
+if (!AUTH_ORIGIN) throw new Error('AUTH_ORIGIN not configured');
+
 r.post(
   '/orgs/:id/invites/bulk',
   requireAuth,
@@ -49,7 +51,7 @@ r.post(
     if (!parsed.success)
       return res
         .status(400)
-        .json({ error: 'Invalid input', details: parsed.error.flatten() });
+        .json({ error: 'Invalid input', details: parsed.error });
 
     const { invites, options } = parsed.data;
     const { expiresInDays, sendEmail, dryRun } = options;
@@ -58,114 +60,183 @@ r.post(
       i.role ?? ParentRole.staff;
     const asKey = (x: z.infer<typeof InviteItem>) =>
       `${x.email.toLowerCase()}|${effectiveRole(x)}|${x.roleId ?? ''}|${x.unitId ?? ''}`;
-
     const unique = Array.from(
       new Map(invites.map((i) => [asKey(i), i])).values()
     );
+    const total = unique.length;
 
-    const emails = unique.map((i) => i.email.toLowerCase());
-    const existing = await prisma.invite.findMany({
-      where: {
+    const batch = await prisma.inviteBatch.create({
+      data: {
         orgId,
-        email: { in: emails },
-        acceptedBy: null,
-        expiresAt: { gt: new Date() },
+        total,
+        status: dryRun ? 'done' : sendEmail ? 'queued' : 'done',
       },
-      select: { email: true, role: true, roleId: true, unitId: true },
     });
-    const existingKeys = new Set(
-      existing.map(
-        (i) =>
-          `${i.email.toLowerCase()}|${i.role ?? ParentRole.staff}|${i.roleId ?? ''}|${i.unitId ?? ''}`
-      )
-    );
 
-    const results: Array<{
-      input: z.infer<typeof InviteItem>;
-      status: 'skipped-exists' | 'created' | 'dry-run' | 'error';
-      id?: string;
-      message?: string;
-    }> = [];
-
+    // dry run
     if (dryRun) {
-      for (const i of unique) {
-        const key = asKey(i);
-        if (existingKeys.has(key))
-          results.push({
-            input: i,
-            status: 'skipped-exists',
-            message: 'Pending invite already exists',
-          });
-        else results.push({ input: i, status: 'dry-run' });
-      }
-      return res.json({ count: unique.length, results });
+      return res.json({
+        batchId: batch.id,
+        total,
+        status: 'done',
+        sent: 0,
+        failed: 0,
+        skipped: 0,
+      });
     }
 
     const expiresAt = new Date(
       Date.now() + 1000 * 60 * 60 * 24 * expiresInDays
     );
+    const created: Array<{ email: string; token: string; joinCode: string }> =
+      [];
+    let skipped = 0;
 
     await prisma.$transaction(async (tx) => {
       for (const i of unique) {
-        const key = asKey(i);
-        if (existingKeys.has(key)) {
-          results.push({
-            input: i,
-            status: 'skipped-exists',
-            message: 'Pending invite already exists',
-          });
+        // do no recreate if identical pending exists
+        const exists = await tx.invite.findFirst({
+          where: {
+            orgId,
+            email: i.email.toLowerCase(),
+            unitId: i.unitId ?? null,
+            acceptedBy: null,
+            expiresAt: { gt: new Date() },
+            role: i.role ?? undefined,
+            roleId: i.roleId ?? undefined,
+          },
+          select: { id: true },
+        });
+        if (exists) {
+          skipped++;
           continue;
         }
-        try {
-          let customRoleId: string | null = null;
-          if (i.roleId) {
-            const role = await tx.role.findFirst({
-              where: { id: i.roleId, orgId },
-            });
-            if (!role) throw new Error('Customr role not found in org');
-            customRoleId = role.id;
-          }
 
-          const inv = await tx.invite.create({
-            data: {
-              orgId,
-              email: i.email.toLowerCase(),
-              role: i.role ?? ParentRole.staff,
-              roleId: customRoleId,
-              unitId: i.unitId,
-              token: token(),
-              joinCode: generateJoinCode(),
-              expiresAt,
-              meta: i.meta,
-            },
+        let roleId: string | null = null;
+        let parentRole: ParentRole = i.role ?? ParentRole.staff;
+
+        if (i.roleId) {
+          const role = await tx.role.findFirst({
+            where: { id: i.roleId, orgId },
+            select: { id: true, parentRole: true },
           });
-
-          if (sendEmail) {
-            const link = `${process.env.AUTH_ORIGIN}/join/${inv.token}`;
-            const t = MailTemplates.invite(link, inv.joinCode!);
-            await sendMail(
-              inv.email,
-              t.subject,
-              wrapHtml({ title: t.subject, bodyHtml: t.html })
-            );
-
-            results.push({
-              input: i,
-              status: 'created',
-              id: inv.id,
-              message: undefined,
-            });
+          if (!role) {
+            skipped++;
+            continue;
           }
-        } catch (error: any) {
-          results.push({
-            input: i,
-            status: 'error',
-            message: error?.message ?? 'Failed to create invite',
-          });
+          roleId = role.id;
+          parentRole = role.parentRole;
         }
+
+        const inv = await tx.invite.create({
+          data: {
+            orgId,
+            email: i.email.toLowerCase(),
+            role: parentRole,
+            roleId,
+            unitId: i.unitId,
+            token: token(),
+            joinCode: `KNW-${crypto.randomBytes(4).toString('hex').toUpperCase()}`,
+            expiresAt,
+            meta: i.meta,
+          },
+          select: { email: true, token: true, joinCode: true },
+        });
+        created.push({
+          email: inv.email,
+          token: inv.token,
+          joinCode: inv.joinCode ?? '',
+        });
+      }
+      await tx.inviteBatch.update({
+        where: { id: batch.id },
+        data: { status: sendEmail ? 'running' : 'done', skipped },
+      });
+    });
+
+    res.json({
+      batchId: batch.id,
+      total,
+      status: sendEmail ? 'running' : 'done',
+    });
+
+    if (!sendEmail || created.length === 0) {
+      await prisma.inviteBatch.update({
+        where: { id: batch.id },
+        data: { status: 'done' },
+      });
+      ssePush(batch.id, 'done', { total, sent: 0, failed: 0, skipped });
+      return;
+    }
+
+    setImmediate(async () => {
+      let sent = 0;
+      let failed = 0;
+      const paylaods = created.map((inv) => {
+        const link = `${AUTH_ORIGIN}/join/${inv.token}`;
+        const t = MailTemplates.invite(link, inv.joinCode);
+        return {
+          to: inv.email,
+          subject: t.subject,
+          html: wrapHtml({ title: t.subject, bodyHtml: t.html }),
+        };
+      });
+
+      try {
+        await sendBulkWithProgress(paylaods, {
+          concurrency: Number(process.env.MAIL_CONCURRENCY || 5),
+          retry: 1,
+          backOffMs: 600,
+          onProgress(ok) {
+            if (ok) sent++;
+            else failed++;
+            ssePush(batch.id, 'progress', { total, sent, failed, skipped });
+          },
+        });
+
+        await prisma.inviteBatch.update({
+          where: { id: batch.id },
+          data: { status: 'done', sent, failed },
+        });
+        ssePush(batch.id, 'done', { total, sent, failed, skipped });
+      } catch (error) {
+        await prisma.inviteBatch.update({
+          where: { id: batch.id },
+          data: { status: 'error', sent, failed },
+        });
+        ssePush(batch.id, 'error', {
+          total,
+          sent,
+          failed,
+          skipped,
+          message: (error as any)?.message ?? 'bulk send error',
+        });
       }
     });
-    res.json({ count: unique.length, results });
+  }
+);
+
+// sse streams -> live progress
+r.get('/orgs/:id/invites/bulk/:batchId/stream', requireAuth, (req, res) =>
+  sseAttach(req, res, req.params.batchId)
+);
+
+//status (poll//resume)
+r.get(
+  '/orgs/:id/invites/bulk/:batchId/status',
+  requireAuth,
+  async (req, res) => {
+    const batch = await prisma.inviteBatch.findUnique({
+      where: { id: req.params.batchId },
+    });
+    if (!batch) return res.status(404).json({ error: 'Batch not found' });
+    res.json({
+      status: batch.status,
+      total: batch.total,
+      sent: batch.sent,
+      failed: batch.failed,
+      skipped: batch.skipped,
+    });
   }
 );
 

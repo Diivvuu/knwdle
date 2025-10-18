@@ -1,12 +1,10 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
-import Link from 'next/link';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchOrgs } from '@workspace/state';
 import { motion } from 'framer-motion';
-import { useRouter } from 'next/navigation';
 
 import { Button } from '@workspace/ui/components/button';
 import { Input } from '@workspace/ui/components/input';
@@ -24,7 +22,6 @@ import {
   DialogTitle,
   DialogDescription,
   DialogFooter,
-  DialogTrigger,
 } from '@workspace/ui/components/dialog';
 import { Badge } from '@workspace/ui/components/badge';
 import { Skeleton } from '@workspace/ui/components/skeleton';
@@ -40,34 +37,13 @@ import {
   X,
   Search,
 } from 'lucide-react';
-import { OrgCard } from '@workspace/ui/components/mega-dashboard/org-card';
-import { ADMIN_BASE } from '@/lib/env';
+import OrgRow from './org-row';
+import {
+  useCreateOrgModal,
+  useJoinOrgModal,
+} from '@/features/org/use-org-atom';
 
-// If you exported this from @workspace/ui/dashboard, feel free to swap:
-// import { OrgCard } from '@workspace/ui/dashboard'
-
-// ---------------------- Local helpers ----------------------
-function Section({
-  title,
-  actions,
-  children,
-}: {
-  title: string;
-  actions?: React.ReactNode;
-  children: React.ReactNode;
-}) {
-  return (
-    <section className="space-y-3">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">{title}</h2>
-        {actions}
-      </div>
-      <Separator />
-      {children}
-    </section>
-  );
-}
-
+/* ---------------------- small helpers (unchanged) ---------------------- */
 function EmptyInvites() {
   return (
     <Card className="shadow-sm">
@@ -100,6 +76,8 @@ function InviteRow({
     <motion.div
       initial={{ opacity: 0, y: -6 }}
       animate={{ opacity: 1, y: 0 }}
+      whileHover={{ y: -2 }}
+      transition={{ type: 'spring', stiffness: 250, damping: 22 }}
       className="flex items-center justify-between rounded-lg border bg-muted/40 p-3"
     >
       <div className="flex items-center gap-3">
@@ -112,12 +90,17 @@ function InviteRow({
         </div>
       </div>
       <div className="flex gap-2">
-        <Button size="sm" onClick={onAccept}>
-          <Check className="mr-1 h-4 w-4" />
+        <Button size="sm" onClick={onAccept} className="gap-1">
+          <Check className="h-4 w-4" />
           Accept
         </Button>
-        <Button size="sm" variant="outline" onClick={onDecline}>
-          <X className="mr-1 h-4 w-4" />
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={onDecline}
+          className="gap-1"
+        >
+          <X className="h-4 w-4" />
           Decline
         </Button>
       </div>
@@ -125,77 +108,19 @@ function InviteRow({
   );
 }
 
-function JoinOrgDialog({
-  open,
-  onOpenChange,
-}: {
-  open: boolean;
-  onOpenChange: (v: boolean) => void;
-}) {
-  const router = useRouter();
-  const [code, setCode] = useState('');
-  const [loading, setLoading] = useState(false);
-
-  async function handleJoin() {
-    if (!code.trim()) {
-      toast.error('Enter a valid join code');
-      return;
-    }
-    setLoading(true);
-    try {
-      // minimal default: send user to a dedicated join page with ?code=
-      router.push(`/join-org?code=${encodeURIComponent(code.trim())}`);
-      onOpenChange(false);
-    } catch (e: any) {
-      toast.error(e?.message || 'Failed to join');
-    } finally {
-      setLoading(false);
-    }
-  }
-
-  return (
-    <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>Join an Organisation</DialogTitle>
-          <DialogDescription>
-            Paste the invite code you received from your organisation.
-          </DialogDescription>
-        </DialogHeader>
-        <div className="space-y-2">
-          <label className="text-sm">Join code</label>
-          <Input
-            placeholder="e.g. KNW-9X42-ABCD"
-            value={code}
-            onChange={(e) => setCode(e.target.value)}
-            autoFocus
-          />
-        </div>
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
-          <Button onClick={handleJoin} disabled={loading}>
-            {loading ? 'Joining…' : 'Join'}
-          </Button>
-        </DialogFooter>
-      </DialogContent>
-    </Dialog>
-  );
-}
-
-// ---------------------- Screen ----------------------
 export function DashboardScreen() {
   const dispatch = useDispatch<AppDispatch>();
   const { items, listStatus } = useSelector((s: RootState) => s.org);
 
-  // you can wire invites to your API later; keeping empty for now
+  // keep your future invites wiring; just not in the main feed anymore
   const invites: Array<{ id: string; orgName: string; role: string }> = [];
 
-  const [openCreate, setOpenCreate] = useState(false);
-  const [openJoin, setOpenJoin] = useState(false);
+  const [openCreate, setOpenCreate] = useCreateOrgModal();
+  const [openJoin, setOpenJoin] = useJoinOrgModal();
+  const [openInvites, setOpenInvites] = useState(false);
 
   const [query, setQuery] = useState('');
+
   const filteredItems = useMemo(() => {
     const q = query.trim().toLowerCase();
     if (!q) return items;
@@ -212,68 +137,73 @@ export function DashboardScreen() {
 
   return (
     <div className="container mx-auto py-8 space-y-8">
-      {/* Header actions */}
-
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-semibold">Your Organisations</h1>
-        <div className="flex flex-col sm:flex-row gap-2">
-          <Button onClick={() => setOpenJoin(true)}>
-            <UserPlus2 className="mr-2 h-4 w-4" />
-            Join Organisation
-          </Button>
-          <Button variant="outline" onClick={() => setOpenCreate(true)}>
-            <PlusCircle className="mr-2 h-4 w-4" />
-            Create Organisation
-          </Button>
+      {/* Header toolbar: title + search + actions */}
+      <motion.div
+        initial={{ opacity: 0, y: -6 }}
+        animate={{ opacity: 1, y: 0 }}
+        className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"
+      >
+        <div className="space-y-1">
+          <h1 className="text-xl font-semibold tracking-tight">
+            Your Organisations
+          </h1>
+          <p className="text-sm text-muted-foreground">
+            Focused view — invites moved into a quick panel.
+          </p>
         </div>
-      </div>
 
-      {/* Search (lightweight) */}
-      <div className="relative max-w-md">
-        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
-        <Input
-          className="pl-9"
-          placeholder="Search organisations…"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-        />
-      </div>
-
-      {/* Invites */}
-      <Section
-        title="Invites"
-        actions={
-          invites.length > 0 ? (
-            <Badge variant="secondary">{invites.length}</Badge>
-          ) : null
-        }
-      >
-        {invites.length === 0 ? (
-          <EmptyInvites />
-        ) : (
-          <div className="space-y-3">
-            {invites.map((i) => (
-              <InviteRow
-                key={i.id}
-                orgName={i.orgName}
-                role={i.role}
-                onAccept={() => toast.success('Accepted (wire API)')}
-                onDecline={() => toast('Declined (wire API)')}
-              />
-            ))}
+        <div className="flex w-full flex-col gap-2 sm:w-auto sm:flex-row sm:items-center">
+          {/* search lives in the header now */}
+          <div className="relative w-full sm:w-72">
+            <Search className="pointer-events-none absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
+            <Input
+              className="pl-9"
+              placeholder="Search organisations…"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
           </div>
-        )}
-      </Section>
 
-      {/* Organisations */}
-      <Section
-        title="Organisations"
-        actions={
-          listStatus === 'loading' ? (
+          {/* primary actions */}
+          <div className="flex gap-2">
+            <Button
+              variant="outline"
+              onClick={() => setOpenInvites(true)}
+              className="gap-2"
+            >
+              Invites
+              {invites.length > 0 && (
+                <Badge variant="secondary">{invites.length}</Badge>
+              )}
+            </Button>
+            <Button onClick={() => setOpenJoin(true)} className="gap-2">
+              <UserPlus2 className="h-4 w-4" />
+              Join
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => setOpenCreate(true)}
+              className="gap-2"
+            >
+              <PlusCircle className="h-4 w-4" />
+              Create
+            </Button>
+          </div>
+        </div>
+      </motion.div>
+
+      {/* Organisations only (clean main area) */}
+      <div className="space-y-3">
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-semibold tracking-tight">
+            Organisations
+          </h2>
+          {listStatus === 'loading' && (
             <span className="text-xs text-muted-foreground">Loading…</span>
-          ) : null
-        }
-      >
+          )}
+        </div>
+        <Separator />
+
         {listStatus === 'loading' ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -305,12 +235,16 @@ export function DashboardScreen() {
                 </div>
               </div>
               <div className="flex gap-2">
-                <Button onClick={() => setOpenJoin(true)}>
-                  <UserPlus2 className="mr-2 h-4 w-4" />
+                <Button onClick={() => setOpenJoin(true)} className="gap-2">
+                  <UserPlus2 className="h-4 w-4" />
                   Join Organisation
                 </Button>
-                <Button variant="outline" onClick={() => setOpenCreate(true)}>
-                  <PlusCircle className="mr-2 h-4 w-4" />
+                <Button
+                  variant="outline"
+                  onClick={() => setOpenCreate(true)}
+                  className="gap-2"
+                >
+                  <PlusCircle className="h-4 w-4" />
                   Create Organisation
                 </Button>
               </div>
@@ -318,37 +252,66 @@ export function DashboardScreen() {
           </Card>
         ) : (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {filteredItems.map((org: any) => (
-              <Link
+            {filteredItems.map((org: any, idx: number) => (
+              <motion.div
                 key={org.id}
-                href={`${ADMIN_BASE}/org/${org.id}`}
-                className="block"
+                initial={{ opacity: 0, y: 8 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: Math.min(idx * 0.03, 0.2) }}
+                className="group"
               >
-                <motion.div
-                  whileHover={{
-                    y: -2,
-                    boxShadow: '0 8px 24px rgba(0,0,0,0.08)',
-                  }}
-                  transition={{ type: 'spring', stiffness: 250, damping: 22 }}
-                >
-                  <OrgCard org={org} />
-                </motion.div>
-              </Link>
+                <div className="transition-transform duration-200 group-hover:-translate-y-0.5">
+                  <OrgRow
+                    org={org}
+                    onQuickEdit={(o) => {
+                      console.log('quick edit', o.id);
+                    }}
+                    onDelete={(o) => {
+                      console.log('delete', o.id);
+                    }}
+                  />
+                </div>
+              </motion.div>
             ))}
           </div>
         )}
-      </Section>
+      </div>
 
-      {/* JOIN DIALOG */}
-      <JoinOrgDialog open={openJoin} onOpenChange={setOpenJoin} />
+      {/* INVITES DIALOG (moved out of main flow) */}
+      <Dialog open={openInvites} onOpenChange={setOpenInvites}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Invites</DialogTitle>
+            <DialogDescription>
+              Review pending invitations to join organisations.
+            </DialogDescription>
+          </DialogHeader>
 
-      {(() => {
-        const CreateOrgModal =
-          require('../_components/create-org-modal').default;
-        return (
-          <CreateOrgModal open={openCreate} onOpenChange={setOpenCreate} />
-        );
-      })()}
+          {invites.length === 0 ? (
+            <EmptyInvites />
+          ) : (
+            <div className="space-y-3">
+              {invites.map((i) => (
+                <InviteRow
+                  key={i.id}
+                  orgName={i.orgName}
+                  role={i.role}
+                  onAccept={() => toast.success('Accepted (wire API)')}
+                  onDecline={() => toast('Declined (wire API)')}
+                />
+              ))}
+            </div>
+          )}
+
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setOpenInvites(false)}>
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* JOIN DIALOG (unchanged logic) */}
     </div>
   );
 }

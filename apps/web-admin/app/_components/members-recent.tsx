@@ -37,10 +37,7 @@ export default function MembersRecent({
         ) : members.page.items.length ? (
           <ul className="divide-y">
             {members.page.items.map((m: any) => (
-              <li
-                key={m.userId}
-                className="py-2 flex items-center justify-between"
-              >
+              <li key={m.id} className="py-2 flex items-center justify-between">
                 <div>
                   <div className="font-medium leading-tight">
                     {m.name || m.email}

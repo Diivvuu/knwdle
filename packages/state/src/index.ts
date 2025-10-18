@@ -14,3 +14,7 @@ export { default as rolesReducer } from './slices/roles';
 export * from './slices/roles';
 export { default as invitesReducer } from './slices/invites';
 export * from './slices/invites';
+export { default as orgUnitReducer } from './slices/org-unit';
+export * from './slices/org-unit';
+export { default as orgUnitTypeReducer } from './slices/org-unit-types';
+export * from './slices/org-unit-types';

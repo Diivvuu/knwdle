@@ -1,11 +1,10 @@
 import { Router } from 'express';
-import { PrismaClient } from '../generated/prisma';
 import z from 'zod';
 
 import { requireAuth } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const r = Router();
 
 const scopeEnum = z.enum(['org', 'unit']);

@@ -1,15 +1,16 @@
 import 'dotenv/config';
-import express from 'express';
+import express, { NextFunction, Request, Response } from 'express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth';
 import orgTypeRoutes from './routes/org-types';
 import orgDashboardRoutes from './routes/org-dashboard';
-import orgRoutes from './routes/org';
+import orgRoutes from './routes/orgs';
 import inviteRoutes from './routes/invite';
 import invitesRoutes from './routes/invites';
 import roleRoutes from './routes/roles';
+import orgUnitTypeRoutes from './routes/orgs/org-unit-type';
 
 const app = express();
 const PORT = Number(process.env.API_PORT || 4000);
@@ -48,5 +49,18 @@ app.use('/api', orgRoutes);
 app.use('/api', inviteRoutes);
 app.use('/api', invitesRoutes);
 app.use('/api', roleRoutes);
+app.use('/api', orgUnitTypeRoutes);
+
+app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+  if (res.headersSent) return next(err);
+
+  console.error('[GlobalError]', err); // helpful in dev logs
+  const status = err.status || 500;
+  res.status(status).json({
+    error:
+      err.message ||
+      'An unexpected error occurred. Please try again or contact support.',
+  });
+});
 
 app.listen(PORT, () => console.log(`AP running at http://localhost:${PORT}`));

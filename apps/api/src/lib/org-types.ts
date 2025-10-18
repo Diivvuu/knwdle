@@ -15,7 +15,7 @@ const Features = z.object({
 const BaseMeta = z.object({
   schemaVersion: z.literal(1).default(1),
   description: z.string().trim().max(500).optional(),
-  teamSize: z.coerce.number().int().min(1).optional(),
+  teamSize: z.coerce.string().optional(),
   features: Features.partial().default({}),
 });
 

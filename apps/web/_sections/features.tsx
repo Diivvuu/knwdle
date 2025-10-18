@@ -60,7 +60,7 @@ export default function SectionHowItWorks() {
   return (
     <section className="relative mx-auto w-full max-w-6xl px-4 sm:px-6 py-16 sm:py-20">
       <div className="mb-8 text-center">
-        <p className="text-xs uppercase tracking-wider text-emerald-700/80">
+        <p className="text-xs uppercase tracking-wider text-primary/80">
           How it works
         </p>
         <h2 className="mt-1 text-2xl sm:text-3xl font-bold tracking-tight">
@@ -81,7 +81,7 @@ export default function SectionHowItWorks() {
             return (
               <li key={s.title}>
                 <Card
-                  className={`transition ${isActive ? 'border-emerald-600/40 bg-emerald-600/5' : 'hover:bg-muted'}`}
+                  className={`transition ${isActive ? 'border-primary/40 bg-primary/5' : 'hover:bg-muted'}`}
                 >
                   <button
                     type="button"
@@ -90,9 +90,9 @@ export default function SectionHowItWorks() {
                   >
                     <CardHeader className="flex flex-row items-start gap-3 pb-2">
                       <div
-                        className={`mt-1 rounded-lg border bg-emerald-600/10 p-2 ${isActive ? 'ring-1 ring-emerald-600/30' : ''}`}
+                        className={`mt-1 rounded-lg border bg-primary/10 p-2 ${isActive ? 'ring-1 ring-primary/30' : ''}`}
                       >
-                        <Icon className="h-5 w-5 text-emerald-700/90" />
+                        <Icon className="h-5 w-5 text-primary/90" />
                       </div>
                       <div className="space-y-1">
                         <CardTitle className="text-base">
@@ -158,7 +158,7 @@ export default function SectionHowItWorks() {
                       aria-label={`Go to step ${i + 1}`}
                       onClick={() => setActive(i)}
                       className={`h-2.5 w-2.5 rounded-full transition
-            ${i === active ? 'bg-emerald-600' : 'bg-muted hover:bg-muted-foreground/30'}`}
+            ${i === active ? 'bg-primary' : 'bg-muted hover:bg-muted-foreground/30'}`}
                     />
                   ))}
                 </div>

@@ -47,7 +47,7 @@ export default function Hero() {
       <div
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10
-             [background:radial-gradient(60%_40%_at_20%_20%,hsl(152_70%_92%)/.9,transparent_60%),radial-gradient(40%_30%_at_80%_10%,hsl(152_70%_85%)/.6,transparent_60%),radial-gradient(30%_50%_at_50%_80%,hsl(152_70%_90%)/.7,transparent_60%)]"
+             [background:radial-gradient(60%_40%_at_20%_20%,color-mix(in_srgb,var(--primary)_15%,transparent)_90%,transparent_60%),radial-gradient(40%_30%_at_80%_10%,color-mix(in_srgb,var(--primary)_10%,transparent)_60%,transparent_60%),radial-gradient(30%_50%_at_50%_80%,color-mix(in_srgb,var(--primary)_12%,transparent)_70%,transparent_60%)]"
       />
 
       {/* grain overlay */}
@@ -55,6 +55,7 @@ export default function Hero() {
         aria-hidden
         className="pointer-events-none absolute inset-0 -z-10 opacity-[0.06]
              [background-image:radial-gradient(black_1px,transparent_1px)]
+             dark:[background-image:radial-gradient(white_1px,transparent_1px)]
              [background-size:5px_5px]"
       />
 
@@ -109,13 +110,13 @@ export default function Hero() {
       <div className="mt-8 flex w-full max-w-md sm:max-w-none flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
         <a
           href={copy.primaryCta.href}
-          className="px-5 py-2.5 rounded-lg bg-[hsla(149,97%,14%,1)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md w-full sm:w-auto"
+          className="px-5 py-2.5 rounded-lg bg-[var(--primary)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md w-full sm:w-auto"
         >
           {copy.primaryCta.label}
         </a>
         <a
           href={copy.secondaryCta.href}
-          className="px-5 py-2.5 rounded-lg border border-[hsla(149,97%,14%,0.3)] text-sm sm:text-base font-medium hover:bg-green-50 transition w-full sm:w-auto"
+          className="px-5 py-2.5 rounded-lg border border-[color-mix(in srgb,var(--primary) 30%,transparent)] text-sm sm:text-base font-medium hover:bg-[color-mix(in srgb,var(--primary) 8%,var(--card))] transition w-full sm:w-auto"
         >
           {copy.secondaryCta.label}
         </a>

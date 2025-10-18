@@ -3,7 +3,10 @@ import { NextRequest, NextResponse } from 'next/server';
 const AUTH_COOKIE = '__knwdle_session';
 
 export const config = {
-  matcher: ['/dashboard/:path*'],
+  matcher: [
+    // Protect everything except: landing (/), /auth, Next internals, API, and static assets with extensions
+    '/((?!auth|$|_next/static|_next/image|api|favicon\\.ico|robots\\.txt|sitemap\\.xml|manifest\\.webmanifest|apple-touch-icon\\.png|.*\\.(?:png|jpg|jpeg|gif|webp|svg|ico|css|js|map|txt|xml|json|woff|woff2|ttf|otf)).*)',
+  ],
 };
 
 export function middleware(req: NextRequest) {

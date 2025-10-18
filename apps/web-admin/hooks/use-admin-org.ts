@@ -26,10 +26,10 @@ export function useAdminOrg(orgId: string) {
     orgId ? state.orgAdmin.summaryById[orgId] : undefined
   );
   const units = useSelector((state: RootState) =>
-    orgId ? state.orgAdmin.unitsByOrg[orgId] : undefined
+    orgId ? state.orgUnit.unitsByOrg[orgId] : undefined
   );
   const unitsTree = useSelector((state: RootState) =>
-    orgId ? state.orgAdmin.unitsTreeByOrg[orgId] : undefined
+    orgId ? state.orgUnit.unitsTreeByOrg[orgId] : undefined
   );
 
   useEffect(() => {

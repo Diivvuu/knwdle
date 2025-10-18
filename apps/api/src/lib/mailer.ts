@@ -6,7 +6,7 @@ export type MailInput = {
   to: string | string[];
   subject: string;
   html: string;
-  text?: string;        // optional; auto-generated if omitted
+  text?: string; // optional; auto-generated if omitted
   headers?: Record<string, string>;
   replyTo?: string;
 };
@@ -16,14 +16,18 @@ let cachedTransporter: Transporter | null = null;
 /** Lazily create (and reuse) a transporter */
 function getTransporter(): Transporter {
   if (cachedTransporter) return cachedTransporter;
-
+  
   cachedTransporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
     secure: env.SMTP_PORT === 465, // common convention
     auth: { user: env.SMTP_USER, pass: env.SMTP_PASS },
-    // Some providers need this to avoid TLS version quirks
     tls: { rejectUnauthorized: isProd },
+    pool: true,
+    maxConnections: Number(process.env.MAIL_MAX_CONNECTIONS || 5),
+    maxMessages: Number(process.env.MAIL_MAX_MESSAGES || 100),
+    rateDelta: 1000,
+    rateLimit: Number(process.env.MAIL_RATE_LIMIT || 0),
   });
 
   return cachedTransporter;
@@ -46,7 +50,12 @@ function htmlToText(html: string): string {
  * - Auto-generates plain text if not provided
  * - Returns provider messageId for logs/audit
  */
-export async function sendMail(_to: string | string[], _subject: string, _html: string, _text?: string) {
+export async function sendMail(
+  _to: string | string[],
+  _subject: string,
+  _html: string,
+  _text?: string
+) {
   const transporter = getTransporter();
 
   const to = Array.isArray(_to) ? _to.join(', ') : _to;
@@ -67,6 +76,66 @@ export async function sendMail(_to: string | string[], _subject: string, _html: 
   });
 
   return { messageId: info.messageId };
+}
+
+// small helpers
+
+const wait = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+async function mapWithConcurrency<T, R>(
+  items: T[],
+  concurrency: number,
+  fn: (item: T, idx: number) => Promise<R>
+): Promise<R[]> {
+  const out: R[] = [];
+  let idx = 0;
+  const run = async () => {
+    while (idx < items.length) {
+      const i = idx++;
+      out[i] = await fn(items[i], i);
+    }
+  };
+  await Promise.all(
+    Array.from({ length: Math.min(concurrency, items.length) }, run)
+  );
+  return out;
+}
+
+export async function sendBulkWithProgress(
+  items: Array<{ to: string; subject: string; html: string; text?: string }>,
+  opts: {
+    concurrency?: number;
+    retry?: number;
+    backOffMs?: number;
+    onPRogress?: number;
+    onProgress?: (ok: boolean) => void;
+  } = {}
+) {
+  const {
+    concurrency = Number(process.env.MAIL_CONCURRENCY || 5),
+    retry = 1,
+    backOffMs = 600,
+    onProgress,
+  } = opts;
+
+  return mapWithConcurrency(items, concurrency, async (m) => {
+    let attempt = 0;
+
+    while (true) {
+      try {
+        const res = await sendMail(m.to, m.subject, m.html, m.text);
+        onProgress?.(true);
+        return res;
+      } catch (error) {
+        if (attempt >= retry) {
+          onProgress?.(false);
+          throw error;
+        }
+        attempt++;
+        await wait(backOffMs);
+      }
+    }
+  });
 }
 
 /**

@@ -1,8 +1,7 @@
 import { NextFunction, Request, Response } from 'express';
 import jwt from 'jsonwebtoken';
-import { PrismaClient } from '../generated/prisma';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const ACCESS_SECRET = process.env.JWT_ACCESS_SECRET!;
 
 export async function requireAuth(

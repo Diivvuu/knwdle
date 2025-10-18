@@ -1,13 +1,13 @@
 import crypto from 'crypto';
 import z from 'zod';
-import { ParentRole, PrismaClient } from '../generated/prisma';
+import { ParentRole } from '../generated/prisma';
 import { requireAuth } from '../middleware/auth';
 import { Router } from 'express';
 import { MailTemplates } from '../lib/mail-templates';
 import { sendMail, wrapHtml } from '../lib/mailer';
 import { requirePermission } from '../middleware/permissions';
+import { prisma } from '../lib/prisma';
 
-const prisma = new PrismaClient();
 const r = Router();
 
 const AUTH_ORIGIN = process.env.AUTH_ORIGIN;
@@ -32,6 +32,37 @@ const InviteBody = z
     message: 'Provide either role or roleId',
   });
 
+const InviteListQuery = z.object({
+  limit: z.coerce.number().int().min(1).max(100).default(25),
+  cursor: z.string().optional(),
+  q: z.string().trim().min(1).max(200).optional(),
+  role: z.nativeEnum(ParentRole).optional(),
+  status: z.enum(['pending', 'accepted']).optional(),
+  unitId: z.string().trim().min(1).optional(),
+  sortKey: z
+    .enum(['createdAt', 'email', 'expiresAt', 'role', 'unit', 'unitId'])
+    .optional(),
+  sortDir: z.enum(['asc', 'desc']).optional(),
+});
+
+function encodeCursor(createdAt: Date, id: string) {
+  return Buffer.from(
+    JSON.stringify({ createdAt: createdAt.toISOString(), id })
+  ).toString('base64');
+}
+
+function decodeCursor(c?: string | null) {
+  if (!c) return null;
+  try {
+    const { createdAt, id } = JSON.parse(
+      Buffer.from(c, 'base64').toString('utf8')
+    );
+    return { createdAt: new Date(createdAt), id: String(id) };
+  } catch {
+    return null;
+  }
+}
+
 // create invite
 r.post(
   '/orgs/:id/invites',
@@ -41,6 +72,12 @@ r.post(
     const { id: orgId } = req.params;
     const body = InviteBody.safeParse(req.body);
     if (!body.success) return res.status(400).json({ error: 'Invalid input' });
+
+    const email = String(body.data.email.trim().toLowerCase());
+
+    if (email === req.user!.email.toLowerCase()) {
+      return res.status(400).json({ erroR: 'You cannot invite yourself.' });
+    }
 
     let roleId: string | null = null;
     let ParentRoleFromCustom: ParentRole | null = null;
@@ -70,6 +107,49 @@ r.post(
       return res
         .status(400)
         .json({ error: "role must match custom role's parentRole" });
+    }
+
+    const existingUser = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true },
+    });
+    if (existingUser) {
+      const alreadyMember = await prisma.orgMembership.findFirst({
+        where: {
+          orgId,
+          userId: existingUser.id,
+        },
+        select: { id: true },
+      });
+      if (alreadyMember) {
+        return res.status(409).json({
+          error: 'User is already a member of this organisation',
+        });
+      }
+    }
+
+    const duplicatePending = await prisma.invite.findFirst({
+      where: {
+        orgId,
+        email,
+        unitId: body.data.unitId ?? null,
+        acceptedBy: null,
+        expiresAt: { gt: new Date() },
+      },
+      select: {
+        id: true,
+        createdAt: true,
+        expiresAt: true,
+        joinCode: true,
+      },
+    });
+    if (duplicatePending) {
+      return res.status(409).json({
+        error: 'A pending invite already exists for this email (and unit).',
+        inviteId: duplicatePending.id,
+        expiresAt: duplicatePending.expiresAt,
+        joinCode: duplicatePending.joinCode,
+      });
     }
 
     const token = generateToken();
@@ -102,23 +182,104 @@ r.post(
   }
 );
 
-// admin invites list
+
 r.get(
   '/orgs/:id/invites',
   requireAuth,
   requirePermission('people.manage'),
   async (req, res) => {
     const { id: orgId } = req.params;
+
     const isMember = await prisma.orgMembership.findFirst({
       where: { orgId, userId: req.user!.id },
+      select: { id: true },
     });
     if (!isMember) return res.status(403).json({ error: 'Forbidden' });
-    const invites = await prisma.invite.findMany({
-      where: { orgId },
-      orderBy: { createdAt: 'desc' },
+
+    const parsed = InviteListQuery.safeParse(req.query);
+    if (!parsed.success) {
+      return res
+        .status(400)
+        .json({ error: 'Invalid query', details: parsed.error.flatten() });
+    }
+
+    const {
+      limit,
+      cursor,
+      q,
+      role,
+      status,
+      unitId,
+      sortKey: rawSortKey = 'createdAt',
+      sortDir = 'desc',
+    } = parsed.data;
+
+    // ✅ map UI alias -> DB field
+    const sortKey = rawSortKey === 'unit' ? 'unitId' : rawSortKey;
+
+    const cursorVal = decodeCursor(cursor || null);
+
+    const where: any = { orgId };
+    if (role) where.role = role;
+    if (unitId) where.unitId = unitId;
+    if (status === 'pending') where.acceptedBy = null;
+    if (status === 'accepted') where.acceptedBy = { not: null }; // ✅ fix typo
+    if (q) where.email = { contains: q, mode: 'insensitive' };
+
+    const orderBy: any[] = [{ [sortKey]: sortDir }, { id: sortDir }];
+
+    // stable pagination on (createdAt,id)
+    const cursorWhere =
+      cursorVal &&
+      ({
+        OR: [
+          {
+            createdAt:
+              sortDir === 'desc'
+                ? { lt: cursorVal.createdAt }
+                : { gt: cursorVal.createdAt },
+          },
+          {
+            AND: [
+              { createdAt: cursorVal.createdAt },
+              {
+                id:
+                  sortDir === 'desc'
+                    ? { lt: cursorVal.id }
+                    : { gt: cursorVal.id },
+              },
+            ],
+          },
+        ],
+      } as const);
+
+    const rows = await prisma.invite.findMany({
+      where: cursorWhere ? { AND: [where, cursorWhere] } : where,
+      orderBy,
+      take: limit + 1,
+      select: {
+        id: true,
+        orgId: true,
+        email: true,
+        role: true,
+        roleId: true,
+        unitId: true,
+        token: true,
+        joinCode: true,
+        expiresAt: true,
+        acceptedBy: true,
+        createdAt: true,
+        meta: true,
+      },
     });
 
-    res.json(invites);
+    const items = rows.slice(0, limit);
+    const hasMore = rows.length > limit;
+    const last = items[items.length - 1];
+    const nextCursor =
+      hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
+
+    res.json({ items, nextCursor });
   }
 );
 

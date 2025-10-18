@@ -100,7 +100,6 @@ export function StepperHeader({
 
       {/* Track underneath (subtle, not a big bar) */}
       <div className="px-5 pb-2">
-        +{' '}
         <div className="relative h-1 rounded-full overflow-hidden">
           <div className="absolute inset-0 bg-[linear-gradient(90deg,hsl(var(--muted)/.6),transparent)]" />
           <div

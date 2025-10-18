@@ -5,6 +5,8 @@ import {
   orgDashboardReducer,
   orgReducer,
   orgTypeReducer,
+  orgUnitReducer,
+  orgUnitTypeReducer,
   rolesReducer,
 } from '@workspace/state';
 import {
@@ -26,6 +28,8 @@ const rootReducer = combineReducers({
   orgAdmin: orgReducer,
   roles: rolesReducer,
   invites: invitesReducer,
+  orgUnit: orgUnitReducer,
+  orgUnitTypes: orgUnitTypeReducer,
 });
 
 const persistConfig = {

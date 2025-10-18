@@ -1,8 +1,10 @@
+// packages/state/src/slices/orgSlice.ts
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { api } from '../api';
 
-export type ParentRole = 'admin' | 'staff' | 'student' | 'parent';
+/* -------------------- Types (Org core only) -------------------- */
 
+export type ParentRole = 'admin' | 'staff' | 'student' | 'parent';
 type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
 export type OrgBasic = {
@@ -35,16 +37,6 @@ export type OrgSummary = {
   lastJoinAt: string | null;
 };
 
-export type OrgUnit = {
-  id: string;
-  name: string;
-  parentId: string | null;
-  code: string | null;
-  path?: string;
-  createdAt: string;
-  children?: OrgUnit[];
-};
-
 export type MemberRow = {
   id: string;
   orgId: string;
@@ -67,6 +59,8 @@ export type MembersQuery = {
   append?: boolean;
 };
 
+//state
+
 type OrgState = {
   basicById: Record<
     string,
@@ -77,14 +71,7 @@ type OrgState = {
     { status: Status; data?: OrgSummary; error?: string }
   >;
 
-  unitsByOrg: Record<
-    string,
-    { status: Status; items: OrgUnit[]; error?: string }
-  >;
-  unitsTreeByOrg: Record<
-    string,
-    { status: Status; data?: OrgUnit[]; error?: string }
-  >;
+  // NOTE: org units moved out!
 
   membersByKey: Record<
     string,
@@ -100,14 +87,16 @@ type OrgState = {
 const initialState: OrgState = {
   basicById: {},
   summaryById: {},
-  unitsByOrg: {},
-  unitsTreeByOrg: {},
   membersByKey: {},
 };
+
+//helpers
 
 const mkMembersKey = (
   p: Pick<MembersQuery, 'orgId' | 'unitId' | 'role' | 'q'>
 ) => `${p.orgId}|${p.unitId ?? ''}|${p.role ?? ''}|${p.q ?? ''}`;
+
+//thunks
 
 export const fetchOrgBasic = createAsyncThunk(
   'adminOrg/fetchOrgBasic',
@@ -129,65 +118,7 @@ export const fetchOrgSummary = createAsyncThunk(
   }
 );
 
-export const fetchOrgUnits = createAsyncThunk(
-  'admingOrg/fetchOrgUnits',
-  async (orgId: string) => {
-    const { data } = await api.get(`/api/orgs/${orgId}/units`);
-    return { orgId, items: data as OrgUnit[] };
-  }
-);
-
-export const fetchOrgUnitsTree = createAsyncThunk(
-  'adminOrg/fetchOrgUnitsTree',
-  async (orgId: string) => {
-    const { data } = await api.get(`/api/orgs/${orgId}/units/tree`);
-    return { orgId, data: data as OrgUnit[] };
-  }
-);
-
-export const createOrgUnit = createAsyncThunk(
-  'admingOrg/createOrgUnit',
-  async (p: {
-    orgId: string;
-    name: string;
-    code?: string;
-    parentId?: string | null;
-  }) => {
-    const { orgId, ...body } = p;
-    const { data } = await api.post(`/api/orgs/${orgId}/units`, body);
-    return { orgId, unit: data as OrgUnit };
-  }
-);
-
-export const updateOrgUnit = createAsyncThunk(
-  'adminOrg/updateOrgUnit',
-  async (p: {
-    orgId: string;
-    unitId: string;
-    name?: string;
-    code?: string;
-    parentId?: string | null;
-  }) => {
-    const { orgId, unitId, ...body } = p;
-    const { data } = await api.patch(
-      `/api/orgs/${orgId}/units/${unitId}`,
-      body
-    );
-    return { orgId, unit: data as OrgUnit };
-  }
-);
-
-export const deleteOrgUnit = createAsyncThunk(
-  'admingOrg/deleteOrgUnit',
-  async (p: { orgId: string; unitId: string; force?: boolean }) => {
-    const { orgId, unitId, force } = p;
-    await api.delete(`/api/orgs/${orgId}/units/${unitId}`, {
-      params: { force: Boolean(force) },
-    });
-    return { orgId, unitId };
-  }
-);
-
+// members
 export const listMembers = createAsyncThunk(
   'adminOrg/listMembers',
   async (p: MembersQuery) => {
@@ -211,9 +142,7 @@ export const updateMemberBaseRole = createAsyncThunk(
   async (p: { orgId: string; userId: string; role: ParentRole }) => {
     const { data } = await api.patch(
       `/api/orgs/${p.orgId}/members/${p.userId}`,
-      {
-        role: p.role,
-      }
+      { role: p.role }
     );
     return data as MemberRow;
   }
@@ -224,7 +153,9 @@ export const updateMemberUnit = createAsyncThunk(
   async (p: { orgId: string; userId: string; unitId: string | null }) => {
     const { data } = await api.patch(
       `/api/orgs/${p.orgId}/members/${p.userId}/unit`,
-      { unitId: p.unitId }
+      {
+        unitId: p.unitId,
+      }
     );
     return data as MemberRow;
   }
@@ -249,6 +180,8 @@ export const removeMember = createAsyncThunk(
   }
 );
 
+//slice
+
 const slice = createSlice({
   name: 'adminOrg',
   initialState,
@@ -267,6 +200,7 @@ const slice = createSlice({
     },
   },
   extraReducers: (b) => {
+    // basic
     b.addCase(fetchOrgBasic.pending, (s, a) => {
       const id = a.meta.arg;
       s.basicById[id] = { status: 'loading' };
@@ -279,7 +213,7 @@ const slice = createSlice({
       s.basicById[id] = { status: 'failed', error: a.error.message };
     });
 
-    //summary
+    // summary
     b.addCase(fetchOrgSummary.pending, (s, a) => {
       const id = a.meta.arg;
       s.summaryById[id] = { status: 'loading' };
@@ -293,65 +227,7 @@ const slice = createSlice({
       s.summaryById[id] = { status: 'failed', error: a.error.message };
     });
 
-    //units
-    b.addCase(fetchOrgUnits.pending, (s, a) => {
-      const orgId = a.meta.arg;
-      s.unitsByOrg[orgId] = s.unitsByOrg[orgId] || {
-        status: 'idle',
-        items: [],
-      };
-      s.unitsByOrg[orgId].status = 'loading';
-      s.unitsByOrg[orgId].error = undefined;
-    });
-    b.addCase(fetchOrgUnits.fulfilled, (s, a) => {
-      const { orgId, items } = a.payload;
-      s.unitsByOrg[orgId] = { status: 'succeeded', items };
-    });
-    b.addCase(fetchOrgUnits.rejected, (s, a) => {
-      const orgId = a.meta.arg;
-      s.unitsByOrg[orgId] = s.unitsByOrg[orgId] || {
-        status: 'idle',
-        items: [],
-      };
-      s.unitsByOrg[orgId].status = 'failed';
-      s.unitsByOrg[orgId].error = a.error.message;
-    });
-
-    // units tree
-    b.addCase(fetchOrgUnitsTree.pending, (s, a) => {
-      const orgId = a.meta.arg;
-      s.unitsTreeByOrg[orgId] = { status: 'loading' };
-    });
-    b.addCase(fetchOrgUnitsTree.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.unitsTreeByOrg[orgId] = { status: 'succeeded', data };
-    });
-    b.addCase(fetchOrgUnitsTree.rejected, (s, a) => {
-      const orgId = a.meta.arg;
-      s.unitsTreeByOrg[orgId] = { status: 'failed', error: a.error.message };
-    });
-
-    //unit mutations
-    b.addCase(createOrgUnit.fulfilled, (s, a) => {
-      const { orgId, unit } = a.payload;
-      const entry = s.unitsByOrg[orgId];
-      if (entry) entry.items = [unit, ...entry.items];
-    });
-    b.addCase(updateOrgUnit.fulfilled, (s, a) => {
-      const { orgId, unit } = a.payload;
-      const entry = s.unitsByOrg[orgId];
-      if (entry) {
-        const idx = entry.items.findIndex((u) => u.id === unit.id);
-        if (idx >= 0) entry.items[idx] = unit;
-      }
-    });
-    b.addCase(deleteOrgUnit.fulfilled, (s, a) => {
-      const { orgId, unitId } = a.payload;
-      const entry = s.unitsByOrg[orgId];
-      if (entry) entry.items = entry.items.filter((u) => u.id !== unitId);
-    });
-
-    //members list
+    // members list
     b.addCase(listMembers.pending, (s, a) => {
       const key = mkMembersKey(a.meta.arg);
       const entry = s.membersByKey[key] || {
@@ -387,7 +263,7 @@ const slice = createSlice({
       s.membersByKey[key] = entry;
     });
 
-    //member mutations : update local rows wherever they appear for org
+    // member mutations: patch rows wherever present
     const patchMemberEverywhere = (state: OrgState, updated: MemberRow) => {
       const prefix = `${updated.orgId}`;
       for (const [key, page] of Object.entries(state.membersByKey)) {

@@ -1,26 +1,26 @@
-// components/admin/AdminShell.tsx
 'use client';
 
-import { useEffect, useState, useMemo } from 'react';
+import { useEffect, useState, useMemo, useRef } from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
+import { useSelector } from 'react-redux';
+import type { RootState } from '@/store/store';
 import { cn } from '@workspace/ui/lib/utils';
-
 import {
   ResizablePanelGroup,
   ResizablePanel,
   ResizableHandle,
 } from '@workspace/ui/components/resizable';
-import { Button } from '@workspace/ui/components/button';
-import { Input } from '@workspace/ui/components/input';
-import { Separator } from '@workspace/ui/components/separator';
+import type { ImperativePanelHandle } from 'react-resizable-panels';
 import {
   Tooltip,
   TooltipProvider,
   TooltipTrigger,
   TooltipContent,
 } from '@workspace/ui/components/tooltip';
-
+import { Button } from '@workspace/ui/components/button';
+import { Input } from '@workspace/ui/components/input';
+import { Separator } from '@workspace/ui/components/separator';
 import {
   LayoutDashboard,
   Building2,
@@ -32,10 +32,15 @@ import {
   ChevronRight,
   Search,
 } from 'lucide-react';
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarImage,
+} from '@workspace/ui/components/avatar';
 
 const NAV = [
   { label: 'Dashboard', href: 'dashboard', icon: LayoutDashboard },
-  { label: 'Organisations', href: 'orgs', icon: Building2 },
+  { label: 'Organisations', href: 'organisation', icon: Building2 },
   { label: 'Members', href: 'members', icon: Users2 },
   { label: 'Roles', href: 'roles', icon: ShieldCheck },
   { label: 'Invites', href: 'invites', icon: Mail },
@@ -43,6 +48,9 @@ const NAV = [
 ];
 
 const STORAGE_KEY = 'knw_admin_sidebar_v1';
+const MIN_COLLAPSED = 6;
+const MIN_EXPANDED = 16;
+const MAX_EXPANDED = 32;
 
 export default function AdminShell({
   children,
@@ -52,32 +60,44 @@ export default function AdminShell({
   const pathname = usePathname();
   const router = useRouter();
 
+  const user = useSelector((s: RootState) => s.auth.user);
   const [collapsed, setCollapsed] = useState(false);
-  const [size, setSize] = useState<number>(22); // percentage
+  const [size, setSize] = useState<number>(22);
+  const [lastExpanded, setLastExpanded] = useState<number>(22);
   const [q, setQ] = useState('');
   const [mounted, setMounted] = useState(false);
   useEffect(() => setMounted(true), []);
 
-  // restore persisted state
+  const sidebarRef = useRef<ImperativePanelHandle | null>(null);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem(STORAGE_KEY);
       if (!raw) return;
-      const { collapsed: c, size: s } = JSON.parse(raw);
+      const { collapsed: c, size: s, lastExpanded: le } = JSON.parse(raw);
       if (typeof c === 'boolean') setCollapsed(c);
       if (typeof s === 'number') setSize(s);
+      if (typeof le === 'number') setLastExpanded(le);
     } catch {}
   }, []);
 
-  // persist
   useEffect(() => {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify({ collapsed, size }));
-  }, [collapsed, size]);
+    localStorage.setItem(
+      STORAGE_KEY,
+      JSON.stringify({ collapsed, size, lastExpanded })
+    );
+  }, [collapsed, size, lastExpanded]);
 
-  const isActive = useMemo(
-    () => (href: string) => (pathname?.startsWith(href) ? 'active' : ''),
-    [pathname]
-  );
+  const { orgId } = useMemo(() => {
+    const parts = pathname?.split('/') || [];
+    const orgIndex = parts.indexOf('org');
+    return { orgId: orgIndex !== -1 ? parts[orgIndex + 1] : '' };
+  }, [pathname]);
+
+  const isActive = (href: string) => {
+    const full = `/org/${orgId}/${href}`;
+    return pathname === full || pathname.startsWith(`${full}/`);
+  };
 
   function onSearch(e: React.FormEvent) {
     e.preventDefault();
@@ -85,38 +105,80 @@ export default function AdminShell({
     if (!term) return;
     router.push(`/admin/search?q=${encodeURIComponent(term)}`);
   }
-  if (!mounted) {
-    // avoid SSR markup that won’t match client IDs
-    return <div className="h-screen w-screen overflow-hidden" />;
-  }
+
+  const toggleSidebar = () => {
+    if (!sidebarRef.current) {
+      setCollapsed((c) => !c);
+      return;
+    }
+
+    if (collapsed) {
+      const target = Math.min(
+        Math.max(lastExpanded || 22, MIN_EXPANDED),
+        MAX_EXPANDED
+      );
+      setCollapsed(false);
+      requestAnimationFrame(() => {
+        sidebarRef.current?.resize(target);
+        setSize(target);
+      });
+    } else {
+      setLastExpanded(Math.max(size, MIN_EXPANDED));
+      setCollapsed(true);
+      requestAnimationFrame(() => {
+        sidebarRef.current?.resize(MIN_COLLAPSED);
+        setSize(MIN_COLLAPSED);
+      });
+    }
+  };
+
+  if (!mounted) return <div className="h-screen w-screen overflow-hidden" />;
+
   return (
     <TooltipProvider delayDuration={150}>
       <div className="h-screen w-screen overflow-hidden">
         <ResizablePanelGroup direction="horizontal" className="h-full">
           {/* Sidebar */}
           <ResizablePanel
+            ref={sidebarRef}
             defaultSize={size}
-            onResize={(n) => setSize(n)}
-            minSize={collapsed ? 6 : 16}
-            maxSize={32}
-            className={cn('border-r bg-card', collapsed && 'min-w-[64px]')}
+            minSize={MIN_COLLAPSED}
+            maxSize={MAX_EXPANDED}
+            onResize={(n) => {
+              if (!collapsed && n < MIN_EXPANDED) {
+                requestAnimationFrame(() =>
+                  sidebarRef.current?.resize(MIN_EXPANDED)
+                );
+                setSize(MIN_EXPANDED);
+                return;
+              }
+              setSize(n);
+              if (!collapsed && n >= MIN_EXPANDED) setLastExpanded(n);
+            }}
+            className={cn(
+              'border-r bg-card transition-[flex-basis] duration-300 ease-out',
+              collapsed && 'min-w-[64px]'
+            )}
           >
             <div className="h-full flex flex-col">
-              {/* Brand / collapse */}
-              <div className="h-14 shrink-0 flex items-center justify-between px-3 border-b">
-                <Link href="/admin/home" className="flex items-center gap-2">
+              {/* Header */}
+              <div className="h-14 flex items-center justify-between px-3 border-b">
+                <Link href="dashboard" className="flex items-center gap-2">
                   <div className="h-6 w-6 rounded-lg bg-primary/15 grid place-items-center">
                     <Building2 className="h-4 w-4 text-primary" />
                   </div>
                   {!collapsed && (
-                    <span className="font-semibold">Knwdle Admin</span>
+                    <span className="font-semibold tracking-tight">
+                      Knwdle Admin
+                    </span>
                   )}
                 </Link>
                 <Button
                   size="icon"
                   variant="ghost"
                   className="h-8 w-8"
-                  onClick={() => setCollapsed((c) => !c)}
+                  onClick={toggleSidebar}
+                  aria-label={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
                 >
                   {collapsed ? (
                     <ChevronRight className="h-4 w-4" />
@@ -150,29 +212,25 @@ export default function AdminShell({
                 <ul className="space-y-1 px-2">
                   {NAV.map((item) => {
                     const Icon = item.icon;
-                    const active = isActive(item.href) === 'active';
-                    const inner = (
+                    const active = isActive(item.href);
+                    const content = (
                       <div
                         className={cn(
-                          'flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition',
+                          'flex items-center gap-2 rounded-lg px-2.5 py-2 text-sm transition-all',
                           active
-                            ? 'bg-primary/10 text-primary'
-                            : 'hover:bg-muted'
+                            ? 'bg-primary/10 text-primary font-medium'
+                            : 'hover:bg-muted text-muted-foreground'
                         )}
                       >
                         <Icon className="h-4 w-4 shrink-0" />
-                        {!collapsed && (
-                          <span className="truncate">{item.label}</span>
-                        )}
+                        {!collapsed && <span>{item.label}</span>}
                       </div>
                     );
                     return (
                       <li key={item.href}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={item.href} className="block">
-                              {inner}
-                            </Link>
+                            <Link href={item.href}>{content}</Link>
                           </TooltipTrigger>
                           {collapsed && (
                             <TooltipContent side="right">
@@ -188,16 +246,57 @@ export default function AdminShell({
 
               <Separator />
 
-              {/* Footer */}
-              <div className="p-3 text-xs text-muted-foreground">
+              {/* Footer with Profile */}
+              <div className="p-3">
                 {!collapsed ? (
-                  <div className="space-y-1">
-                    <div className="font-medium text-foreground">Signed in</div>
-                    <div className="opacity-80">Admin Console</div>
-                    <div className="opacity-60">v0.1.0</div>
+                  <div className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted/60 transition">
+                    <Avatar className="h-8 w-8">
+                      {/* {user?.avatarUrl ? (
+                        <AvatarImage src={user.avatarUrl} alt={user.name} />
+                      ) : ( */}
+                      <AvatarFallback>
+                        {user?.name
+                          ?.split(' ')
+                          .map((n) => n[0])
+                          .join('')
+                          .slice(0, 2)
+                          .toUpperCase() || '?'}
+                      </AvatarFallback>
+                      {/* )} */}
+                    </Avatar>
+                    <div className="flex flex-col truncate">
+                      <span className="text-sm font-medium truncate">
+                        {user?.name || 'Unknown'}
+                      </span>
+                      <span className="text-xs text-muted-foreground truncate">
+                        {user?.email || '—'}
+                      </span>
+                    </div>
                   </div>
                 ) : (
-                  <div className="text-center opacity-70">v0.1.0</div>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <div className="flex justify-center">
+                        <Avatar className="h-8 w-8">
+                          {/* {user?.avatarUrl ? (
+                            <AvatarImage src={user.avatarUrl} alt={user.name} />
+                          ) : ( */}
+                          <AvatarFallback>
+                            {user?.name
+                              ?.split(' ')
+                              .map((n) => n[0])
+                              .join('')
+                              .slice(0, 2)
+                              .toUpperCase() || '?'}
+                          </AvatarFallback>
+                          {/* )} */}
+                        </Avatar>
+                      </div>
+                    </TooltipTrigger>
+                    <TooltipContent side="right">
+                      {user?.name || 'Unknown'}
+                    </TooltipContent>
+                  </Tooltip>
                 )}
               </div>
             </div>
@@ -209,19 +308,12 @@ export default function AdminShell({
           <ResizablePanel
             defaultSize={100 - size}
             minSize={collapsed ? 68 : 56}
+            className="transition-[flex-basis] duration-300 ease-out"
           >
             <div className="h-full flex flex-col">
-              {/* Top bar (breadcrumb/actions slot) */}
-              <div className="h-14 shrink-0 border-b px-4 flex items-center justify-between bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/40">
-                <div className="text-sm text-muted-foreground" />
-                <div className="flex items-center gap-2" />
-              </div>
-
-              {/* Content */}
+              <div className="h-14 shrink-0 border-b px-4 flex items-center justify-between bg-background/60 backdrop-blur supports-[backdrop-filter]:bg-background/40" />
               <div className="flex-1 overflow-auto">
-                <div className="mx-auto max-w-[1400px] p-4 sm:p-6 lg:p-8">
-                  {children}
-                </div>
+                <div className="mx-auto container w-full p-4">{children}</div>
               </div>
             </div>
           </ResizablePanel>

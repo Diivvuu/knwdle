@@ -1,5 +1,11 @@
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { api, setAuthToken } from '../api';
+import {
+  api,
+  beginLogout,
+  hardResetAuthClient,
+  reviveAuthClient,
+  setAuthToken,
+} from '../api';
 import { ParentRole } from './org';
 
 export interface MemberShipSummary {
@@ -19,6 +25,11 @@ export type AuthState = {
   accessToken: string | null; // rename for clarity
   status: 'idle' | 'loading' | 'failed';
   error?: string;
+  otp: {
+    status: 'idle' | 'sending' | 'sent' | 'verifying' | 'failed';
+    error?: string;
+    email?: string;
+  };
   invite: InviteUI;
 };
 
@@ -52,6 +63,7 @@ const initialState: AuthState = {
   user: null,
   accessToken: null,
   status: 'idle',
+  otp: { status: 'idle' },
   invite: {
     preview: null,
     previewStatus: 'idle',
@@ -73,7 +85,7 @@ export const login = createAsyncThunk(
   async (data: { email: string; password: string }) => {
     const res = await api.post('/auth/login', data);
     const { accessToken, user } = res.data;
-    setAuthToken(accessToken);
+    reviveAuthClient(accessToken);
     return { accessToken, user };
   }
 );
@@ -91,7 +103,7 @@ export const verifyOtp = createAsyncThunk(
   async (data: { email: string; code: string }) => {
     const res = await api.post('/auth/verify-otp', data); // <-- fixed
     const { accessToken, user } = res.data;
-    setAuthToken(accessToken);
+    reviveAuthClient(accessToken);
     return { accessToken, user };
   }
 );
@@ -102,7 +114,7 @@ export const refreshSession = createAsyncThunk(
     try {
       const res = await api.post('/auth/refresh');
       const { accessToken } = res.data ?? {};
-      if (accessToken) setAuthToken(accessToken);
+      // if (accessToken) reviveAuthClient(accessToken);
       return { accessToken: accessToken ?? null };
     } catch (e: any) {
       console.log('refreshSession error', e?.response?.status);
@@ -135,8 +147,18 @@ export const acceptInviteByToken = createAsyncThunk<
 });
 
 export const logout = createAsyncThunk('auth/logout', async () => {
-  await api.post('/auth/logout');
-  setAuthToken(undefined);
+  try {
+    beginLogout();
+    await api.post('/auth/logout');
+  } finally {
+    hardResetAuthClient();
+    try {
+      localStorage.removeItem('accessToken');
+    } catch {}
+    try {
+      sessionStorage.clear();
+    } catch {}
+  }
   return {};
 });
 
@@ -157,22 +179,79 @@ const authSlice = createSlice({
         acceptResult: null,
       };
     },
+    clearAuthError(s) {
+      s.error = undefined;
+    },
+    clearOtpError(s) {
+      s.otp.error = undefined;
+    },
   },
   extraReducers: (b) => {
+    //signup
+    b.addCase(signup.pending, (s) => {
+      s.status = 'loading';
+      s.error = undefined;
+    });
+    b.addCase(signup.fulfilled, (s) => {
+      s.status = 'idle';
+    });
+    b.addCase(signup.rejected, (s, a) => {
+      s.status = 'failed';
+      s.error = a.error.message;
+    });
+
+    //password login
+    b.addCase(login.pending, (s) => {
+      s.status = 'loading';
+      s.error = undefined;
+    });
     b.addCase(login.fulfilled, (s, a) => {
+      s.status = 'idle';
       s.accessToken = a.payload.accessToken;
       s.user = a.payload.user;
+    });
+    b.addCase(login.rejected, (s, a) => {
+      s.status = 'failed';
+      s.error = a.error.message;
+    });
+
+    //otp request
+    b.addCase(requestOtp.pending, (s, a) => {
+      s.otp.status = 'sending';
+      s.otp.error = undefined;
+      s.otp.email = (a.meta.arg as { email: string }).email;
+    });
+    b.addCase(requestOtp.fulfilled, (s) => {
+      s.otp.status = 'sent';
+    });
+    b.addCase(requestOtp.rejected, (s, a) => {
+      s.otp.status = 'failed';
+      s.otp.error = a.error.message || 'Failed to send OTP';
+    });
+
+    //verify otp
+    b.addCase(verifyOtp.pending, (s) => {
+      s.otp.status = 'verifying';
+      s.otp.error = undefined;
     });
     b.addCase(verifyOtp.fulfilled, (s, a) => {
+      s.otp.status = 'idle';
       s.accessToken = a.payload.accessToken;
       s.user = a.payload.user;
     });
+    b.addCase(verifyOtp.rejected, (s, a) => {
+      s.otp.status = 'failed';
+      s.otp.error = a.error.message;
+    });
+
+    //refresh/logout/me (unchanged)
     b.addCase(refreshSession.fulfilled, (s, a) => {
       if (a.payload.accessToken) s.accessToken = a.payload.accessToken;
     });
     b.addCase(logout.fulfilled, (s) => {
       s.accessToken = null;
       s.user = null;
+      s.otp = { status: 'idle' };
     });
     b.addCase(getMe.fulfilled, (s, a) => {
       s.user = s.user ? { ...s.user, ...a.payload } : a.payload;
@@ -210,5 +289,6 @@ const authSlice = createSlice({
   },
 });
 
-export const { resetInviteUi } = authSlice.actions;
+export const { resetInviteUi, clearAuthError, clearOtpError } =
+  authSlice.actions;
 export default authSlice.reducer;

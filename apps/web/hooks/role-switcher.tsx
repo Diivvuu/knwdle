@@ -20,7 +20,7 @@ export default function RoleSwitcher() {
         gap-1
         p-1.5
         rounded-full
-          bg-[hsla(149,97%,14%,0.08)]  
+          bg-[color-mix(in_srgb,var(--primary)_8%,transparent)]  
         border border-muted-foreground/20
         max-w-full
       "
@@ -44,13 +44,13 @@ export default function RoleSwitcher() {
         min-h-[40px]
         focus:outline-none
         transition
-        ${active ? 'text-white' : 'text-gray-700 hover:text-gray-900'}
+        ${active ? 'text-white' : 'text-muted-foreground hover:text-foreground'}
       `}
           >
             {active && (
               <motion.span
                 layoutId="rs-pill"
-                className="absolute inset-0 rounded-full bg-[hsla(149,97%,14%,1)]"
+                className="absolute inset-0 rounded-full bg-[var(--primary)]"
                 transition={{ type: 'spring', stiffness: 400, damping: 30 }}
               />
             )}

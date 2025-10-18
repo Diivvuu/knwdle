@@ -1,24 +1,38 @@
 'use client';
 
-import { useConfirmDialog } from '@/features/confirm/use-confirm-dialog';
-import { useAddInviteModal } from '@/features/invites/use-invite-atom';
-import { AppDispatch, RootState } from '@/store/store';
+import { useEffect, useMemo, useRef, useCallback } from 'react';
+import { useDispatch, useSelector } from 'react-redux';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import {
+  listInvitesPage,
+  clearOrgInvites,
   deleteInvite,
-  listInvites,
   listRoles,
   ParentRole,
 } from '@workspace/state';
-import { Badge } from '@workspace/ui/components/badge';
-import { Button } from '@workspace/ui/components/button';
-import DataTable, { Column } from '@workspace/ui/components/data-table';
-import PageBody from '@workspace/ui/components/page-body';
-import PageHeader from '@workspace/ui/components/page-header';
-import { Pencil, Plus, RefreshCw, Trash2 } from 'lucide-react';
-import { useParams } from 'next/navigation';
-import { useEffect, useMemo } from 'react';
-import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { useAddInviteModal } from '@/features/invites/use-invite-atom';
+import { useConfirmDialog } from '@/features/confirm/use-confirm-dialog';
 import { toast } from 'sonner';
+
+import { Button } from '@workspace/ui/components/button';
+import { Badge } from '@workspace/ui/components/badge';
+import DataTable, {
+  Column,
+  FilterDef,
+} from '@workspace/ui/components/data-table';
+import {
+  Plus,
+  RefreshCw,
+  Upload,
+  Trash2,
+  Pencil,
+  Shield,
+  UserRoundCog,
+  GraduationCap,
+  Users,
+} from 'lucide-react';
+import { cn } from '@workspace/ui/lib/utils';
 
 type InviteRow = {
   id: string;
@@ -32,87 +46,286 @@ type InviteRow = {
   createdAt: string;
 };
 
-const InvitesPage = () => {
+const ROLES = ['admin', 'staff', 'student', 'parent'] as const;
+type SearchBy = 'email' | 'role' | 'unitId';
+
+/* ---------- small UI helpers ---------- */
+const RoleIcon: Record<ParentRole, any> = {
+  admin: Shield,
+  staff: UserRoundCog,
+  student: GraduationCap,
+  parent: Users,
+};
+const roleBadgeClass: Record<ParentRole, string> = {
+  admin: 'bg-primary text-primary-foreground',
+  staff: 'bg-secondary text-secondary-foreground',
+  student: 'bg-emerald-600 text-white',
+  parent: 'bg-indigo-600 text-white',
+};
+const emailInitials = (email: string) =>
+  (email || '')
+    .split('@')[0]
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 2)
+    .toUpperCase() || 'U';
+
+function ExpiryChip({ date }: { date: string }) {
+  if (!date) return <span className="text-xs text-muted-foreground">—</span>;
+  const d = new Date(date);
+  const days = Math.ceil((d.getTime() - Date.now()) / 86400000);
+  const exact = new Intl.DateTimeFormat(undefined, {
+    year: 'numeric',
+    month: 'short',
+    day: '2-digit',
+  }).format(d);
+  let cls = 'bg-muted text-foreground',
+    txt = 'Valid';
+  if (days <= 3 && days >= 0) {
+    cls = 'bg-amber-600 text-white';
+    txt = 'Expiring';
+  }
+  if (days < 0) {
+    cls = 'bg-red-600 text-white';
+    txt = 'Expired';
+  }
+  return (
+    <span
+      title={exact}
+      className={cn(
+        'inline-flex items-center rounded-md px-2 py-0.5 text-xs font-medium',
+        cls
+      )}
+    >
+      {txt}
+      <span className="mx-1.5 opacity-70">•</span>
+      <span className="tabular-nums">{exact}</span>
+    </span>
+  );
+}
+const EmailCell = ({ email }: { email: string }) => (
+  <div className="flex items-center gap-2">
+    <div className="h-8 w-8 rounded-md bg-primary text-primary-foreground grid place-items-center font-semibold text-[12px]">
+      {emailInitials(email)}
+    </div>
+    <span className="font-medium">{email}</span>
+  </div>
+);
+const RoleCell = ({ role }: { role: ParentRole }) => {
+  const Icon = RoleIcon[role];
+  return (
+    <span
+      className={cn(
+        'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs capitalize font-medium',
+        roleBadgeClass[role]
+      )}
+    >
+      <Icon className="h-3.5 w-3.5" /> {role}
+    </span>
+  );
+};
+
+/* ---------- page ---------- */
+export default function InvitesPage() {
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
+  const params = useSearchParams();
   const { id: orgId = '' } = useParams<{ id: string }>() ?? {};
 
   const [open, setOpen] = useAddInviteModal();
-  // const [editOpen, setEditOpen]  = useEditInviteModal()
   const { confirm } = useConfirmDialog();
 
-  const entry = useSelector((state: RootState) => state.invites.byOrg[orgId]);
+  const entry = useSelector((s: RootState) => s.invites.byOrg[orgId]);
   const invites = (entry?.items ?? []) as InviteRow[];
   const loading = entry?.status === 'loading';
+  const hasMore = entry?.hasMore;
 
+  // read URL state
+  const searchByParam = (params.get('searchBy') as SearchBy) ?? 'email';
+  const q = params.get('q') ?? '';
+  const roleParam = (params.get('role') as ParentRole | null) ?? null;
+  const unitId = params.get('unitId') ?? '';
+  const status =
+    (params.get('status') as 'pending' | 'accepted' | null) ?? null;
+  const sortKey = params.get('sortKey') ?? '';
+  const sortDir = (params.get('sortDir') as 'asc' | 'desc' | null) ?? null;
+  const limit = Number(params.get('limit') || 25);
+
+  // derived (server)
+  const effectiveQ =
+    searchByParam === 'email' ? q : searchByParam === 'unitId' ? unitId : '';
+  const effectiveRole = searchByParam === 'role' ? (roleParam ?? '') : '';
+
+  // initial fetch
+  const lastSig = useRef('');
   useEffect(() => {
     if (!orgId) return;
-    dispatch(listInvites({ orgId }));
     dispatch(listRoles({ orgId }));
   }, [dispatch, orgId]);
 
+  useEffect(() => {
+    if (!orgId) return;
+    const sig = [
+      orgId,
+      searchByParam,
+      effectiveQ,
+      effectiveRole,
+      status || '',
+      sortKey || '',
+      sortDir || '',
+      String(limit),
+    ].join('|');
+    if (lastSig.current === sig) return;
+    lastSig.current = sig;
+
+    dispatch(clearOrgInvites({ orgId }));
+    dispatch(
+      listInvitesPage({
+        orgId,
+        limit,
+        cursor: null,
+        q: effectiveQ || undefined,
+        role: (effectiveRole as ParentRole) || undefined,
+        status: status || undefined,
+        unitId: searchByParam === 'unitId' ? unitId || undefined : undefined,
+        sortKey: sortKey || undefined,
+        sortDir: sortDir || undefined,
+      })
+    );
+  }, [
+    dispatch,
+    orgId,
+    searchByParam,
+    effectiveQ,
+    effectiveRole,
+    unitId,
+    status,
+    sortKey,
+    sortDir,
+    limit,
+  ]);
+
+  // columns
   const columns: Column<InviteRow>[] = useMemo(
     () => [
       {
         key: 'email',
         header: 'Email',
         sortable: true,
-        sortAccessor: (r) => r.email,
-        render: (r) => <span className="font-medium">{r.email}</span>,
+        render: (r) => <EmailCell email={r.email} />,
       },
       {
         key: 'role',
         header: 'Role',
         sortable: true,
-        sortAccessor: (r) => r.role,
-        render: (r) => (
-          <Badge variant={'secondary'} className="capitalize">
-            {r.role}
-          </Badge>
-        ),
+        render: (r) => <RoleCell role={r.role} />,
       },
       {
-        key: 'unit',
+        key: 'unitId',
         header: 'Unit',
         sortable: true,
-        sortAccessor: (r) => r.unitId ?? '',
-        render: (r) => <span className="text-xs">{r.unitId ?? '-'}</span>,
+        render: (r) => (
+          <span className="text-xs text-muted-foreground">
+            {r.unitId ?? '—'}
+          </span>
+        ),
       },
       {
         key: 'expiresAt',
         header: 'Expires',
         sortable: true,
-        sortAccessor: (r) => (r.expiresAt ? Date.parse(r.expiresAt) : 0),
-        render: (r) => (
-          <span className="text-xs text-muted-foreground">
-            {r.expiresAt ? new Date(r.expiresAt).toLocaleString() : '-'}
-          </span>
-        ),
+        sortAccessor: (r) => new Date(r.expiresAt || 0).getTime(),
+        render: (r) => <ExpiryChip date={r.expiresAt} />,
       },
       {
         key: 'status',
         header: 'Status',
         sortable: true,
-        sortAccessor: (r) => (r.acceptedBy ? 'accepted' : 'pending'),
-        render: (r) => (
-          <Badge variant={r.acceptedBy ? 'default' : 'outline'}>
-            {r.acceptedBy ? 'Accepted' : 'Pending'}
-          </Badge>
-        ),
+        sortAccessor: (r) => (r.acceptedBy ? 1 : 0),
+        render: (r) =>
+          r.acceptedBy ? (
+            <Badge className="rounded-md bg-emerald-600 text-white">
+              Accepted
+            </Badge>
+          ) : (
+            <Badge className="rounded-md border bg-white">Pending</Badge>
+          ),
       },
     ],
     []
   );
-  const handleEdit = (inv: InviteRow) => {
-    // setEditOpen({open : true, invite:  inv})
-  };
 
-  const handleDelete = (inv: InviteRow) => {
+  // table toolbar filters
+  const filters: FilterDef[] = useMemo(
+    () => [
+      {
+        type: 'select',
+        key: 'status',
+        label: 'Status',
+        options: [
+          { label: 'All', value: '' },
+          { label: 'Pending', value: 'pending' },
+          { label: 'Accepted', value: 'accepted' },
+        ],
+      },
+      {
+        type: 'select',
+        key: 'searchBy',
+        label: 'Search by',
+        options: [
+          { label: 'Email', value: 'email' },
+          { label: 'Role', value: 'role' },
+          { label: 'Unit ID', value: 'unitId' },
+        ],
+      },
+    ],
+    []
+  );
+
+  // single source of truth: table notifies URL
+  const onServerQueryChange = useCallback(
+    (p: {
+      page: number;
+      pageSize: number;
+      query: string;
+      sort?: { key: string; dir: 'asc' | 'desc' } | null;
+      filters: Record<string, string>;
+    }) => {
+      const current = new URLSearchParams(
+        typeof window !== 'undefined' ? window.location.search : ''
+      );
+      const sp = new URLSearchParams(current.toString());
+
+      const nextSearchBy = (p.filters.searchBy as SearchBy) || 'email';
+      sp.set('searchBy', nextSearchBy);
+      sp.delete('q');
+      sp.delete('role');
+      sp.delete('unitId');
+
+      const text = (p.query || '').trim();
+      if (nextSearchBy === 'email' && text) sp.set('q', text);
+      if (nextSearchBy === 'unitId' && text) sp.set('unitId', text);
+      if (nextSearchBy === 'role' && text) sp.set('role', text as ParentRole); // allow typing role
+
+      const nextStatus = p.filters.status ?? '';
+      nextStatus ? sp.set('status', nextStatus) : sp.delete('status');
+
+      p.sort?.key ? sp.set('sortKey', p.sort.key) : sp.delete('sortKey');
+      p.sort?.dir ? sp.set('sortDir', p.sort.dir) : sp.delete('sortDir');
+
+      sp.set('limit', String(p.pageSize || 25));
+      const nextQS = sp.toString();
+      if (nextQS !== current.toString())
+        router.replace(`?${nextQS}`, { scroll: false });
+    },
+    [router]
+  );
+
+  const handleDelete = (inv: InviteRow) =>
     confirm({
       title: 'Delete invite?',
       description: (
         <>
-          This will revoke the email for <b>{inv.email}</b>. This action cannot
-          be undone.
+          This will revoke <b>{inv.email}</b>. This action cannot be undone.
         </>
       ),
       confirmText: 'Delete',
@@ -123,66 +336,143 @@ const InvitesPage = () => {
         else toast.success('Invite deleted');
       },
     });
+
+  const loadMore = () => {
+    if (!entry?.nextCursor) return;
+    dispatch(
+      listInvitesPage({
+        orgId,
+        limit,
+        cursor: entry.nextCursor,
+        q: effectiveQ || undefined,
+        role: (effectiveRole as ParentRole) || undefined,
+        status: status || undefined,
+        unitId: searchByParam === 'unitId' ? unitId || undefined : undefined,
+        sortKey: sortKey || undefined,
+        sortDir: sortDir || undefined,
+      })
+    );
   };
 
   return (
-    <div className="container mx-auto p-4 md:p-6 lg:p-8 space-y-6">
-      <PageHeader
-        title="Invites"
-        subtitle="Send and manage invitations to join this organisation."
-        actions={
-          <>
-            <Button
-              variant={'outline'}
-              onClick={() => dispatch(listInvites({ orgId }))}
-            >
-              <RefreshCw className="size-4 mr-2" /> Refresh
-            </Button>
-            <Button
-              onClick={() => {
-                setOpen(true);
-              }}
-            >
-              <Plus className="size-4 mr-2" />
-              Create Invite
-            </Button>
-          </>
+    <div className="container mx-auto space-y-6">
+      {/* Minimal page header: keep CTAs only */}
+      <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between pt-4">
+        <div>
+          <h1 className="text-2xl font-semibold tracking-tight">Invites</h1>
+          <p className="text-sm text-muted-foreground">
+            Send and manage invitations for this organisation.
+          </p>
+        </div>
+        <div className="flex items-center gap-2">
+          <Button variant="outline" className="rounded-md">
+            <Upload className="mr-2 h-4 w-4" /> Bulk invite
+          </Button>
+          <Button className="rounded-md" onClick={() => setOpen(true)}>
+            <Plus className="mr-2 h-4 w-4" /> Create invite
+          </Button>
+        </div>
+      </div>
+
+      {/* Single toolbar inside the table; no duplicate search */}
+      <DataTable<InviteRow>
+        title=""
+        columns={columns}
+        rows={invites}
+        rowKey={(r) => r.id}
+        loading={loading}
+        handlers={{ onQueryChange: onServerQueryChange }}
+        serverSearchMode="manual"
+        initialQuery={
+          (searchByParam === 'email' && q) ||
+          (searchByParam === 'unitId' && unitId) ||
+          (searchByParam === 'role' && (roleParam ?? '')) ||
+          ''
         }
+        initialSort={
+          sortKey && sortDir ? ({ key: sortKey, dir: sortDir } as const) : null
+        }
+        initialFilters={{ status: status ?? '', searchBy: searchByParam }}
+        initialPageSize={limit}
+        filters={filters}
+        toolbarActions={
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              dispatch(
+                listInvitesPage({
+                  orgId,
+                  limit,
+                  cursor: null,
+                  q: effectiveQ || undefined,
+                  role: (effectiveRole as ParentRole) || undefined,
+                  status: status || undefined,
+                  unitId:
+                    searchByParam === 'unitId'
+                      ? unitId || undefined
+                      : undefined,
+                  sortKey: sortKey || undefined,
+                  sortDir: sortDir || undefined,
+                })
+              );
+            }}
+          >
+            <RefreshCw className="mr-2 h-4 w-4" /> Refresh
+          </Button>
+        }
+        rightActionsFor={(r) => (
+          <div className="flex justify-end gap-1.5">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-md hover:bg-muted"
+              onClick={() => toast.info(`Edit ${r.email}`)}
+              aria-label="Edit invite"
+            >
+              <Pencil className="h-4 w-4" />
+            </Button>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="rounded-md text-destructive hover:bg-destructive/10"
+              onClick={() => handleDelete(r)}
+              aria-label="Delete invite"
+            >
+              <Trash2 className="h-4 w-4" />
+            </Button>
+          </div>
+        )}
+        ui={{
+          hideSearch: false, // <-- only this search is visible
+          zebra: true,
+          stickyHeader: true,
+          rounded: 'xl',
+          headerUppercase: true,
+          compactHeader: true,
+          border: true,
+          showSearchButton: true,
+          searchPlaceholder:
+            searchByParam === 'role'
+              ? 'Search role (admin, staff, ...)'
+              : searchByParam === 'unitId'
+                ? 'Search unit id…'
+                : 'Search email…',
+        }}
       />
-      <PageBody>
-        <DataTable<InviteRow>
-          title="Invites"
-          columns={columns}
-          rows={invites}
-          rowKey={(r) => r.id}
-          loading={loading}
-          onRefresh={() => dispatch(listInvites({ orgId }))}
-          rightActionsFor={(r) => (
-            <div className="flex justify-end gap-2">
-              <Button
-                variant={'outline'}
-                size="icon"
-                onClick={() => {
-                  handleDelete(r);
-                }}
-              >
-                <Pencil className="size-4" />
-              </Button>
-              <Button
-                variant={'destructive'}
-                size={'icon'}
-                onClick={() => {
-                  handleDelete(r);
-                }}
-              >
-                <Trash2 className="size-4" />
-              </Button>
-            </div>
-          )}
-        />
-      </PageBody>
+
+      {hasMore && (
+        <div className="mt-3 flex justify-center">
+          <Button
+            onClick={loadMore}
+            disabled={loading}
+            variant="outline"
+            className="rounded-md"
+          >
+            Load more
+          </Button>
+        </div>
+      )}
     </div>
   );
-};
-
-export default InvitesPage;
+}

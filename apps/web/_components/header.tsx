@@ -34,8 +34,10 @@ import {
   SheetClose,
 } from '@workspace/ui/components/sheet';
 import { Separator } from '@workspace/ui/components/separator';
-import { useSelector } from 'react-redux';
-import { RootState } from '@/store/store';
+import { useDispatch, useSelector } from 'react-redux';
+import { AppDispatch, RootState } from '@/store/store';
+import { useRouter } from 'next/navigation';
+import { beginLogout, logout } from '@workspace/state';
 
 const navLinks = [
   { name: 'Features', href: '#features' },
@@ -52,6 +54,8 @@ function useMounted() {
 
 export default function Header() {
   const mounted = useMounted();
+  const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const ref = useRef<HTMLElement>(null);
   const { user, accessToken } = useSelector((s: RootState) => s.auth);
@@ -79,6 +83,12 @@ export default function Header() {
     return () => ro.disconnect();
   }, []);
 
+  const handleLogout = async () => {
+    beginLogout();
+    await dispatch(logout());
+    router.refresh();
+  };
+
   return (
     <motion.header
       ref={ref}
@@ -103,18 +113,26 @@ export default function Header() {
               before:content-[''] before:absolute before:inset-[-20%] before:rounded-[28px]
               before:bg-[radial-gradient(50%_40%_at_50%_0%,rgba(255,255,255,0.45),transparent_60%)] before:opacity-60
               after:content-[''] after:absolute after:inset-[-25%] after:rounded-[32px]
-              after:bg-[radial-gradient(60%_60%_at_50%_120%,rgba(16,185,129,0.14),transparent_70%)] after:opacity-60"
+              after:bg-[radial-gradient(60%_60%_at_50%_120%,color-mix(in_oklab,var(--primary)_14%,transparent),transparent_70%)] after:opacity-60"
           />
 
           {/* Left: Logo (slightly larger, fixed box to avoid shift) */}
           <Link href="/" className="flex items-center gap-2 pl-1 sm:pl-2">
             <span className="relative block h-16 w-16 md:h-20 md:w-20">
+              {/* Light mode logo */}
               <Image
-                src="/knwdle.svg"
+                src="/knwdle-light.svg"
                 alt="Knwdle"
                 fill
                 priority
-                className="object-contain"
+                className="object-contain dark:hidden"
+              />
+              {/* Dark mode logo */}
+              <Image
+                src="/knwdle-dark.svg"
+                alt="Knwdle"
+                fill
+                className="object-contain hidden dark:block"
               />
             </span>
           </Link>
@@ -128,7 +146,7 @@ export default function Header() {
                 className="group relative font-medium text-foreground/70 hover:text-foreground transition-colors"
               >
                 {l.name}
-                <span className="pointer-events-none absolute left-0 -bottom-1 h-px w-0 bg-[hsla(149,97%,14%,1)] transition-all duration-300 group-hover:w-full" />
+                <span className="pointer-events-none absolute left-0 -bottom-1 h-px w-0 bg-primary transition-all duration-300 group-hover:w-full" />
               </Link>
             ))}
           </nav>
@@ -149,7 +167,7 @@ export default function Header() {
                 <Button
                   asChild
                   size="sm"
-                  className="hidden md:inline-flex bg-[hsla(149,97%,14%,0.96)] hover:bg-[hsla(149,97%,14%,1)] text-white"
+                  className="hidden md:inline-flex bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <Link href="#get-started">Get&nbsp;Started</Link>
                 </Button>
@@ -228,10 +246,8 @@ export default function Header() {
                     </DropdownMenuItem>
                     <DropdownMenuSeparator />
                     <DropdownMenuItem
-                      onClick={() => {
-                        // onSignOut?.();
-                      }}
-                      className="text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20"
+                      onClick={handleLogout}
+                      className="text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
                     >
                       <LogOut className="mr-2 h-4 w-4" />
                       Sign out
@@ -252,7 +268,7 @@ export default function Header() {
                 <Button
                   asChild
                   size="sm"
-                  className="hidden md:inline-flex bg-[hsla(149,97%,14%,0.96)] hover:bg-[hsla(149,97%,14%,1)] text-white"
+                  className="hidden md:inline-flex bg-primary hover:bg-primary/90 text-primary-foreground"
                 >
                   <Link href="#get-started">Get&nbsp;Started</Link>
                 </Button>
@@ -265,7 +281,7 @@ export default function Header() {
                 <Button
                   variant="ghost"
                   size="icon"
-                  className="md:hidden h-9 w-9 rounded-lg hover:bg-black/5 dark:hover:bg-white/10"
+                  className="md:hidden h-9 w-9 rounded-lg hover:bg-muted"
                   aria-label="Open menu"
                 >
                   {/* hamburger icon */}
@@ -280,11 +296,19 @@ export default function Header() {
                 <SheetHeader className="border-b px-5">
                   <SheetTitle className="flex items-center gap-3">
                     <span className="relative h-8 w-full flex justify-start">
+                      {/* Light mode logo */}
                       <Image
-                        src="/knwdle.svg"
+                        src="/knwdle-light.svg"
                         alt="Knwdle"
                         fill
-                        className="object-contain object-left"
+                        className="object-contain object-left dark:hidden"
+                      />
+                      {/* Dark mode logo */}
+                      <Image
+                        src="/knwdle-dark.svg"
+                        alt="Knwdle"
+                        fill
+                        className="object-contain object-left hidden dark:block"
                       />
                     </span>
                   </SheetTitle>
@@ -295,7 +319,7 @@ export default function Header() {
                       <SheetClose asChild key={l.name}>
                         <Link
                           href={l.href}
-                          className="block rounded-lg px-4 py-3 text-[15px] text-foreground/80 hover:bg-black/5 dark:hover:bg-white/10"
+                          className="block rounded-lg px-4 py-3 text-[15px] text-foreground/80 hover:bg-muted"
                         >
                           {l.name}
                         </Link>
@@ -320,7 +344,7 @@ export default function Header() {
                           <Button
                             asChild
                             size="lg"
-                            className="w-full bg-[hsla(149,97%,14%,0.96)] hover:bg-[hsla(149,97%,14%,1)] text-white"
+                            className="w-full bg-primary hover:bg-primary/90 text-primary-foreground"
                           >
                             <Link href="#get-started">Get Started</Link>
                           </Button>
@@ -356,10 +380,8 @@ export default function Header() {
                         <Button
                           variant="ghost"
                           size="lg"
-                          className="w-full justify-start text-orange-600 hover:bg-orange-50 dark:hover:bg-orange-900/20"
-                          onClick={() => {
-                            // onSignOut?.();
-                          }}
+                          className="w-full justify-start text-destructive hover:bg-destructive/10 dark:hover:bg-destructive/20"
+                          onClick={handleLogout}
                         >
                           <LogOut className="mr-3 h-5 w-5" /> Sign Out
                         </Button>

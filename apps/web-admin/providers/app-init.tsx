@@ -2,7 +2,7 @@
 'use client';
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { AppDispatch, RootState } from '@/store/store';
+import type { AppDispatch, RootState } from '@/store/store';
 import { getMe, refreshSession } from '@workspace/state';
 
 export default function AppInit() {
@@ -15,15 +15,15 @@ export default function AppInit() {
     ran.current = true;
 
     (async () => {
-      // If in-memory token is empty (reload/HMR), try one refresh first.
-      if (!accessToken) {
-        try {
-          await dispatch(refreshSession()).unwrap();
-        } catch {}
-      }
-      // Then fetch profile (interceptor still protects with refresh-on-401).
       try {
-        await dispatch(getMe()).unwrap();
+        if (accessToken) {
+          await dispatch(getMe()).unwrap();
+          return;
+        }
+        const r = await dispatch(refreshSession());
+        if (refreshSession.fulfilled.match(r) && r.payload?.accessToken) {
+          await dispatch(getMe()).unwrap();
+        }
       } catch {}
     })();
   }, [dispatch, accessToken]);

@@ -1,11 +1,13 @@
 import { Geist, Geist_Mono } from 'next/font/google';
 import '@workspace/ui/globals.css';
+import './globals.css';
 import Header from '@/_components/header';
 import { RoleProvider } from '@/providers/role-provider';
 import { ReduxWrapper } from '@/providers/store-provider';
 import AppInit from '@/providers/app-init';
 import { Toaster } from '@workspace/ui/components/sonner';
 import { Providers } from '@workspace/ui/components/provider';
+import Modals from '@/features/modals';
 
 const fontSans = Geist({
   subsets: ['latin'],
@@ -37,6 +39,7 @@ export default function RootLayout({
       >
         <ReduxWrapper>
           <Toaster />
+          <Modals />
           <AppInit />
           <Providers>
             <RoleProvider>

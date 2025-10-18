@@ -1,11 +1,22 @@
 // apps/*/src/api.ts
 import axios, { AxiosError } from 'axios';
 
+const REFRESH_DEAD_KEY = '__knw_refresh_dead';
+
 let accessToken: string | null = null;
 let refreshing = false;
 let refreshDead = false;
 let loggingOut = false;
 let waiters: Array<() => void> = [];
+
+try {
+  if (
+    typeof window !== 'undefined' &&
+    localStorage.getItem(REFRESH_DEAD_KEY) === '1'
+  ) {
+    refreshDead = true;
+  }
+} catch {}
 
 export const api = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:4000',
@@ -22,30 +33,62 @@ export const endLogout = () => {
 
 export const setAuthToken = (token?: string) => {
   accessToken = token ?? null;
-  if (token) api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
-  else delete api.defaults.headers.common['Authorization'];
+  if (token) api.defaults.headers.common.Authorization = `Bearer ${token}`;
+  else delete api.defaults.headers.common.Authorization;
 };
+
+export const hardResetAuthClient = () => {
+  accessToken = null;
+  refreshDead = true;
+  try {
+    localStorage.setItem(REFRESH_DEAD_KEY, '1');
+  } catch {}
+  refreshing = false;
+  loggingOut = false;
+  waiters.forEach((r) => r());
+  waiters = [];
+  delete api.defaults.headers.common.Authorization;
+};
+
+export const reviveAuthClient = (token: string) => {
+  refreshDead = false;
+  try {
+    localStorage.removeItem(REFRESH_DEAD_KEY);
+  } catch {}
+  setAuthToken(token);
+};
+
+/** 🔐 REQUEST GATE:
+ * If no Authorization header AND refresh isn't dead:
+ *  - perform one refresh (deduped) BEFORE sending the request
+ * Skips /auth/* endpoints.
+ */
+
+api.interceptors.request.use(async (config) => {
+  if (loggingOut) return config;
+
+  const url = String(config.url || '');
+  if (url.startsWith('/auth/')) return config;
+
+  if (accessToken) return config; // no token? we'll still try the request; 401 handler will refresh
+  return config;
+});
 
 api.interceptors.response.use(
   (res) => res,
   async (err: AxiosError) => {
-    const original = err.config as any;
+    const original: any = err.config || {};
     const status = err.response?.status;
 
-    // 🔒 stop recursion or work during logout
     if (
-      original?._retry ||
-      original?.url?.includes('/auth/refresh') ||
+      original._retry ||
       loggingOut ||
-      refreshDead
+      String(original.url || '').includes('/auth/refresh')
     ) {
       throw err;
     }
 
-    // ⛔ if it's any 401, even with a token, try one refresh max
     if (status === 401) {
-      // case 1: we have a token → probably expired/bad
-      // case 2: no token → maybe cookie refreshable
       original._retry = true;
 
       if (refreshing) {
@@ -53,28 +96,21 @@ api.interceptors.response.use(
       } else {
         try {
           refreshing = true;
-          const { data } = await api.post('/auth/refresh'); // cookie → new token
+          const { data } = await api.post('/auth/refresh', undefined, {
+            headers: { Authorization: undefined },
+          });
           const newToken = (data as any)?.accessToken;
           if (!newToken) {
-            // refresh endpoint responded but gave nothing → treat as failure
-            refreshDead = true;
+            // server already cleared cookie; let caller handle logout flow
             throw err;
           }
           setAuthToken(newToken);
-        } catch {
-          // ❌ refresh failed (wrong token or no cookie) → never try again
-          refreshDead = true;
+        } finally {
+          refreshing = false;
           waiters.forEach((r) => r());
           waiters = [];
-          refreshing = false;
-          throw err;
         }
-        waiters.forEach((r) => r());
-        waiters = [];
-        refreshing = false;
       }
-
-      // ✅ only one retry per request
       return api(original);
     }
 

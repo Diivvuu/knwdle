@@ -1,63 +1,99 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useState } from 'react';
+import { AppDispatch, RootState } from '@/store/store';
+import {
+  clearAuthError,
+  clearOtpError,
+  login,
+  logout,
+  requestOtp,
+  signup,
+  verifyOtp,
+} from '@workspace/state';
+import { redirect, useRouter, useSearchParams } from 'next/navigation';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import type { AppDispatch, RootState } from '@/store/store';
-import { useRouter, useSearchParams } from 'next/navigation';
-
+import z from 'zod';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import AuthShell from './auth-shell';
 import {
   CardContent,
   CardHeader,
   CardTitle,
 } from '@workspace/ui/components/card';
+import Image from 'next/image';
+import ErrorBanner from './error-banner';
 import {
   Tabs,
+  TabsContent,
   TabsList,
   TabsTrigger,
-  TabsContent,
 } from '@workspace/ui/components/tabs';
-import { Button } from '@workspace/ui/components/button';
-import { Label } from '@workspace/ui/components/label';
-import { z } from 'zod';
-import { useForm } from 'react-hook-form';
-import { zodResolver } from '@hookform/resolvers/zod';
-import { login, signup, requestOtp, verifyOtp } from '@workspace/state';
-import AuthShell from './auth-shell';
-import ErrorBanner from './error-banner';
 import EmailField from './email-field';
 import PasswordField from './password-field';
+import { Label } from '@workspace/ui/components/label';
+import { Button } from '@workspace/ui/components/button';
 import OrDivider from './or-divider';
-// import SSOButtons from './sso-buttons';
-import Image from 'next/image';
+import { Input } from '@workspace/ui/components/input';
 
 const LoginSchema = z.object({
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z.string().min(1, 'Password is required'),
 });
-const SignupSchema = z.object({
+const weakList = ['password', 'password1', '123456', 'qwerty', 'letmein'];
+const SignUpSchema = z.object({
   name: z.string().min(2).max(64).optional(),
   email: z.string().email(),
-  password: z.string().min(6),
+  password: z
+    .string()
+    .min(8, 'Use at least 8 characters')
+    .refine((v) => (weakList.includes(v.toLowerCase()), 'Too common'))
+    .refine((v) => /[a-z]/.test(v), 'Add a lowercase letter')
+    .refine((v) => /[A-Z]/.test(v), 'Add an uppercase letter')
+    .refine((v) => /\d/.test(v), 'Add a number')
+    .refine((v) => /[^A-Za-z0-9]/.test(v), 'Add a symbol'),
 });
+
 type LoginValues = z.infer<typeof LoginSchema>;
-type SignupValues = z.infer<typeof SignupSchema>;
+type SignupValues = z.infer<typeof SignUpSchema>;
 
 export default function AuthScreen() {
   const router = useRouter();
   const params = useSearchParams();
   const redirectTo = params.get('redirect') || '/dashboard';
+  const forceLogout = params.get('forceLogout') === '1';
 
   const dispatch = useDispatch<AppDispatch>();
-  const { user, status, error, accessToken } = useSelector(
-    (s: RootState) => s.auth
+  const { user, status, error, accessToken, otp } = useSelector(
+    (state: RootState) => state.auth
   );
+
+  useEffect(() => {
+    if (forceLogout) dispatch(logout());
+  }, [forceLogout, dispatch]);
 
   const initialMode = (params.get('mode') as 'login' | 'signup') || 'login';
   const [tab, setTab] = useState<'login' | 'signup'>(initialMode);
 
-  const isLoading = status === 'loading';
+  const [cooldown, setCooldown] = useState(0);
 
-  // login form
+  useEffect(() => {
+    if (otp.status === 'sent') setCooldown(30);
+  }, [otp.status]);
+
+  useEffect(() => {
+    if (cooldown <= 0) return;
+    const t = setInterval(() => {
+      setCooldown((c) => c - 1);
+    }, 1000);
+    return () => clearInterval(t);
+  }, [cooldown]);
+
+  const isLoadingPw = status === 'loading';
+  const visibleError = useMemo(() => error ?? undefined, [error]);
+
+  /* Login form */
   const {
     register: regLogin,
     handleSubmit: submitLogin,
@@ -68,52 +104,85 @@ export default function AuthScreen() {
     mode: 'onBlur',
   });
 
-  // signup form
+  /* Signup form */
   const {
     register: regSignup,
     handleSubmit: submitSignup,
     formState: { errors: errorsSignup },
   } = useForm<SignupValues>({
-    resolver: zodResolver(SignupSchema),
+    resolver: zodResolver(SignUpSchema),
     defaultValues: { name: '', email: '', password: '' },
     mode: 'onBlur',
   });
 
-  // OTP local state
-  const [otpStage, setOtpStage] = useState<'idle' | 'sent'>('idle');
+  const onLogin = useCallback(
+    (values: LoginValues) => {
+      dispatch(clearAuthError());
+      dispatch(
+        login({
+          email: values.email.trim().toLowerCase(),
+          password: values.password,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  const onSignup = useCallback(
+    (values: SignupValues) => {
+      dispatch(clearAuthError());
+      dispatch(
+        signup({
+          name: values.name?.trim() || undefined,
+          email: values.email.trim().toLowerCase(),
+          password: values.password,
+        })
+      );
+    },
+    [dispatch]
+  );
+
+  /* OTP Local state */
   const [otpEmail, setOtpEmail] = useState('');
   const [otpCode, setOtpCode] = useState('');
+  const otpCodeRef = useRef<HTMLInputElement | null>(null);
 
-  const onLogin = useCallback(
-    (values: LoginValues) => void dispatch(login(values)),
-    [dispatch]
-  );
-  const onSignup = useCallback(
-    (values: SignupValues) => void dispatch(signup(values)),
-    [dispatch]
-  );
-
-  // OTP handlers
   const sendOtp = useCallback(async () => {
     if (!otpEmail) return;
-    await dispatch(requestOtp({ email: otpEmail }));
-    setOtpStage('sent');
+    dispatch(clearOtpError());
+    await dispatch(requestOtp({ email: otpEmail.trim().toLowerCase() }));
   }, [dispatch, otpEmail]);
 
   const confirmOtp = useCallback(async () => {
     if (!otpEmail || !otpCode) return;
-    await dispatch(verifyOtp({ email: otpEmail, code: otpCode }));
-    // success redirect handled by effect below
+    dispatch(clearOtpError());
+    await dispatch(
+      verifyOtp({ email: otpEmail.trim().toLowerCase(), code: otpCode })
+    );
   }, [dispatch, otpEmail, otpCode]);
 
-  // redirect after successful auth
+  useEffect(() => {
+    if (otp.status === 'sent') {
+      setTimeout(() => otpCodeRef.current?.focus?.(), 0);
+    }
+  }, [otp.status]);
+
+  useEffect(() => {
+    const handler = (e: KeyboardEvent) => {
+      if (otp.status === 'sent' && e.key === 'Enter' && otpCode.length >= 4) {
+        e.preventDefault();
+        confirmOtp();
+      }
+    };
+
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [otp.status, otpCode, confirmOtp]);
+
   useEffect(() => {
     if (user && accessToken) router.replace(redirectTo);
   }, [user, accessToken, router, redirectTo]);
 
-  const visibleError = useMemo(() => error ?? null, [error]);
-
-  // keep ?mode in sync when switching tabs
   const onTabChange = useCallback(
     (v: string) => {
       const mode = (v === 'signup' ? 'signup' : 'login') as 'login' | 'signup';
@@ -125,7 +194,6 @@ export default function AuthScreen() {
     [params, router]
   );
 
-  // ⌘/Ctrl + Enter submits active tab
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -139,24 +207,30 @@ export default function AuthScreen() {
     return () => window.removeEventListener('keydown', handler);
   }, []);
 
+  const otpSending = otp.status === 'sending';
+  const otpSent = otp.status === 'sent';
+  const otpVerifying = otp.status === 'verifying';
+  const otpFailed = otp.status === 'failed';
+  const otpError = otp.error;
+
   return (
     <AuthShell>
       <CardHeader className="pb-4">
-        <div className="mx-auto grid place-items-center gap-2">
+        <div className="mx-auto w-full grid align-items-center gap-y-2">
+          <CardTitle className="text-lg text-muted-foreground mx-auto w-full text-center">
+            Welcome to
+          </CardTitle>
           <Image
             src="/knwdle.svg"
-            width={96}
-            height={96}
+            width={100}
+            height={100}
             alt="logo"
-            className="opacity-95"
+            className="opacity-90 mx-auto"
           />
-          <CardTitle className="text-lg text-muted-foreground">
-            Welcome to knwdle
-          </CardTitle>
         </div>
       </CardHeader>
 
-      <CardContent className="pt-0 rounded-xl bg-gradient-to-b from-background to-muted/30">
+      <CardContent className="pt-0 rounded-xl bg-gradient-t-b from-background to-muted/30">
         {visibleError && <ErrorBanner message={visibleError} />}
 
         <Tabs value={tab} onValueChange={onTabChange}>
@@ -164,10 +238,7 @@ export default function AuthScreen() {
             <TabsTrigger value="login">Log in</TabsTrigger>
             <TabsTrigger value="signup">Sign up</TabsTrigger>
           </TabsList>
-
-          {/* LOGIN */}
           <TabsContent value="login" className="space-y-5">
-            {/* Password login */}
             <form
               className="grid gap-4"
               onSubmit={submitLogin(onLogin)}
@@ -178,8 +249,6 @@ export default function AuthScreen() {
                 register={regLogin('email')}
                 error={errorsLogin.email?.message}
               />
-
-              {/* Your PasswordField should render eye/eye-off toggle internally */}
               <PasswordField
                 label="Password"
                 autoComplete="current-password"
@@ -187,45 +256,51 @@ export default function AuthScreen() {
                 error={errorsLogin.password?.message}
                 withStrength={false}
               />
-
               <div className="flex items-center justify-between">
-                <Label className="text-xs text-muted-foreground">
-                  Press <kbd className="rounded border px-1 py-0.5">⌘</kbd>+
-                  <kbd className="rounded border px-1 py-0.5">Enter</kbd> to
+                <Label>
+                  Press <kbd className="rounded border px-1 py-0.5">⌘</kbd>+{' '}
+                  <kbd className="rounded-border px-1 py-0.5">Enter</kbd> to
                   submit
                 </Label>
                 <Button
                   data-primary-submit="1"
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoadingPw}
                 >
-                  {isLoading ? 'Logging in…' : 'Log in'}
+                  {isLoadingPw ? 'Logging in...' : 'Log in'}
                 </Button>
               </div>
             </form>
-
             <OrDivider />
-
-            {/* OTP login */}
             <div className="grid gap-3 rounded-lg border bg-background/60 p-4">
               <div className="grid gap-2">
                 <Label htmlFor="otp-email">Email</Label>
-                <input
+                <Input
                   id="otp-email"
                   type="email"
                   className="h-9 rounded-md border bg-background px-3 text-sm"
-                  placeholder="you@example.com"
+                  placeholder="you@exmaple.com"
                   value={otpEmail}
                   onChange={(e) => setOtpEmail(e.target.value)}
+                  disabled={otpSending || otpVerifying || otpSent}
                 />
               </div>
 
-              {otpStage === 'sent' ? (
+              {otpSent ? (
                 <>
+                  {otpError && (
+                    <p
+                      className="text-sm text-destructive"
+                      aria-live="assertive"
+                    >
+                      {otpError}
+                    </p>
+                  )}
                   <div className="grid gap-2">
-                    <Label htmlFor="otp-code">OTP code</Label>
+                    <Label htmlFor="otp-code">OTP Code</Label>
                     <input
                       id="otp-code"
+                      ref={otpCodeRef}
                       inputMode="numeric"
                       pattern="[0-9]*"
                       maxLength={6}
@@ -235,40 +310,55 @@ export default function AuthScreen() {
                       onChange={(e) =>
                         setOtpCode(e.target.value.replace(/\D/g, ''))
                       }
+                      disabled={otpVerifying}
                     />
                   </div>
-                  <div className="flex items-center gap-2">
+                  <div className="flex flex-wrap items-center gap-2">
                     <Button
                       onClick={confirmOtp}
-                      disabled={isLoading || otpCode.length < 4}
+                      disabled={otpVerifying || otpCode.length < 4}
                     >
-                      {isLoading ? 'Verifying…' : 'Verify & Log in'}
+                      {otpVerifying ? 'Verifying...' : 'Verify & Log in'}
                     </Button>
                     <Button
-                      variant="ghost"
+                      variant={'ghost'}
                       onClick={() => {
-                        setOtpStage('idle');
                         setOtpCode('');
+                        setOtpEmail('');
                       }}
+                      disabled={otpVerifying}
                     >
-                      Change email
+                      Use a different email
+                    </Button>
+                    <Button
+                      variant={'outline'}
+                      onClick={sendOtp}
+                      disabled={cooldown > 0 || otpVerifying}
+                    >
+                      {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
                     </Button>
                   </div>
                 </>
               ) : (
-                <div className="flex items-center gap-2">
-                  <Button onClick={sendOtp} disabled={isLoading || !otpEmail}>
-                    {isLoading ? 'Sending…' : 'Send OTP'}
-                  </Button>
-                  <Label className="text-xs text-muted-foreground">
-                    We’ll email a 6-digit code
-                  </Label>
-                </div>
+                <>
+                  {otpFailed && otpError && (
+                    <p className="text-sm text-destructive">{otpError}</p>
+                  )}
+                  <div className="flex items-center gap-2">
+                    <Button
+                      onClick={sendOtp}
+                      disabled={otpSending || !otpEmail}
+                    >
+                      {otpSending ? 'Sending...' : 'Send OTP'}
+                    </Button>
+                    <Label className="text-xs text-muted-foreground">
+                      We'll email a code
+                    </Label>
+                  </div>
+                </>
               )}
             </div>
           </TabsContent>
-
-          {/* SIGNUP */}
           <TabsContent value="signup" className="space-y-4">
             <form
               className="grid gap-4"
@@ -290,13 +380,11 @@ export default function AuthScreen() {
                   </p>
                 )}
               </div>
-
               <EmailField
                 label="Email"
                 register={regSignup('email')}
                 error={errorsSignup.email?.message}
               />
-
               <PasswordField
                 label="Password"
                 autoComplete="new-password"
@@ -304,26 +392,21 @@ export default function AuthScreen() {
                 error={errorsSignup.password?.message}
                 withStrength
               />
-
               <div className="flex items-center justify-between">
                 <Label className="text-xs text-muted-foreground">
-                  Use 8+ chars with mix of letters, numbers & symbols
+                  Use 8+ chars mix of letters, number & symbols
                 </Label>
                 <Button
                   data-primary-submit="1"
                   type="submit"
-                  disabled={isLoading}
+                  disabled={isLoadingPw}
                 >
-                  {isLoading ? 'Creating…' : 'Create account'}
+                  {isLoadingPw ? 'Creating...' : 'Create Account'}
                 </Button>
               </div>
             </form>
-            {/* <OrDivider />
-            <SSOButtons /> */}
           </TabsContent>
         </Tabs>
-
-        {/* tiny legal */}
         <p className="mt-4 text-center text-xs text-muted-foreground">
           By continuing you agree to our Terms & Privacy Policy.
         </p>

@@ -12,7 +12,6 @@
   "main": "./src/index.ts",
   "types": "./src/index.ts",
   "scripts": {
-    "dev": "tsc -w -p tsconfig.json",
     "build": "tsc -p tsconfig.json",
     "prepare": "echo skip build in workspace"
   },

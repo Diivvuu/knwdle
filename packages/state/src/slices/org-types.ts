@@ -1,47 +1,117 @@
-import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
-import { api, setAuthToken } from '../api';
+// packages/state/src/slices/orgType.ts
+import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
+import { api } from '../api';
 
-export type JsonSchema = Record<string, any>;
+export type OrgTypeId =
+  | 'SCHOOL'
+  | 'COACHING_CENTER'
+  | 'TUITION_CENTER'
+  | 'COLLEGE'
+  | 'UNIVERSITY'
+  | 'EDTECH'
+  | 'TRAINING'
+  | 'NGO'
+  | string;
 
-type OrgTypesState = {
-  types: string[];
-  status: 'idle' | 'loading' | 'succeeded' | 'failed';
-  error?: string;
-  schemas: Record<string, JsonSchema | undefined>;
-  schemaStatus: Record<string, 'idle' | 'loading' | 'succeeded' | 'failed'>;
+export type OrgTypeSchemaGroups = Array<{ name: string; fields: string[] }>;
+
+export type OrgTypeSchemaPayload = {
+  type: OrgTypeId;
+  uiVersion: number;
+  definition: any; // JSON Schema object definition (with properties/required and x-ui)
+  groups: OrgTypeSchemaGroups;
 };
 
-const initialState: OrgTypesState = {
+type Loading = 'idle' | 'loading' | 'succeeded' | 'failed';
+
+export interface OrgTypeState {
+  // list of types
+  types: OrgTypeId[];
+  status: Loading;
+  error?: string;
+
+  // per-type schema cache
+  schemas: Record<OrgTypeId, OrgTypeSchemaPayload | undefined>;
+  schemaStatus: Record<OrgTypeId, Loading>;
+  schemaError: Record<OrgTypeId, string | undefined>;
+}
+
+const initialState: OrgTypeState = {
   types: [],
   status: 'idle',
   schemas: {},
   schemaStatus: {},
+  schemaError: {},
 };
 
-export const fetchOrgTypes = createAsyncThunk<string[]>(
-  'orgTypes/fetchAll',
+/**
+ * GET /org-types
+ * -> { types: string[] }
+ */
+export const fetchOrgTypes = createAsyncThunk<OrgTypeId[]>(
+  'orgType/fetchTypes',
   async () => {
-    const res = await api.get('/api/org-types');
-    return (res.data?.types ?? []) as string[];
+    const { data } = await api.get('/api/org-types');
+    // backend returns { types: [...] }
+    return Array.isArray(data?.types)
+      ? (data.types as OrgTypeId[])
+      : (data as OrgTypeId[]);
   }
 );
 
+/**
+ * GET /org-types/:type/schema
+ * -> { type, uiVersion, definition, groups }
+ * Normalizes a couple of shapes just in case.
+ */
 export const fetchOrgTypeSchema = createAsyncThunk<
-  { type: string; schema: JsonSchema },
-  string
->('orgTypes/fetchSchema', async (type: string) => {
-  const res = await api.get(`/api/org-types/${type}`);
-  return {
-    type: res.data?.type as string,
-    schema: res.data?.schema as JsonSchema,
-  };
+  OrgTypeSchemaPayload,
+  { type: OrgTypeId }
+>('orgType/fetchSchema', async ({ type }, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get(`/api/org-types/${String(type)}/schema`);
+
+    // Normalize shape defensively
+    const payload: OrgTypeSchemaPayload = {
+      type: (data?.type ?? type) as OrgTypeId,
+      uiVersion: Number(data?.uiVersion ?? 1),
+      definition: data?.definition ?? data?.schema ?? data,
+      groups: Array.isArray(data?.groups) ? data.groups : [],
+    };
+
+    // Ensure required structure exists
+    if (!payload?.definition?.properties) {
+      throw new Error('Schema transform failed: missing properties');
+    }
+    return payload;
+  } catch (err: any) {
+    const msg =
+      err?.response?.data?.error ||
+      err?.message ||
+      'Failed to load org type schema';
+    return rejectWithValue(msg) as any;
+  }
 });
 
-const orgTypesSlice = createSlice({
-  name: 'orgTypes',
+const orgTypeSlice = createSlice({
+  name: 'orgType',
   initialState,
-  reducers: {},
+  reducers: {
+    // Optional manual resetters
+    resetOrgTypes(state) {
+      state.types = [];
+      state.status = 'idle';
+      state.error = undefined;
+    },
+    resetOrgTypeSchema(state, action: PayloadAction<{ type: OrgTypeId }>) {
+      const t = action.payload.type;
+      delete state.schemas[t];
+      state.schemaStatus[t] = 'idle';
+      state.schemaError[t] = undefined;
+    },
+  },
   extraReducers: (b) => {
+    // list
     b.addCase(fetchOrgTypes.pending, (s) => {
       s.status = 'loading';
       s.error = undefined;
@@ -52,23 +122,42 @@ const orgTypesSlice = createSlice({
     });
     b.addCase(fetchOrgTypes.rejected, (s, a) => {
       s.status = 'failed';
-      s.error = a.error.message;
+      s.error = (a.payload as string) || a.error.message;
     });
 
+    // schema (per type)
     b.addCase(fetchOrgTypeSchema.pending, (s, a) => {
-      const t = a.meta.arg;
+      const t = a.meta.arg.type;
       s.schemaStatus[t] = 'loading';
+      s.schemaError[t] = undefined;
     });
     b.addCase(fetchOrgTypeSchema.fulfilled, (s, a) => {
-      const { type, schema } = a.payload;
+      const { type } = a.payload;
       s.schemaStatus[type] = 'succeeded';
-      s.schemas[type] = schema;
+      s.schemas[type] = a.payload;
     });
     b.addCase(fetchOrgTypeSchema.rejected, (s, a) => {
-      const t = a.meta.arg;
+      const t = (a.meta.arg as { type: OrgTypeId }).type;
       s.schemaStatus[t] = 'failed';
+      s.schemaError[t] = (a.payload as string) || a.error.message;
     });
   },
 });
 
-export default orgTypesSlice.reducer;
+export const { resetOrgTypes, resetOrgTypeSchema } = orgTypeSlice.actions;
+export default orgTypeSlice.reducer;
+
+/* ------------ selectors (optional, handy) ------------ */
+export const selectOrgTypes = (state: any) =>
+  state.orgType.types as OrgTypeId[];
+export const selectOrgTypesStatus = (state: any) =>
+  (state.orgType.status as Loading) || 'idle';
+
+export const selectOrgTypeSchema = (type: OrgTypeId) => (state: any) =>
+  state.orgType.schemas?.[type] as OrgTypeSchemaPayload | undefined;
+
+export const selectOrgTypeSchemaStatus = (type: OrgTypeId) => (state: any) =>
+  (state.orgType.schemaStatus?.[type] as Loading) || 'idle';
+
+export const selectOrgTypeSchemaError = (type: OrgTypeId) => (state: any) =>
+  state.orgType.schemaError?.[type];

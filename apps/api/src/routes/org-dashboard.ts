@@ -1,20 +1,23 @@
 import { Router } from 'express';
 import { z } from 'zod';
 
-import { PrismaClient, OrgType, ParentRole } from '../generated/prisma';
+import { OrgType, OrgUnitType, ParentRole } from '../generated/prisma';
 
 import { getMetaSchema } from '../lib/org-types';
 
 import { requireAuth } from '../middleware/auth';
-import { requirePermission } from '../middleware/permissions';
+import {
+  PERMISSIONS_BY_BASE_ROLE,
+  requirePermission,
+} from '../middleware/permissions';
+import { prisma } from '../lib/prisma';
 
 type MyUnitRole = { role: ParentRole; unitId: string | null };
 
-const prisma = new PrismaClient();
 const r = Router();
 
 const CreateOrgBody = z.object({
-  name: z.string().min(2),
+  name: z.string().trim().min(2),
   type: z.nativeEnum(OrgType),
   meta: z.unknown().optional(),
   teamSize: z.string().min(1).optional(),
@@ -80,6 +83,27 @@ async function getMyRoleForOrg(orgId: string, userId: string) {
   return { myRole, myUnitRoles };
 }
 
+// get user permissions
+async function getUserPermissionsFromOrg(orgId: string, userId: string) {
+  const membership = await prisma.orgMembership.findFirst({
+    where: { orgId, userId },
+    select: { role: true, roleId: true },
+  });
+
+  if (!membership) return [];
+
+  if (membership.role === ParentRole.admin) return ['*'];
+  if (membership.roleId) {
+    const role = await prisma.role.findUnique({
+      where: { id: membership.roleId },
+      include: { permissions: { include: { permission: true } } },
+    });
+
+    return role?.permissions.map((p) => p.permission.code) ?? [];
+  }
+  return PERMISSIONS_BY_BASE_ROLE[membership.role] ?? [];
+}
+
 //post org
 r.post('/orgs', requireAuth, async (req, res) => {
   const parsed = CreateOrgBody.safeParse(req.body);
@@ -98,20 +122,35 @@ r.post('/orgs', requireAuth, async (req, res) => {
       .json({ error: 'Invalid meta', details: metaParsed.error.flatten() });
   }
 
-  const org = await prisma.organisation.create({
-    data: {
-      name,
-      type,
-      teamSize,
-      profile: { create: { meta: metaParsed.data } },
-      members: { create: { userId: req.user!.id, role: ParentRole.admin } },
-    },
-    include: { profile: true },
-  });
+  try {
+    const org = await prisma.$transaction(async (tx) => {
+      //create org
+      const created = await tx.organisation.create({
+        data: {
+          name,
+          type,
+          teamSize,
+          profile: { create: { meta: metaParsed.data } },
+          members: { create: { userId: req.user!.id, role: ParentRole.admin } },
+        },
+        include: { profile: true },
+      });
 
-  await prisma.orgUnit.create({ data: { orgId: org.id, name: 'Root' } });
-
-  res.status(201).json(org);
+      await tx.orgUnit.create({
+        data: {
+          orgId: created.id,
+          name: 'Main',
+          parentId: null,
+          type: OrgUnitType.OTHER,
+          meta: {},
+        },
+      });
+      return created;
+    });
+    return res.status(201).json(org);
+  } catch (error: any) {
+    return res.status(500).json({ error: 'Failed to create org' });
+  }
 });
 
 // get my orgs
@@ -125,7 +164,8 @@ r.get('/orgs', requireAuth, async (req, res) => {
   const withRoles = await Promise.all(
     orgs.map(async (o) => {
       const { myRole, myUnitRoles } = await getMyRoleForOrg(o.id, req.user!.id);
-      return { ...o, myRole, myUnitRoles };
+      const permissions = await getUserPermissionsFromOrg(o.id, req.user!.id);
+      return { ...o, myRole, myUnitRoles, permissions };
     })
   );
   res.json(withRoles);

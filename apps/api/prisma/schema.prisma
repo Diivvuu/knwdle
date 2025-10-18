@@ -118,6 +118,17 @@ model OrgProfile {
   org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
+enum OrgUnitType {
+  ORGANISATION
+  DEPARTMENT
+  CLASS
+  SUBJECT
+  BATCH
+  SECTION
+  GROUP
+  OTHER
+}
+
 model OrgUnit {
   id        String   @id @default(cuid())
   orgId     String
@@ -126,6 +137,10 @@ model OrgUnit {
   code      String?
   path      String   @default("")
   createdAt DateTime @default(now())
+
+  updatedAt DateTime    @default(now())
+  type      OrgUnitType @default(OTHER)
+  meta      Json        @default("{}")
 
   org      Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
   parent   OrgUnit?        @relation("UnitParent", fields: [parentId], references: [id])
@@ -140,6 +155,7 @@ model OrgUnit {
 
   @@index([orgId, parentId])
   @@index([orgId, path])
+  @@index([orgId, type])
 }
 
 enum ParentRole {
@@ -161,7 +177,7 @@ model OrgMembership {
   customerRole Role?        @relation("MembershipCustomRole", fields: [roleId], references: [id])
   org          Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  unit         OrgUnit?     @relation(fields: [unitId], references: [id])
+  unit         OrgUnit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   @@unique([orgId, userId, unitId], name: "orgId_userId_unitId")
   @@index([orgId, userId, role])
@@ -253,10 +269,24 @@ model Invite {
   roleId  String?
   roleRef Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
   org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  unit    OrgUnit?     @relation(fields: [unitId], references: [id])
+  unit    OrgUnit?     @relation(fields: [unitId], references: [id], onDelete:  SetNull)
 
   @@index([orgId, createdAt])
   @@index([orgId, expiresAt])
+}
+
+model InviteBatch {
+  id        String   @id @default(cuid())
+  orgId     String
+  total     Int
+  sent      Int      @default(0)
+  failed    Int      @default(0)
+  skipped   Int      @default(0)
+  status    String   @default("queued")
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([orgId, createdAt])
 }
 
 // academics
@@ -337,7 +367,7 @@ model Announcement {
   pin       Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  unit OrgUnit? @relation(fields: [unitId], references: [id])
+  unit OrgUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   @@index([orgId, unitId, createdAt])
 }
@@ -372,7 +402,7 @@ model FeeInvoice {
   createdAt DateTime @default(now())
 
   student User     @relation("UserInvoices", fields: [studentId], references: [id])
-  unit    OrgUnit? @relation(fields: [unitId], references: [id])
+  unit    OrgUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   payments FeePayment[]
 

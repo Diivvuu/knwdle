@@ -89,10 +89,11 @@ export function ModalContent({
             // visual
             blur ? 'backdrop-blur-xl bg-background/80' : 'bg-background',
             'border border-border/40 shadow-2xl',
+            stickyFooter && 'bg-background backdrop-blur-sm',
             // motion + positioning from your dialog.tsx base
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-            'w-[calc(100%-2rem)]',
+            'w-[calc(100%-2rem)] max-h-[83vh]',
             sizeClass[size],
             className
           )}
@@ -178,13 +179,11 @@ export function ModalFooter({
         'p-4 gap-3',
         'flex flex-col-reverse sm:flex-row sm:justify-end',
         separators && 'border-t border-border/40',
-        stickyFooter && 'bg-background/60 backdrop-blur-sm',
+
+        'bg-background',
         className
       )}
     >
-      {stickyFooter && (
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-tl from-primary/10 via-transparent to-transparent" />
-      )}
       {children}
     </BaseFooter>
   );

@@ -1,11 +1,12 @@
+// seed-permissions.ts
 import { PrismaClient } from '../generated/prisma';
-
-const prisma = new PrismaClient();
+import { prisma } from '../lib/prisma';
 
 const CODES = [
   { code: 'org.read', name: 'Read organisation' },
   { code: 'org.update', name: 'Update organisation settings' },
   { code: 'org.unit.manage', name: 'Manage units' },
+  { code: 'org.units.forceDelete', name: 'Force-delete non-empty unit' }, // ⬅️ NEW
   { code: 'people.invite', name: 'Send invites' },
   { code: 'people.manage', name: 'Manage members and roles' },
   { code: 'roles.manage', name: 'Manage custom roles & permissions' },
@@ -28,4 +29,4 @@ async function main() {
   }
 }
 
-main().finally(() => prisma.$disconnect);
+main().finally(() => prisma.$disconnect());

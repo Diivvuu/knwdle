@@ -4,8 +4,12 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useAddInviteModal } from './use-invite-atom';
 import { AppDispatch, RootState } from '@/store/store';
 import { useParams } from 'next/navigation';
-import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ParentRole, createInvite } from '@workspace/state';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import {
+  ParentRole,
+  createInvite,
+  resetCreateInviteStatus,
+} from '@workspace/state';
 import { toast } from 'sonner';
 import {
   Modal,
@@ -25,12 +29,10 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@workspace/ui/components/select';
-import { Textarea } from '@workspace/ui/components/textarea';
 import { Button } from '@workspace/ui/components/button';
 import { Loader2 } from 'lucide-react';
 
 const ROLES: ParentRole[] = ['admin', 'staff', 'student', 'parent'];
-
 type Mode = 'base' | 'custom';
 
 export default function AddInviteModal() {
@@ -38,14 +40,11 @@ export default function AddInviteModal() {
   const dispatch = useDispatch<AppDispatch>();
   const { id: orgId } = useParams<{ id: string }>();
 
-  const createStatus = useSelector(
-    (state: RootState) => state.invites.createStatus
+  const createStatus = useSelector((s: RootState) => s.invites.createStatus);
+  const createError = useSelector((s: RootState) => s.invites.createError);
+  const rolesEntry = useSelector((s: RootState) =>
+    orgId ? s.roles.rolesByOrg[orgId] : undefined
   );
-
-  const rolesEntry = useSelector((state: RootState) =>
-    orgId ? state.roles.rolesByOrg[orgId] : undefined
-  );
-
   const customRoles = useMemo(() => rolesEntry?.items ?? [], [rolesEntry]);
 
   const [mode, setMode] = useState<Mode>('base');
@@ -54,28 +53,30 @@ export default function AddInviteModal() {
     role: ParentRole;
     roleId?: string;
     unitId?: string;
-    meta?: string;
-  }>({
-    email: '',
-    role: 'staff',
-    roleId: undefined,
-    unitId: '',
-    meta: '',
-  });
+  }>({ email: '', role: 'staff', roleId: undefined, unitId: '' });
 
+  const prevStatus = useRef(createStatus);
   useEffect(() => {
-    if (createStatus === 'succeeded') {
+    if (
+      prevStatus.current === 'loading' &&
+      createStatus === 'succeeded' &&
+      open
+    ) {
       toast.success('Invite created');
       setOpen(false);
-      setForm({
-        email: '',
-        role: 'staff',
-        roleId: undefined,
-        unitId: '',
-        meta: '',
-      });
+      setForm({ email: '', role: 'staff', roleId: undefined, unitId: '' });
+      dispatch(resetCreateInviteStatus());
     }
-  }, [createStatus, setOpen]);
+    prevStatus.current = createStatus;
+  }, [createStatus, open, dispatch, setOpen]);
+
+  useEffect(() => {
+    if (open) {
+      dispatch(resetCreateInviteStatus());
+      setForm({ email: '', role: 'staff', roleId: undefined, unitId: '' });
+      setMode('base');
+    }
+  }, [open, dispatch]);
 
   const disabled =
     createStatus === 'loading' ||
@@ -83,18 +84,9 @@ export default function AddInviteModal() {
     !orgId ||
     (mode === 'custom' && !form.roleId);
 
-  const submit = (e: React.FormEvent) => {
+  function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId) return toast.error('Invalid organistion');
-
-    let metaJson: Record<string, any> | undefined = undefined;
-    if (form.meta?.trim()) {
-      try {
-        metaJson = JSON.parse(form.meta);
-      } catch (error) {
-        return toast.error('Meta must be valid JSON');
-      }
-    }
+    if (!orgId) return toast.error('Invalid organisation');
 
     const payload =
       mode === 'custom'
@@ -103,42 +95,38 @@ export default function AddInviteModal() {
             email: form.email.trim().toLowerCase(),
             roleId: form.roleId!,
             unitId: form.unitId?.trim() ? form.unitId.trim() : undefined,
-            meta: metaJson,
           }
         : {
             orgId,
             email: form.email.trim().toLowerCase(),
             role: form.role,
             unitId: form.unitId?.trim() ? form.unitId.trim() : undefined,
-            meta: metaJson,
           };
 
     dispatch(createInvite(payload as any));
-  };
-
-  const onOpenChange = useCallback(
-    (next: boolean) => {
-      if (!next) setOpen(false);
-    },
-    [setOpen]
-  );
+  }
 
   if (!open) return null;
 
   return (
-    <Modal open={open} onOpenChange={onOpenChange}>
-      <ModalContent size="xl" blur separators stickyFooter gradientHeader>
+    <Modal open={open} onOpenChange={(n) => !n && setOpen(false)}>
+      <ModalContent size="lg" blur separators stickyFooter>
         <ModalHeader>
           <ModalTitle>Invite member</ModalTitle>
           <ModalDescription>
-            Send an invitation to join this organisation
+            Send an invitation to join this organisation.
           </ModalDescription>
+          {createError && (
+            <p className="rounded-md bg-destructive/10 border border-destructive/20 text-destructive text-sm px-3 py-2 mb-3">
+              {createError}
+            </p>
+          )}
         </ModalHeader>
 
         <ModalBody>
           <form id="add-invite-form" onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <div>
+              <div className="space-y-1">
                 <Label>Email</Label>
                 <Input
                   type="email"
@@ -149,7 +137,7 @@ export default function AddInviteModal() {
                   }
                 />
               </div>
-              {/* mode switch */}
+
               <div className="md:col-span-2">
                 <Label>Assign using</Label>
                 <div className="mt-2 inline-flex rounded-md border p-1 bg-background gap-2">
@@ -169,12 +157,12 @@ export default function AddInviteModal() {
                   </button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-1">
-                  Choose a built-in role (admin/staff/student/parent) or select
-                  a custom role created in Roles Section.
+                  Choose a built-in role or a custom role from Roles.
                 </p>
               </div>
+
               {mode === 'base' && (
-                <div className="md:col-span-1">
+                <div>
                   <Label className="mb-1">Base role</Label>
                   <Select
                     value={form.role}
@@ -195,8 +183,9 @@ export default function AddInviteModal() {
                   </Select>
                 </div>
               )}
+
               {mode === 'custom' && (
-                <div className="md:col-span-1">
+                <div>
                   <Label className="mb-1">Custom role</Label>
                   <Select
                     value={form.roleId ?? ''}
@@ -218,12 +207,9 @@ export default function AddInviteModal() {
                       ))}
                     </SelectContent>
                   </Select>
-                  <p className="text-xs text-muted-foreground mt-1">
-                    Custom roles inherit a parent role and permissions defined
-                    in the Roles Section.
-                  </p>
                 </div>
               )}
+
               <div className="md:col-span-2">
                 <Label className="mb-1">Unit (optional)</Label>
                 <Input
@@ -233,33 +219,20 @@ export default function AddInviteModal() {
                     setForm((f) => ({ ...f, unitId: e.target.value }))
                   }
                 />
-                <p className="text-xs text-muted-foreground mt-1">
-                  Leave blank to invite at organisation scope.
-                </p>
-              </div>
-              <div className="md:col-span-2">
-                <Label className="mb-1">Meta (optional JSON)</Label>
-                <Textarea
-                  rows={3}
-                  className="w-full"
-                  placeholder='{"note":"VIP"}'
-                  value={form.meta}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, meta: e.target.value }))
-                  }
-                />
               </div>
             </div>
           </form>
         </ModalBody>
+
         <ModalFooter>
-          <Button variant={'outline'} onClick={() => setOpen(false)}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button type="submit" form="add-invite-form" disabled={disabled}>
             {createStatus === 'loading' ? (
               <>
                 <Loader2 className="size-4 mr-2 animate-spin" />
+                Sending…
               </>
             ) : (
               'Send Invite'
