@@ -4,10 +4,14 @@ import { ParentRole } from '../../generated/prisma';
 import { requireAuth } from '../../middleware/auth';
 import { requirePermission } from '../../middleware/permissions';
 import { prisma } from '../../lib/prisma';
+import { createGetObjectUrl } from '../../lib/s3';
 
 const r = Router();
 
 const IdParam = z.object({ id: z.string().min(1) });
+
+// Treat non-HTTP(S) strings as S3 keys we need to presign
+const isS3Key = (v?: string | null) => !!v && !/^https?:\/\//i.test(v);
 
 function asOrgNotFound(res: any) {
   return res.status(404).json({ error: 'Org not found' });
@@ -29,7 +33,29 @@ r.get('/:id', requireAuth, requirePermission('org.read'), async (req, res) => {
     prisma.orgMembership.count({ where: { orgId: org.id } }),
   ]);
 
-  res.json({ ...org, aggregates: { unitsCount, membersCount } });
+  // If stored values are S3 keys, presign short-lived view URLs
+  const logoKey = isS3Key(org.logoUrl as any) ? (org.logoUrl as string) : undefined;
+  const coverKey = isS3Key(org.coverUrl as any) ? (org.coverUrl as string) : undefined;
+
+  const [signedLogoUrl, signedCoverUrl] = await Promise.all([
+    logoKey
+      ? createGetObjectUrl({ key: logoKey, expiresInSec: 60 })
+      : Promise.resolve(org.logoUrl as string | null),
+    coverKey
+      ? createGetObjectUrl({ key: coverKey, expiresInSec: 60 })
+      : Promise.resolve(org.coverUrl as string | null),
+  ]);
+
+  res.json({
+    ...org,
+    // keep original key values available when applicable
+    logoKey,
+    coverKey,
+    // override URLs to be either original http(s) or presigned
+    logoUrl: signedLogoUrl ?? null,
+    coverUrl: signedCoverUrl ?? null,
+    aggregates: { unitsCount, membersCount },
+  });
 });
 
 // GET /orgs/:id/summary
@@ -92,7 +118,7 @@ r.get(
         parent: parentCount,
       },
       pendingInvites,
-      lastJoinat: latestMember?.createdAt ?? null, // unchanged for your slice normalizer
+      lastJoinat: latestMember?.createdAt ?? null,
     });
   }
 );

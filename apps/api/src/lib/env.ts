@@ -32,7 +32,11 @@ const EnvSchema = z.object({
   SMTP_USER: z.string(),
   SMTP_PASS: z.string(),
   MAIL_FROM: z.string().default('Knwdle <divyanshu@knwdle.com>'),
-
+  AWS_REGION: z.string(), // e.g. "ap-south-1"
+  S3_BUCKET: z.string(), // e.g. "knwdle-uploads"
+  MAX_UPLOAD_MB: z.coerce.number().default(5),
+  // Optional: if you later put a CDN in front
+  S3_PUBLIC_BASE_URL: z.string().url().optional(),
   CORS_ORIGINS: csv.default('http://localhost:3000'),
 });
 

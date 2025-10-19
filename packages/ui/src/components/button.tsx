@@ -28,17 +28,6 @@ const buttonVariants = cva(
     'backdrop-blur-sm backdrop-saturate-150',
     // overflow for pseudo elements
     'overflow-hidden',
-    // shimmer effect (::before)
-    "before:content-[''] before:absolute before:inset-y-0 before:-left-[120%] before:w-[120%]",
-    'before:bg-gradient-to-r before:from-transparent before:via-white/0 before:to-transparent',
-    'before:skew-x-[-20deg]',
-    'before:transition-all before:duration-[800ms] before:ease-[cubic-bezier(0.4,0,0.2,1)]',
-    'motion-safe:group-hover:before:left-[120%] motion-safe:group-hover:before:via-white/20',
-    // glow pulse on hover (::after)
-    "after:content-[''] after:absolute after:inset-0 after:rounded-[inherit]",
-    'after:opacity-0 after:transition-opacity after:duration-500',
-    'after:bg-gradient-to-r after:from-transparent after:via-white/[0.03] after:to-transparent',
-    'group-hover:after:opacity-100 group-hover:after:animate-pulse',
   ].join(' '),
   {
     variants: {

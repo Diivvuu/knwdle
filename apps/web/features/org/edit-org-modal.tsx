@@ -2,7 +2,7 @@
 
 import { AppDispatch } from '@/store/store';
 import React, { use, useCallback, useEffect, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { useEditOrgModal } from './use-org-atom';
 import {
   Modal,
@@ -11,9 +11,12 @@ import {
   ModalDescription,
   ModalHeader,
   ModalTitle,
+  ModalFooter,
 } from '@workspace/ui/components/modal';
+import { uploadImage, selectUpload, fetchOrgBasic } from '@workspace/state';
 import { Textarea } from '@workspace/ui/components/textarea';
-import z, { string } from 'zod';
+import { z } from 'zod';
+import { nanoid } from '@reduxjs/toolkit';
 import { fetchOrgs, Org, updateOrg } from '@workspace/state';
 import { Input } from '@workspace/ui/components/input';
 import { toast } from 'sonner';
@@ -46,8 +49,8 @@ const Schema = z.object({
     .union([z.string().min(1, 'Timezone is required'), z.literal('')])
     .optional(),
   contactPhone: z.union([z.string().min(1), z.literal('')]).optional(),
-  logoUrl: z.string().url('Enter a valid URL').optional().or(z.literal('')),
-  coverUrl: z.string().url('Enter a valid URL').optional().or(z.literal('')),
+  logoUrl: z.string().optional().or(z.literal('')),
+  coverUrl: z.string().optional().or(z.literal('')),
   brand_color: z
     .string()
     .regex(/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/, 'Use hex like #1E90FF')
@@ -101,17 +104,18 @@ function parseAddressString(s?: string): AddressParts {
 }
 
 function getDefaults(org: Org | null): Values {
+  const safe = (v: unknown) => (v == null ? '' : String(v));
   return {
-    name: org?.name ?? '',
-    description: org?.description ?? '',
-    teamSize: String(org?.teamSize) ?? '',
-    country: String(org?.country) ?? '',
-    timezone: String(org?.timezone) ?? '',
-    logoUrl: String(org?.logoUrl) ?? '',
-    coverUrl: String(org?.coverUrl) ?? '',
-    brand_color: String(org?.brand_color) ?? '',
-    address: String(org?.address) ?? '',
-    contactPhone: String(org?.contactPhone) ?? '',
+    name: safe(org?.name),
+    description: safe(org?.description),
+    teamSize: safe(org?.teamSize),
+    country: safe(org?.country),
+    timezone: safe(org?.timezone),
+    logoUrl: safe((org as any)?.logoUrl ?? org?.logoUrl),
+    coverUrl: safe((org as any)?.coverUrl ?? org?.coverUrl),
+    brand_color: safe(org?.brand_color),
+    address: safe(org?.address),
+    contactPhone: safe(org?.contactPhone),
   };
 }
 
@@ -119,42 +123,28 @@ function BrandingHeader({
   coverUrl,
   logoUrl,
   brandColor,
-  onCoverChange,
-  onLogoChange,
+  onPickCover,
+  onPickLogo,
   onBrandColorChange,
+  uploadingCover,
+  uploadingLogo,
+  coverProgress = 0,
+  logoProgress = 0,
 }: {
   coverUrl?: string;
   logoUrl?: string;
   brandColor?: string;
-  onCoverChange: (url: string) => void;
-  onLogoChange: (url: string) => void;
+  onPickCover: (file: File) => void;
+  onPickLogo: (file: File) => void;
   onBrandColorChange: (hex: string) => void;
+  uploadingCover?: boolean;
+  uploadingLogo?: boolean;
+  coverProgress?: number;
+  logoProgress?: number;
 }) {
   const [dragOver, setDragOver] = useState(false);
   const coverInputRef = useRef<HTMLInputElement | null>(null);
   const logoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const pickFile = useCallback(
-    async (target: HTMLInputElement | null, cb: (url: string) => void) => {
-      if (!target || !target.files || target.files.length === 0) return;
-      const file = target.files[0];
-      if (!file.type.match(/^image\/(png|jpe?g|webp|svg\+xml)$/)) {
-        toast.error(`Unsupported file type: ${file.type}`);
-        target.value = '';
-        return;
-      }
-      if (file.size > 5 * 1024 * 1024) {
-        toast.error('Max size 5MB');
-        target.value = '';
-        return;
-      }
-      const demoUrl = URL.createObjectURL(file); // replace with real upload later
-      cb(demoUrl);
-      toast.success(`${file.name} selected`);
-      target.value = '';
-    },
-    []
-  );
 
   const onCoverDrop = (e: React.DragEvent) => {
     e.preventDefault();
@@ -171,8 +161,9 @@ function BrandingHeader({
       return;
     }
     const demoUrl = URL.createObjectURL(f);
-    onCoverChange(demoUrl);
-    toast.success(`${f.name} selected`);
+    // For drag-drop, call onPickCover
+    onPickCover(f);
+    // toast will be shown by handler
   };
 
   return (
@@ -201,6 +192,7 @@ function BrandingHeader({
               type="button"
               onClick={() => coverInputRef.current?.click()}
               className="flex items-center gap-2 rounded-md border border-dashed border-border/70 bg-background/70 px-3 py-2 hover:bg-background/90 transition-colors"
+              disabled={uploadingCover}
             >
               <Upload className="h-4 w-4" />
               <span>Click or drag image to add a cover</span>
@@ -216,8 +208,11 @@ function BrandingHeader({
               variant="secondary"
               onClick={() => coverInputRef.current?.click()}
               className="backdrop-blur bg-white/80 dark:bg-black/30"
+              disabled={uploadingCover}
             >
-              Change cover
+              {uploadingCover
+                ? `Uploading… ${Math.max(0, Math.min(100, Math.round(coverProgress)))}%`
+                : 'Change cover'}
             </Button>
           </div>
         </div>
@@ -227,7 +222,11 @@ function BrandingHeader({
           type="file"
           accept="image/*"
           className="hidden"
-          onChange={(e) => pickFile(e.target, onCoverChange)}
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) onPickCover(f);
+            e.currentTarget.value = '';
+          }}
         />
 
         {/* Logo chip */}
@@ -243,10 +242,11 @@ function BrandingHeader({
 
           <button
             type="button"
-            onClick={() => logoInputRef.current?.click()}
-            className="absolute inset-0 bg-black/0 hover:bg-black/25 transition-colors"
+            onClick={() => !uploadingLogo && logoInputRef.current?.click()}
+            className="absolute inset-0 bg-black/0 hover:bg-black/25 transition-colors disabled:opacity-60"
             aria-label="Change logo"
             title="Change logo"
+            disabled={uploadingLogo}
           />
 
           <input
@@ -254,9 +254,19 @@ function BrandingHeader({
             type="file"
             accept="image/*"
             className="hidden"
-            onChange={(e) => pickFile(e.target, onLogoChange)}
+            onChange={(e) => {
+              const f = e.target.files?.[0];
+              if (f) onPickLogo(f);
+              e.currentTarget.value = '';
+            }}
           />
         </div>
+        {uploadingLogo && (
+          <div className="absolute -bottom-10 left-5 text-xs rounded-md bg-background/80 px-2 py-0.5 border">
+            Uploading logo…{' '}
+            {Math.max(0, Math.min(100, Math.round(logoProgress)))}%
+          </div>
+        )}
       </div>
 
       {/* Toolbar under the header */}
@@ -303,6 +313,138 @@ const EditOrgModal = () => {
   const [loading, setLoading] = useState(false);
   const [dirty, setDirty] = useState(false);
 
+  // --- uploads (logo & cover) ---
+  const [logoUploadId, setLogoUploadId] = useState<string | null>(null);
+  const [coverUploadId, setCoverUploadId] = useState<string | null>(null);
+  const logoUpload = useSelector((s: any) =>
+    logoUploadId ? selectUpload(s, logoUploadId) : undefined
+  );
+  const coverUpload = useSelector((s: any) =>
+    coverUploadId ? selectUpload(s, coverUploadId) : undefined
+  );
+  const [tempLogoPreview, setTempLogoPreview] = useState<string | null>(null);
+  const [tempCoverPreview, setTempCoverPreview] = useState<string | null>(null);
+  const [signedLogoUrl, setSignedLogoUrl] = useState<string | null>(null);
+  const [signedCoverUrl, setSignedCoverUrl] = useState<string | null>(null);
+
+  async function fetchSignedUrl(key: string) {
+    const res = await fetch('/api/uploads/presign-get', {
+      method: 'POST',
+      credentials: 'include',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key }),
+    });
+    if (!res.ok) throw new Error('Failed to sign image URL');
+    const j = await res.json();
+    return j.url as string;
+  }
+  const handlePickLogo = async (file: File) => {
+    if (
+      !/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type) ||
+      file.size > 5 * 1024 * 1024
+    ) {
+      toast.error('Please pick a PNG/JPG/WebP/SVG up to 5MB');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setTempLogoPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+
+    const id = nanoid();
+    setLogoUploadId(id);
+    const res = await dispatch(uploadImage({ file, kind: 'org-logo', id }));
+    if (uploadImage.fulfilled.match(res)) {
+      set('logoUrl', res.payload.key);
+      toast.success('Logo uploaded');
+    } else {
+      toast.error((res as any).payload || res.error.message || 'Upload failed');
+    }
+  };
+
+  const handlePickCover = async (file: File) => {
+    if (
+      !/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type) ||
+      file.size > 10 * 1024 * 1024
+    ) {
+      toast.error('Please pick a PNG/JPG/WebP/SVG up to 10MB');
+      return;
+    }
+    const url = URL.createObjectURL(file);
+    setTempCoverPreview((prev) => {
+      if (prev) URL.revokeObjectURL(prev);
+      return url;
+    });
+
+    const id = nanoid();
+    setCoverUploadId(id);
+    const res = await dispatch(uploadImage({ file, kind: 'org-cover', id }));
+    if (uploadImage.fulfilled.match(res)) {
+      set('coverUrl', res.payload.key);
+      toast.success('Cover uploaded');
+    } else {
+      toast.error((res as any).payload || res.error.message || 'Upload failed');
+    }
+  };
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (tempLogoPreview) {
+          setSignedLogoUrl(null);
+          return;
+        }
+        const val = (values as any).logoUrl?.trim();
+        if (!val) {
+          setSignedLogoUrl(null);
+          return;
+        }
+        // If it's already an http(s) URL, use as-is; otherwise presign the S3 key
+        if (/^https?:\/\//i.test(val)) {
+          if (!cancelled) setSignedLogoUrl(val);
+        } else {
+          const u = await fetchSignedUrl(val);
+          if (!cancelled) setSignedLogoUrl(u);
+        }
+      } catch {
+        if (!cancelled) setSignedLogoUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, (values as any).logoUrl, tempLogoPreview]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        if (tempCoverPreview) {
+          setSignedCoverUrl(null);
+          return;
+        }
+        const val = (values as any).coverUrl?.trim();
+        if (!val) {
+          setSignedCoverUrl(null);
+          return;
+        }
+        // If it's already an http(s) URL, use as-is; otherwise presign the S3 key
+        if (/^https?:\/\//i.test(val)) {
+          if (!cancelled) setSignedCoverUrl(val);
+        } else {
+          const u = await fetchSignedUrl(val);
+          if (!cancelled) setSignedCoverUrl(u);
+        }
+      } catch {
+        if (!cancelled) setSignedCoverUrl(null);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, (values as any).coverUrl, tempCoverPreview]);
+
   useEffect(() => {
     const v = getDefaults(org);
     setValues(v);
@@ -313,8 +455,52 @@ const EditOrgModal = () => {
 
   const validateField = useCallback(
     <K extends keyof Values>(key: K, next: Values) => {
+      const val = next[key];
+
+      // S3 keys (logoUrl, coverUrl): validate only if non-empty (no URL validation)
+      if (
+        (key === 'logoUrl' || key === 'coverUrl') &&
+        (!val || String(val).trim() === '')
+      ) {
+        setErrors((e) => ({ ...e, [key]: undefined }));
+        return;
+      }
+
+      // Phone: validate only if non-empty
+      if (key === 'contactPhone') {
+        const v = (val || '').toString().trim();
+        const ok = v === '' || isValidPhoneNumber(v);
+        setErrors((e) => ({
+          ...e,
+          [key]: ok ? undefined : 'Phone number is invalid',
+        }));
+        return;
+      }
+
+      // Country / Timezone: allow empty string
+      if (
+        (key === 'country' || key === 'timezone') &&
+        (!val || String(val).trim() === '')
+      ) {
+        setErrors((e) => ({ ...e, [key]: undefined }));
+        return;
+      }
+
+      // Description, brand_color, address, teamSize: allow empty
+      if (
+        (key === 'description' ||
+          key === 'brand_color' ||
+          key === 'address' ||
+          key === 'teamSize') &&
+        (val == null || String(val) === '')
+      ) {
+        setErrors((e) => ({ ...e, [key]: undefined }));
+        return;
+      }
+
+      // Fallback to schema (e.g., name)
       const fieldSchema = (Schema.shape as any)[key] as z.ZodTypeAny;
-      const result = fieldSchema.safeParse(next[key]);
+      const result = fieldSchema.safeParse(val);
       setErrors((e) => ({
         ...e,
         [key]: result.success ? undefined : result.error.issues[0]?.message,
@@ -329,7 +515,11 @@ const EditOrgModal = () => {
       ...addr,
       country: values.country || addr.country,
     });
-    if (values.contactPhone && !isValidPhoneNumber(values.contactPhone)) {
+    if (
+      values.contactPhone &&
+      values.contactPhone.trim() !== '' &&
+      !isValidPhoneNumber(values.contactPhone)
+    ) {
       setErrors((r) => ({ ...r, contactPhone: 'Phone number is invalid' }));
       toast.error('Phone number is invalid. Please correct it');
       return;
@@ -341,8 +531,8 @@ const EditOrgModal = () => {
         ? values.country.trim().toUpperCase()
         : undefined,
       timezone: values.timezone?.trim() ? values.timezone?.trim() : undefined,
-      logoUrl: values.logoUrl?.trim() || undefined,
-      coverUrl: values.coverUrl?.trim() || undefined,
+      logoUrl: (values as any).logoUrl?.trim() || undefined,
+      coverUrl: (values as any).coverUrl?.trim() || undefined,
       brand_color: values.brand_color?.trim() || undefined,
       address: address?.trim() || undefined,
       contactPhone: values?.contactPhone?.trim() || undefined,
@@ -350,7 +540,7 @@ const EditOrgModal = () => {
       teamSize: values.teamSize?.trim() || undefined,
       name: values.name?.trim() || '',
     };
-
+    console.log(cleaned);
     const parsed = Schema.safeParse(cleaned);
     if (!parsed.success) {
       const issue = parsed.error.issues[0];
@@ -367,14 +557,30 @@ const EditOrgModal = () => {
     setLoading(true);
 
     try {
-      const minimalPayload = {
+      const payload: any = {
         id: org.id,
         name: cleaned.name,
         teamSize: cleaned.teamSize ?? null,
-        description: cleaned.description ?? null,
-      } as const;
+      };
 
-      await dispatch(updateOrg(minimalPayload)).unwrap();
+      if (cleaned.description !== undefined)
+        payload.description = cleaned.description || null;
+      if (cleaned.country !== undefined)
+        payload.country = cleaned.country || null;
+      if (cleaned.timezone !== undefined)
+        payload.timezone = cleaned.timezone || null;
+      if ((cleaned as any).logoUrl !== undefined)
+        payload.logoUrl = (cleaned as any).logoUrl || null;
+      if ((cleaned as any).coverUrl !== undefined)
+        payload.coverUrl = (cleaned as any).coverUrl || null;
+      if (cleaned.brand_color !== undefined)
+        payload.brand_color = cleaned.brand_color || null;
+      if (cleaned.address !== undefined)
+        payload.address = cleaned.address || null;
+      if (cleaned.contactPhone !== undefined)
+        payload.contactPhone = cleaned.contactPhone || null;
+
+      await dispatch(updateOrg(payload)).unwrap();
       dispatch(fetchOrgs());
       toast.success('Organisation updated');
 
@@ -386,6 +592,12 @@ const EditOrgModal = () => {
       setLoading(false);
     }
   }
+
+  useEffect(() => {
+    if (org) {
+      dispatch(fetchOrgBasic(org.id));
+    }
+  }, [open, org?.id, dispatch]);
 
   const popoverContainerRef = useRef<HTMLDivElement | null>(null);
 
@@ -402,6 +614,13 @@ const EditOrgModal = () => {
     setState({ open: false, org: null });
   }, [setState]);
 
+  useEffect(() => {
+    return () => {
+      if (tempLogoPreview) URL.revokeObjectURL(tempLogoPreview);
+      if (tempCoverPreview) URL.revokeObjectURL(tempCoverPreview);
+    };
+  }, [tempLogoPreview, tempCoverPreview]);
+
   return (
     <Modal open={open} onOpenChange={handleClose}>
       <ModalContent size="full" blur separators stickyFooter>
@@ -416,18 +635,26 @@ const EditOrgModal = () => {
           <div ref={popoverContainerRef} className="contents">
             <section className="space-y-4">
               <BrandingHeader
-                coverUrl={values.coverUrl}
-                logoUrl={values.logoUrl}
+                coverUrl={tempCoverPreview || signedCoverUrl || undefined}
+                logoUrl={tempLogoPreview || signedLogoUrl || undefined}
                 brandColor={values.brand_color}
-                onCoverChange={(url) => {
-                  set('coverUrl', url);
-                }}
-                onLogoChange={(url) => {
-                  set('logoUrl', url);
-                }}
+                onPickCover={handlePickCover}
+                onPickLogo={handlePickLogo}
                 onBrandColorChange={(hex) => {
                   set('brand_color', hex);
                 }}
+                uploadingCover={
+                  !!coverUpload &&
+                  coverUpload.status !== 'succeeded' &&
+                  coverUpload.status !== 'failed'
+                }
+                uploadingLogo={
+                  !!logoUpload &&
+                  logoUpload.status !== 'succeeded' &&
+                  logoUpload.status !== 'failed'
+                }
+                coverProgress={coverUpload?.progress ?? 0}
+                logoProgress={logoUpload?.progress ?? 0}
               />
               <Label className="text-sm font-medium text-muted-foreground">
                 General
@@ -592,6 +819,27 @@ const EditOrgModal = () => {
             </section>
           </div>
         </ModalBody>
+        <ModalFooter className="gap-2">
+          <Button variant="outline" onClick={handleClose} className="h-11">
+            Cancel
+          </Button>
+          <Button
+            onClick={onSave}
+            disabled={
+              loading ||
+              (logoUpload &&
+                logoUpload.status !== 'succeeded' &&
+                logoUpload.status !== 'failed') ||
+              (coverUpload &&
+                coverUpload.status !== 'succeeded' &&
+                coverUpload.status !== 'failed')
+            }
+            aria-busy={loading ? 'true' : undefined}
+            className="h-11"
+          >
+            {loading ? 'Saving…' : 'Save changes'}
+          </Button>
+        </ModalFooter>
       </ModalContent>
     </Modal>
   );

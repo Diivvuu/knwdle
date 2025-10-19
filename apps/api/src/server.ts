@@ -11,6 +11,7 @@ import inviteRoutes from './routes/invite';
 import invitesRoutes from './routes/invites';
 import roleRoutes from './routes/roles';
 import orgUnitTypeRoutes from './routes/orgs/org-unit-type';
+import uploadRoutes from './routes/uploads';
 
 const app = express();
 const PORT = Number(process.env.API_PORT || 4000);
@@ -50,6 +51,7 @@ app.use('/api', inviteRoutes);
 app.use('/api', invitesRoutes);
 app.use('/api', roleRoutes);
 app.use('/api', orgUnitTypeRoutes);
+app.use('/api', uploadRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) return next(err);

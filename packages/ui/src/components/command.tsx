@@ -120,7 +120,7 @@ function CommandInput({
           'rounded-md', // inner rounding only; container keeps the header shape
           'px-2',
           // focus ring that matches your DS
-
+          
           // disabled polish
           'disabled:cursor-not-allowed disabled:opacity-50',
           className

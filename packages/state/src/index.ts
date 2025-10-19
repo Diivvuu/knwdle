@@ -18,3 +18,5 @@ export { default as orgUnitReducer } from './slices/org-unit';
 export * from './slices/org-unit';
 export { default as orgUnitTypeReducer } from './slices/org-unit-types';
 export * from './slices/org-unit-types';
+export { default as uploadReducer } from './slices/uploads';
+export * from './slices/uploads';

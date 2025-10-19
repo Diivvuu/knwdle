@@ -11,6 +11,7 @@ import {
   requirePermission,
 } from '../middleware/permissions';
 import { prisma } from '../lib/prisma';
+import { createGetObjectUrl } from '../lib/s3';
 
 type MyUnitRole = { role: ParentRole; unitId: string | null };
 
@@ -23,14 +24,19 @@ const CreateOrgBody = z.object({
   teamSize: z.string().min(1).optional(),
 });
 
+const IMAGE_REF = z
+  .string()
+  .min(1)
+  .regex(/^(https?:\/\/|(?:users|orgs)\/)[^\s]+$/i, 'Must be a URL or S3 key');
+
 const UpdateOrgBody = z.object({
   name: z.string().min(2).optional(),
   description: z.string().optional(),
   teamSize: z.string().min(1).optional(),
   country: z.string().length(2).toUpperCase().optional(),
   timezone: z.string().min(1).optional(),
-  logoUrl: z.string().url().optional(),
-  coverUrl: z.string().url().optional(),
+  logoUrl: IMAGE_REF.optional(),
+  coverUrl: IMAGE_REF.optional(),
   brand_color: z
     .string()
     .regex(/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/)
@@ -104,6 +110,7 @@ async function getUserPermissionsFromOrg(orgId: string, userId: string) {
   return PERMISSIONS_BY_BASE_ROLE[membership.role] ?? [];
 }
 
+r
 //post org
 r.post('/orgs', requireAuth, async (req, res) => {
   const parsed = CreateOrgBody.safeParse(req.body);
@@ -153,6 +160,9 @@ r.post('/orgs', requireAuth, async (req, res) => {
   }
 });
 
+// Treat non-HTTP(S) strings as S3 keys we need to presign
+const isS3Key = (v?: string | null) => !!v && !/^https?:\/\//i.test(v);
+
 // get my orgs
 r.get('/orgs', requireAuth, async (req, res) => {
   const orgs = await prisma.organisation.findMany({
@@ -161,14 +171,44 @@ r.get('/orgs', requireAuth, async (req, res) => {
     orderBy: { createdAt: 'desc' },
   });
 
-  const withRoles = await Promise.all(
+  const withExtras = await Promise.all(
     orgs.map(async (o) => {
-      const { myRole, myUnitRoles } = await getMyRoleForOrg(o.id, req.user!.id);
-      const permissions = await getUserPermissionsFromOrg(o.id, req.user!.id);
-      return { ...o, myRole, myUnitRoles, permissions };
+      const [{ myRole, myUnitRoles }, permissions, logoUrl, coverUrl] =
+        await Promise.all([
+          getMyRoleForOrg(o.id, req.user!.id),
+          getUserPermissionsFromOrg(o.id, req.user!.id),
+          (async () =>
+            isS3Key(o.logoUrl as any)
+              ? await createGetObjectUrl({
+                  key: o.logoUrl as string,
+                  expiresInSec: 60,
+                })
+              : (o.logoUrl as string | null))(),
+          (async () =>
+            isS3Key(o.coverUrl as any)
+              ? await createGetObjectUrl({
+                  key: o.coverUrl as string,
+                  expiresInSec: 60,
+                })
+              : (o.coverUrl as string | null))(),
+        ]);
+
+      return {
+        ...o,
+        // keep original values accessible as keys if they were keys
+        logoKey: isS3Key(o.logoUrl as any) ? (o.logoUrl as string) : undefined,
+        coverKey: isS3Key(o.coverUrl as any) ? (o.coverUrl as string) : undefined,
+        // expose URLs (either original http(s) or presigned)
+        logoUrl: logoUrl ?? null,
+        coverUrl: coverUrl ?? null,
+        myRole,
+        myUnitRoles,
+        permissions,
+      };
     })
   );
-  res.json(withRoles);
+
+  res.json(withExtras);
 });
 
 // get single org

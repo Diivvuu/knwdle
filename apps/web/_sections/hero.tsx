@@ -67,12 +67,21 @@ export default function Hero() {
         className="mb-4"
       >
         <Image
-          src="/knwdle.svg"
-          alt="Knwdle Logo"
+          src="/knwdle-light.svg"
+          alt="Knwdle"
           width={160}
           height={160}
           priority
-          className="w-24 sm:w-32 md:w-44 lg:w-52 h-auto"
+          className="w-24 sm:w-32 md:w-44 lg:w-52 h-auto object-contain object-left dark:hidden"
+        />
+        {/* Dark mode logo */}
+        <Image
+          src="/knwdle-dark.svg"
+          alt="Knwdle"
+          width={160}
+          height={160}
+          priority
+          className="w-24 sm:w-32 md:w-44 lg:w-52 h-auto. object-contain object-left hidden dark:block"
         />
       </motion.div>
 

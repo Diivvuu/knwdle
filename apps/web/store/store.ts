@@ -14,12 +14,14 @@ import {
   authReducer,
   orgDashboardReducer,
   orgTypeReducer,
+  uploadReducer,
 } from '@workspace/state';
 
 const rootReducer = combineReducers({
   auth: authReducer,
   orgType: orgTypeReducer,
   org: orgDashboardReducer,
+  upload: uploadReducer
 });
 
 const persistConfig = {
