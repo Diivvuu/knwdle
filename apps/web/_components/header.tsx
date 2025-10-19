@@ -38,6 +38,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch, RootState } from '@/store/store';
 import { useRouter } from 'next/navigation';
 import { beginLogout, logout } from '@workspace/state';
+import { useAuth } from '@/hooks/use-auth';
 
 const navLinks = [
   { name: 'Features', href: '#features' },
@@ -58,8 +59,8 @@ export default function Header() {
   const router = useRouter();
   const [scrolled, setScrolled] = useState(false);
   const ref = useRef<HTMLElement>(null);
-  const { user, accessToken } = useSelector((s: RootState) => s.auth);
-  const isAuthed = Boolean(user && accessToken);
+
+  const { isAuthed, user } = useAuth();
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);

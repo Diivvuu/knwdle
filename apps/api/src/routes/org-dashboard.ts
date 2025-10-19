@@ -31,22 +31,58 @@ const IMAGE_REF = z
 
 const UpdateOrgBody = z.object({
   name: z.string().min(2).optional(),
-  description: z.string().optional(),
-  teamSize: z.string().min(1).optional(),
-  country: z.string().length(2).toUpperCase().optional(),
-  timezone: z.string().min(1).optional(),
-  logoUrl: IMAGE_REF.optional(),
-  coverUrl: IMAGE_REF.optional(),
+  description: z.string().optional().nullable(),
+  teamSize: z.string().min(1).optional().nullable(),
+  country: z
+    .union([
+      z
+        .string()
+        .length(2)
+        .transform((s) => s.toUpperCase()),
+      z.null(),
+    ])
+    .optional(),
+  timezone: z.string().min(1).optional().nullable(),
+  logoUrl: IMAGE_REF.optional().nullable(),
+  coverUrl: IMAGE_REF.optional().nullable(),
   brand_color: z
     .string()
     .regex(/^#([A-Fa-f0-9]{3}|[A-Fa-f0-9]{6})$/)
-    .optional(),
-  address: z.string().optional(),
-  contactPhone: z.string().min(3).max(32).optional(),
+    .optional()
+    .nullable(),
+  address: z.string().optional().nullable(),
+  contactPhone: z.string().min(3).max(32).optional().nullable(),
   meta: z.unknown().optional(),
 });
 
 const IdParam = z.object({ id: z.string().min(1) });
+
+function extractKeyFromS3Url(maybeUrl?: string | null): string | undefined {
+  if (!maybeUrl) return undefined;
+
+  try {
+    const u = new URL(maybeUrl);
+
+    if (!/\.amazonaws\.com$/.test(u.hostname)) return undefined;
+
+    const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
+
+    if (path.startsWith('users/') || path.startsWith('orgs/')) {
+      return path;
+    }
+    return undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+function normalizeImageRef(v?: string | null): string | null | undefined {
+  if (v === null) return null; // explicit clear
+  if (!v) return undefined;
+  if (!/^https?:\/\//i.test(v)) return v; // plain key
+  const key = extractKeyFromS3Url(v);
+  return key ?? v; // if it's our presigned → key, else keep public URL
+}
 
 async function assertOrgMember(orgId: string, userId: string) {
   const m = await prisma.orgMembership.findFirst({
@@ -110,7 +146,7 @@ async function getUserPermissionsFromOrg(orgId: string, userId: string) {
   return PERMISSIONS_BY_BASE_ROLE[membership.role] ?? [];
 }
 
-r
+r;
 //post org
 r.post('/orgs', requireAuth, async (req, res) => {
   const parsed = CreateOrgBody.safeParse(req.body);
@@ -173,32 +209,37 @@ r.get('/orgs', requireAuth, async (req, res) => {
 
   const withExtras = await Promise.all(
     orgs.map(async (o) => {
+      // derive keys first (works for keys OR old presigned URLs)
+      const logoKey =
+        (isS3Key(o.logoUrl as any)
+          ? (o.logoUrl as string)
+          : extractKeyFromS3Url(o.logoUrl || undefined)) || undefined;
+
+      const coverKey =
+        (isS3Key(o.coverUrl as any)
+          ? (o.coverUrl as string)
+          : extractKeyFromS3Url(o.coverUrl || undefined)) || undefined;
+
       const [{ myRole, myUnitRoles }, permissions, logoUrl, coverUrl] =
         await Promise.all([
           getMyRoleForOrg(o.id, req.user!.id),
           getUserPermissionsFromOrg(o.id, req.user!.id),
           (async () =>
-            isS3Key(o.logoUrl as any)
-              ? await createGetObjectUrl({
-                  key: o.logoUrl as string,
-                  expiresInSec: 60,
-                })
+            logoKey
+              ? await createGetObjectUrl({ key: logoKey, expiresInSec: 300 })
               : (o.logoUrl as string | null))(),
           (async () =>
-            isS3Key(o.coverUrl as any)
-              ? await createGetObjectUrl({
-                  key: o.coverUrl as string,
-                  expiresInSec: 60,
-                })
+            coverKey
+              ? await createGetObjectUrl({ key: coverKey, expiresInSec: 300 })
               : (o.coverUrl as string | null))(),
         ]);
 
       return {
         ...o,
-        // keep original values accessible as keys if they were keys
-        logoKey: isS3Key(o.logoUrl as any) ? (o.logoUrl as string) : undefined,
-        coverKey: isS3Key(o.coverUrl as any) ? (o.coverUrl as string) : undefined,
-        // expose URLs (either original http(s) or presigned)
+        // expose keys only when they are actual keys (or extracted from our presigned URLs)
+        logoKey,
+        coverKey,
+        // expose fresh (or original public) URLs
         logoUrl: logoUrl ?? null,
         coverUrl: coverUrl ?? null,
         myRole,
@@ -221,15 +262,41 @@ r.get('/orgs/:id', requireAuth, async (req, res) => {
 
   const org = await prisma.organisation.findUnique({
     where: { id: p.data.id },
-    include: {
-      profile: true,
-    },
+    include: { profile: true },
   });
-
   if (!org) return res.status(404).json({ error: 'Org not found' });
 
   const { myRole, myUnitRoles } = await getMyRoleForOrg(org.id, req.user!.id);
-  res.json({ ...org, myRole, myUnitRoles });
+
+  // derive keys first (works for keys OR old presigned URLs)
+  const logoKey =
+    (isS3Key(org.logoUrl as any)
+      ? (org.logoUrl as string)
+      : extractKeyFromS3Url(org.logoUrl || undefined)) || undefined;
+
+  const coverKey =
+    (isS3Key(org.coverUrl as any)
+      ? (org.coverUrl as string)
+      : extractKeyFromS3Url(org.coverUrl || undefined)) || undefined;
+
+  const [logoUrl, coverUrl] = await Promise.all([
+    logoKey
+      ? createGetObjectUrl({ key: logoKey, expiresInSec: 300 })
+      : (org.logoUrl as string | null),
+    coverKey
+      ? createGetObjectUrl({ key: coverKey, expiresInSec: 300 })
+      : (org.coverUrl as string | null),
+  ]);
+
+  res.json({
+    ...org,
+    logoKey,
+    coverKey,
+    logoUrl: logoUrl ?? null,
+    coverUrl: coverUrl ?? null,
+    myRole,
+    myUnitRoles,
+  });
 });
 
 //update org settings
@@ -278,13 +345,20 @@ r.patch(
       'teamSize',
       'country',
       'timezone',
-      'logoUrl',
-      'coverUrl',
+      // 'logoUrl',
+      // 'coverUrl',
       'brand_color',
       'address',
       'contactPhone',
     ] as const) {
       if (body.data[k] !== undefined) d[k] = body.data[k];
+    }
+
+    if (body.data.logoUrl !== undefined) {
+      d.logoUrl = normalizeImageRef(body.data.logoUrl);
+    }
+    if (body.data.coverUrl !== undefined) {
+      d.coverUrl = normalizeImageRef(body.data.coverUrl);
     }
 
     const updated = await prisma.organisation.update({
@@ -303,7 +377,32 @@ r.patch(
       include: { profile: true },
     });
 
-    res.json(updated);
+    const logoKey =
+      (isS3Key(updated.logoUrl as any)
+        ? (updated.logoUrl as string)
+        : extractKeyFromS3Url(updated.logoUrl || undefined)) || undefined;
+
+    const coverKey =
+      (isS3Key(updated.coverUrl as any)
+        ? (updated.coverUrl as string)
+        : extractKeyFromS3Url(updated.coverUrl || undefined)) || undefined;
+
+    const [logoUrl, coverUrl] = await Promise.all([
+      logoKey
+        ? createGetObjectUrl({ key: logoKey, expiresInSec: 300 })
+        : (updated.logoUrl as string | null),
+      coverKey
+        ? createGetObjectUrl({ key: coverKey, expiresInSec: 300 })
+        : (updated.coverUrl as string | null),
+    ]);
+
+    res.json({
+      ...updated,
+      logoKey,
+      coverKey,
+      logoUrl: logoUrl ?? null,
+      coverUrl: coverUrl ?? null,
+    });
   }
 );
 

@@ -42,7 +42,7 @@ function applyTransform(v: any, schema: any) {
   if (t === 'titlecase')
     return v.replace(
       /\w\S*/g,
-      (s) => s[0].toUpperCase() + s.slice(1).toLowerCase()
+      (s) => s.charAt(0).toUpperCase() + s.slice(1).toLowerCase()
     );
   return v;
 }

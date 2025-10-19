@@ -6,6 +6,7 @@ import { useRole } from '@/providers/role-provider';
 import { useAutoHeight } from '@/hooks/use-auto-height';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import Image from 'next/image';
+import { Button } from '@workspace/ui/components/button';
 
 export default function Hero() {
   const { audience } = useRole();
@@ -117,18 +118,15 @@ export default function Hero() {
 
       {/* CTAs (stack on mobile) */}
       <div className="mt-8 flex w-full max-w-md sm:max-w-none flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-        <a
-          href={copy.primaryCta.href}
-          className="px-5 py-2.5 rounded-lg bg-[var(--primary)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md w-full sm:w-auto"
-        >
+        <Button className="px-5 py-2.5 rounded-lg bg-[var(--primary)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md w-full sm:w-auto">
           {copy.primaryCta.label}
-        </a>
-        <a
-          href={copy.secondaryCta.href}
+        </Button>
+        <Button
+          variant={'ghost'}
           className="px-5 py-2.5 rounded-lg border border-[color-mix(in srgb,var(--primary) 30%,transparent)] text-sm sm:text-base font-medium hover:bg-[color-mix(in srgb,var(--primary) 8%,var(--card))] transition w-full sm:w-auto"
         >
           {copy.secondaryCta.label}
-        </a>
+        </Button>
       </div>
 
       {/* Badges */}

@@ -150,8 +150,8 @@ function BrandingHeader({
     e.preventDefault();
     setDragOver(false);
     const dt = e.dataTransfer;
-    if (!dt.files || dt.files.length === 0) return;
-    const f = dt.files[0];
+    const f = dt.files?.item(0) ?? dt.files?.[0] ?? null;
+    if (!f) return;
     if (!f.type.startsWith('image/')) {
       toast.error('Please drop an image');
       return;

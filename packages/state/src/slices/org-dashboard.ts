@@ -27,7 +27,7 @@ export interface Org {
   name: string;
   type: string; // runtime-driven, you already fetch /org-types
   description?: string | null;
-  teamSize?: number | null;
+  teamSize?: string | null;
   country?: string | null;
   timezone?: string | null;
   logoUrl?: string | null;
@@ -39,6 +39,20 @@ export interface Org {
   profile?: OrgProfile | null;
   members?: OrgMember[]; // present on GET /orgs/:id
 }
+
+type UpdateOrgBody = Partial<{
+  name: string;
+  description: string | null;
+  teamSize: string | null;
+  country: string | null;
+  timezone: string | null;
+  logoUrl: string | null;
+  coverUrl: string | null;
+  brand_color: string | null;
+  address: string | null;
+  contactPhone: string | null;
+  meta: Record<string, any>;
+}>;
 
 type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
@@ -77,13 +91,13 @@ export const createOrg = createAsyncThunk<
   return res.data as Org;
 });
 
-export const updateOrg = createAsyncThunk<
-  Org,
-  { id: string; name?: string; meta?: Record<string, any> }
->('orgs/update', async ({ id, ...body }) => {
-  const res = await api.patch(`/dashboard/orgs/${id}`, body);
-  return res.data as Org;
-});
+export const updateOrg = createAsyncThunk<Org, { id: string } & UpdateOrgBody>(
+  'orgs/update',
+  async ({ id, ...body }) => {
+    const res = await api.patch(`/dashboard/orgs/${id}`, body);
+    return res.data as Org;
+  }
+);
 
 export const deleteOrg = createAsyncThunk<string, string>(
   'orgs/delete',
