@@ -7,8 +7,21 @@ import { MailTemplates } from '../lib/mail-templates';
 import { sendMail, wrapHtml } from '../lib/mailer';
 import { requirePermission } from '../middleware/permissions';
 import { prisma } from '../lib/prisma';
+import {
+  OpenApiGeneratorV3,
+  OpenAPIRegistry,
+} from '@asteasolutions/zod-to-openapi';
+import '../lib/openapi/extend';
 
 const r = Router();
+
+const inviteRegistry = new OpenAPIRegistry();
+const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
+inviteRegistry.registerComponent('securitySchemes', 'cookieAuth', {
+  type: 'apiKey',
+  in: 'cookie',
+  name: COOKIE_NAME,
+});
 
 const AUTH_ORIGIN = process.env.AUTH_ORIGIN;
 if (!AUTH_ORIGIN) throw new Error('APP_ORIGIN not configured');
@@ -19,31 +32,6 @@ function generateToken() {
 export function generateJoinCode() {
   return `KNW-${crypto.randomBytes(4).toString('hex').toUpperCase()}`;
 }
-
-const InviteBody = z
-  .object({
-    email: z.string().email(),
-    role: z.nativeEnum(ParentRole).optional(),
-    roleId: z.string().optional(),
-    unitId: z.string().optional(),
-    meta: z.any().optional(),
-  })
-  .refine((v) => v.role || v.roleId, {
-    message: 'Provide either role or roleId',
-  });
-
-const InviteListQuery = z.object({
-  limit: z.coerce.number().int().min(1).max(100).default(25),
-  cursor: z.string().optional(),
-  q: z.string().trim().min(1).max(200).optional(),
-  role: z.nativeEnum(ParentRole).optional(),
-  status: z.enum(['pending', 'accepted']).optional(),
-  unitId: z.string().trim().min(1).optional(),
-  sortKey: z
-    .enum(['createdAt', 'email', 'expiresAt', 'role', 'unit', 'unitId'])
-    .optional(),
-  sortDir: z.enum(['asc', 'desc']).optional(),
-});
 
 function encodeCursor(createdAt: Date, id: string) {
   return Buffer.from(
@@ -63,7 +51,105 @@ function decodeCursor(c?: string | null) {
   }
 }
 
-// create invite
+const InviteBody = z
+  .object({
+    email: z.string().email(),
+    role: z.nativeEnum(ParentRole).optional(),
+    roleId: z.string().optional(),
+    unitId: z.string().optional(),
+    meta: z.any().optional(),
+  })
+  .refine((v) => v.role || v.roleId, {
+    message: 'Provide either role or roleId',
+  })
+  .openapi('InviteBody');
+
+const InviteListQuery = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(100).default(25),
+    cursor: z.string().optional(),
+    q: z.string().trim().min(1).max(200).optional(),
+    role: z.nativeEnum(ParentRole).optional(),
+    status: z.enum(['pending', 'accepted']).optional(),
+    unitId: z.string().trim().min(1).optional(),
+    sortKey: z
+      .enum(['createdAt', 'email', 'expiresAt', 'role', 'unit', 'unitId'])
+      .optional(),
+    sortDir: z.enum(['asc', 'desc']).optional(),
+  })
+  .openapi('InviteListQuery');
+
+const JoinCodeBody = z
+  .object({ code: z.string().min(6) })
+  .openapi('JoinCodeBody');
+
+const InviteSchema = z
+  .object({
+    id: z.string(),
+    email: z.string().email(),
+    role: z.nativeEnum(ParentRole),
+    roleId: z.string().nullable().optional(),
+    unitId: z.string().nullable().optional(),
+    token: z.string(),
+    joinCode: z.string(),
+    expiresAt: z.string().datetime(),
+    acceptedBy: z.string().nullable().optional(),
+    createdAt: z.string().datetime(),
+    meta: z.any().optional(),
+  })
+  .openapi('Invite');
+
+const InviteListResponse = z
+  .object({
+    items: z.array(InviteSchema),
+    nextCursor: z.string().nullable(),
+  })
+  .openapi('InviteListResponse');
+
+const BasicError = z.object({ error: z.string() }).openapi('BasicError');
+
+const AcceptInviteResponse = z
+  .object({
+    message: z.string(),
+    orgId: z.string(),
+    unitId: z.string().nullable().optional(),
+  })
+  .openapi('AcceptInviteResponse');
+
+// POST create invite
+inviteRegistry.registerPath({
+  method: 'post',
+  path: '/api/orgs/{id}/invites',
+  summary: 'Create an invite for an organisation',
+  tags: ['invite'],
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    body: {
+      content: {
+        'application/json': { schema: InviteBody },
+      },
+    },
+  },
+  responses: {
+    201: {
+      description: 'Invite Created',
+      content: { 'application/json': { schema: InviteSchema } },
+    },
+    400: {
+      description: 'Invalid input',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    409: {
+      description: 'Conflict',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.post(
   '/orgs/:id/invites',
   requireAuth,
@@ -182,7 +268,32 @@ r.post(
   }
 );
 
-
+// GET list invites
+inviteRegistry.registerPath({
+  method: 'get',
+  path: '/api/orgs/{id}/invites',
+  summary: 'List invites for an organisation (paginated)',
+  tags: ['invite'],
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: z.object({ id: z.string() }),
+    query: InviteListQuery,
+  },
+  responses: {
+    200: {
+      description: 'Paginated list of invites',
+      content: { 'application/json': { schema: InviteListResponse } },
+    },
+    400: {
+      description: 'Invalid Query',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get(
   '/orgs/:id/invites',
   requireAuth,
@@ -279,11 +390,45 @@ r.get(
     const nextCursor =
       hasMore && last ? encodeCursor(last.createdAt, last.id) : null;
 
-    res.json({ items, nextCursor });
+    const payload = {
+      items: items.map((i) => ({
+        ...i,
+        createdAt: i.createdAt.toISOString(),
+        expiresAt: i.expiresAt.toISOString(),
+      })),
+      nextCursor,
+    };
+
+    if (process.env.NODE_ENV !== 'production') {
+      InviteListResponse.parse(payload);
+    }
+
+    res.json(payload);
   }
 );
 
-// delete invite
+// DELETE invite
+inviteRegistry.registerPath({
+  method: 'delete',
+  path: '/api/orgs/{orgId}/invites/{inviteId}',
+  summary: 'Delete an invite',
+  tags: ['invite'],
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: z.object({ orgId: z.string(), inviteId: z.string() }),
+  },
+  responses: {
+    204: { description: 'Deleted' },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    404: {
+      description: 'Not Found',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.delete(
   '/orgs/:orgId/invites/:inviteId',
   requireAuth,
@@ -296,6 +441,33 @@ r.delete(
   }
 );
 
+//POST accept invite (as any Parentrole)
+inviteRegistry.registerPath({
+  method: 'post',
+  path: '/api/invite/{token}/accept',
+  summary: 'Accept and invite using the email token',
+  tags: ['invite'],
+  security: [{ cookieAuth: [] }],
+  request: { params: z.object({ token: z.string() }) },
+  responses: {
+    200: {
+      description: 'Invite accepted',
+      content: { 'application/json': { schema: AcceptInviteResponse } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    404: {
+      description: 'Invite not found',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    410: {
+      description: 'Invite expired',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.post('/invites/:token/accept', requireAuth, async (req, res) => {
   const { token } = req.params;
 
@@ -363,10 +535,35 @@ r.post('/invites/:token/accept', requireAuth, async (req, res) => {
   });
 });
 
-const JoinCodeBody = z.object({
-  code: z.string().min(6),
+// POST accept invite using join code
+inviteRegistry.registerPath({
+  method: 'post',
+  path: '/api/invites/join-code',
+  summary: 'Accept an invite using a join code',
+  tags: ['invite'],
+  security: [{ cookieAuth: [] }],
+  request: {
+    body: { content: { 'application/json': { schema: JoinCodeBody } } },
+  },
+  responses: {
+    200: {
+      description: 'Invite accepted via join code',
+      content: { 'application/json': { schema: AcceptInviteResponse } },
+    },
+    400: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    403: {
+      description: 'Code not found',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    410: {
+      description: 'Invite expired',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
 });
-
 r.post('/invites/join-code', requireAuth, async (req, res) => {
   const p = JoinCodeBody.safeParse(req.body);
   if (!p.success) return res.status(400).json({ error: 'Invalid body' });
@@ -436,5 +633,13 @@ r.post('/invites/join-code', requireAuth, async (req, res) => {
     unitId: invite.unitId,
   });
 });
+
+export const getInviteOpenApiPaths = () => {
+  const generator = new OpenApiGeneratorV3(inviteRegistry.definitions);
+  return generator.generateDocument({
+    openapi: '3.0.0',
+    info: { title: 'Invite API', version: '1.0.0' },
+  });
+};
 
 export default r;

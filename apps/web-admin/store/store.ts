@@ -2,8 +2,8 @@ import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import {
   authReducer,
   invitesReducer,
-  orgDashboardReducer,
-  orgReducer,
+  OrgAdminDashboardReducer,
+  orgMegaDashboardReducer,
   orgTypeReducer,
   orgUnitReducer,
   orgUnitTypeReducer,
@@ -24,8 +24,8 @@ import storage from 'redux-persist/lib/storage';
 const rootReducer = combineReducers({
   auth: authReducer,
   orgType: orgTypeReducer,
-  org: orgDashboardReducer,
-  orgAdmin: orgReducer,
+  org: orgMegaDashboardReducer,
+  orgAdmin: OrgAdminDashboardReducer,
   roles: rolesReducer,
   invites: invitesReducer,
   orgUnit: orgUnitReducer,

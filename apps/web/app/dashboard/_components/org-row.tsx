@@ -1,7 +1,11 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo } from 'react';
+import { useMemo, useCallback } from 'react';
+import { useDispatch } from 'react-redux';
+import { AppDispatch } from '@/store/store';
+import { deleteOrg } from '@workspace/state';
+import { toast } from 'sonner';
 import {
   Building2,
   ShieldCheck,
@@ -27,6 +31,7 @@ import {
 import { cn } from '@workspace/ui/lib/utils';
 import { ADMIN_BASE } from '@/lib/env';
 import { useEditOrgModal } from '@/features/org/use-org-atom';
+import { useTypeToConfirm } from '@/features/type-to-confirm-modal';
 
 type OrgRowProps = {
   org: any;
@@ -40,6 +45,32 @@ export default function OrgRow({ org, className }: OrgRowProps) {
   const brand = org.brand_color ?? 'hsl(var(--primary))';
   const isAdmin = org.myRole === 'admin';
   const [open, setOpen] = useEditOrgModal();
+  const dispatch = useDispatch<AppDispatch>();
+  const { openConfirm } = useTypeToConfirm();
+
+  const handleDelete = useCallback(() => {
+    openConfirm({
+      title: 'Delete organisation',
+      description: (
+        <>
+          This action <b>cannot be undone</b>. This will permanently delete <b>{org.name}</b> and remove all associated data.
+        </>
+      ),
+      label: 'Please type the organisation name to confirm',
+      expectedText: org.name || '',
+      confirmText: 'Delete',
+      destructive: true,
+      onConfirm: async () => {
+        try {
+          await dispatch(deleteOrg(org.id)).unwrap();
+          toast.success('Organisation deleted');
+        } catch (e: any) {
+          toast.error(e?.message || 'Failed to delete organisation');
+          throw e;
+        }
+      },
+    });
+  }, [dispatch, openConfirm, org.id, org.name]);
   // normalize common fields
   const teamSize = String(meta.teamSize ?? org.teamSize ?? '').trim();
   const focusArea = meta.focusArea as string | undefined;
@@ -256,7 +287,10 @@ export default function OrgRow({ org, className }: OrgRowProps) {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   className="text-destructive focus:text-destructive"
-                  // onClick={() => onDelete(org)}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDelete();
+                  }}
                 >
                   <Trash2 className="mr-2 h-4 w-4" />
                   Delete

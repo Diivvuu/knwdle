@@ -1,9 +1,9 @@
 import { Router } from 'express';
 import { OrgType } from '../generated/prisma';
-import { getMetaSchema, MetaSchemas } from '../lib/org-types';
+import { getMetaSchema, MetaSchemas } from '../lib/org.types';
 import zodToJsonSchema from 'zod-to-json-schema';
 import { requireAuth } from '../middleware/auth';
-import { UI_HINTS } from '../lib/org-unit';
+import { UI_HINTS } from '../lib/org.unit';
 
 const r = Router();
 

@@ -2,7 +2,7 @@
 import { NextFunction, Request, Response } from 'express';
 import { OrgType, ParentRole } from '../generated/prisma';
 import z from 'zod';
-import { getMetaSchema } from '../lib/org-types';
+import { getMetaSchema } from '../lib/org.types';
 import { prisma } from '../lib/prisma';
 
 export const PERMISSIONS_BY_BASE_ROLE: Record<ParentRole, string[]> = {

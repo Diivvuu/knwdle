@@ -25,32 +25,48 @@ export default function RootLayout({
   children: React.ReactNode;
 }>) {
   return (
-    <html
-      lang="en"
-      className="light"
-      suppressHydrationWarning
-      suppressContentEditableWarning
-      style={{ colorScheme: 'light' }}
-    >
-      <body
-        className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}
+    <>
+      <head>
+        <link
+          rel="icon"
+          type="image/svg+xml"
+          href="/k-light-favicon.svg"
+          media="(prefers-color-scheme: light)"
+        />
+        <link
+          rel="icon"
+          type="image/svg+xml"
+          href="/k-dark-favicon.svg"
+          media="(prefers-color-scheme: dark)"
+        />
+      </head>
+      <html
+        lang="en"
+        className="light"
         suppressHydrationWarning
         suppressContentEditableWarning
+        style={{ colorScheme: 'light' }}
       >
-        <ReduxWrapper>
-          <Toaster />
-          <Modals />
-          <AppInit />
-          <Providers>
-            <RoleProvider>
-              <Header />
-              <main className="pt-[calc(var(--header-h,64px)+12px)]">
-                {children}
-              </main>
-            </RoleProvider>
-          </Providers>
-        </ReduxWrapper>
-      </body>
-    </html>
+        <body
+          className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}
+          suppressHydrationWarning
+          suppressContentEditableWarning
+        >
+          <ReduxWrapper>
+            <Toaster />
+            <Modals />
+            <AppInit />
+            <Providers>
+              <RoleProvider>
+                <Header />
+                <main className="pt-[calc(var(--header-h,64px)+12px)]">
+                  {children}
+                </main>
+              </RoleProvider>
+            </Providers>
+          </ReduxWrapper>
+        </body>
+      </html>
+    </>
   );
 }

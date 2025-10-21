@@ -8,8 +8,21 @@ import { sseAttach, ssePush } from '../lib/sse';
 import { MailTemplates } from '../lib/mail-templates';
 import { sendBulkWithProgress, wrapHtml } from '../lib/mailer';
 import { prisma } from '../lib/prisma';
+import {
+  OpenApiGeneratorV3,
+  OpenAPIRegistry,
+} from '@asteasolutions/zod-to-openapi';
 
 const r = Router();
+
+const invitesRegistry = new OpenAPIRegistry();
+
+const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
+invitesRegistry.registerComponent('securitySchemes', 'cookieAuth', {
+  type: 'apiKey',
+  in: 'cookie',
+  name: COOKIE_NAME,
+});
 
 const InviteItem = z
   .object({
@@ -21,18 +34,69 @@ const InviteItem = z
   })
   .refine((v) => v.role || v.roleId, {
     message: 'Provide either role or roleId',
-  });
+  })
+  .openapi('InviteItem');
 
-const BulkInviteBody = z.object({
-  invites: z.array(InviteItem).min(1).max(200),
-  options: z
-    .object({
-      expiresInDays: z.number().int().min(1).max(30).default(7),
-      sendEmail: z.boolean().default(true),
-      dryRun: z.boolean().default(false),
-    })
-    .default({}),
-});
+const BulkInviteBody = z
+  .object({
+    invites: z.array(InviteItem).min(1).max(200),
+    options: z
+      .object({
+        expiresInDays: z.number().int().min(1).max(30).default(7),
+        sendEmail: z.boolean().default(true),
+        dryRun: z.boolean().default(false),
+      })
+      .default({}),
+  })
+  .openapi('BulkInviteBody');
+
+const BasicError = z
+  .object({
+    error: z.string(),
+    details: z.any().optional(),
+  })
+  .openapi('BssicError');
+
+const BulkInviteStatus = z
+  .enum(['queued', 'running', 'done', 'error'])
+  .openapi('BulkInviteStatus');
+
+const BulkInviteDryRunResponse = z
+  .object({
+    batchId: z.string(),
+    total: z.number().int(),
+    stauts: z.literal('done'),
+    sent: z.number().int(),
+    failed: z.number().int(),
+    skipped: z.number().int(),
+  })
+  .openapi('BulkInviteDryRunResponse');
+
+const BulkInviteKickoffResponse = z
+  .object({
+    batchId: z.string(),
+    total: z.number().int(),
+    status: z.union([z.literal('running'), z.literal('done')]),
+  })
+  .openapi('BulkInviteKickoffResponse');
+
+const BulkInviteStatusResponse = z
+  .object({
+    status: BulkInviteStatus,
+    total: z.number().int(),
+    sent: z.number().int().nullable().optional(),
+    failed: z.number().int().nullable().optional(),
+    skipped: z.number().int().nullable().optional(),
+  })
+  .openapi('BulkInviteStatusResponse');
+
+const OrgIdParam = z.object({ id: z.string() }).openapi('OrgIdParam');
+const OrgBatchParams = z
+  .object({
+    id: z.string(),
+    batchId: z.string(),
+  })
+  .openapi('OrgBatchParams');
 
 function token() {
   return crypto.randomBytes(20).toString('hex');
@@ -41,6 +105,43 @@ function token() {
 const AUTH_ORIGIN = process.env.AUTH_ORIGIN!;
 if (!AUTH_ORIGIN) throw new Error('AUTH_ORIGIN not configured');
 
+//POST invites in bulk
+invitesRegistry.registerPath({
+  method: 'post',
+  path: '/api/orgs/{id}/invites/bulk',
+  summary: 'Create bulk invites for an organisation',
+  tags: ['invites'],
+  security: [{ cookieAuth: [] }],
+  request: {
+    params: OrgIdParam,
+    body: { content: { 'application/json': { schema: BulkInviteBody } } },
+  },
+  responses: {
+    200: {
+      description: 'Bulk invite created. If dryRun=true, nothing is created.',
+      content: {
+        'application/json': {
+          schema: z.union([
+            BulkInviteDryRunResponse,
+            BulkInviteKickoffResponse,
+          ]),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid Input',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    401: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    403: {
+      description: 'Missing Permission',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.post(
   '/orgs/:id/invites/bulk',
   requireAuth,
@@ -216,12 +317,58 @@ r.post(
   }
 );
 
-// sse streams -> live progress
+// GET sse streams -> live progress
+invitesRegistry.registerPath({
+  method: 'get',
+  path: '/api/orgs/{id}/invites/bulk/{batchId}/stream',
+  summary: 'SSE Streams for bulk invite progress.',
+  description:
+    'Server-Sent Events stream; emits progress updates `{total, sent, failed, skipped}` and final status.',
+  tags: ['invites'],
+  security: [{ cookieAuth: [] }],
+  request: { params: OrgBatchParams },
+  responses: {
+    200: {
+      description: 'Event Stream',
+      content: {
+        'text/event-stream': {
+          schema: z.string().openapi('SSEStreamPayload'),
+        },
+      },
+    },
+    401: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get('/orgs/:id/invites/bulk/:batchId/stream', requireAuth, (req, res) =>
   sseAttach(req, res, req.params.batchId)
 );
 
-//status (poll//resume)
+//GET status (poll//resume)
+invitesRegistry.registerPath({
+  method: 'get',
+  path: '/api/orgs/{id}/invites/bulk/{batchId}/status',
+  summary: 'Get bulk invite batch status (poll/resume)',
+  tags: ['invites'],
+  security: [{ cookieAuth: [] }],
+  request: { params: OrgBatchParams },
+  responses: {
+    200: {
+      description: 'Current status of batch',
+      content: { 'application/json': { schema: BulkInviteStatusResponse } },
+    },
+    401: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    404: {
+      description: 'Batch not found',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get(
   '/orgs/:id/invites/bulk/:batchId/status',
   requireAuth,
@@ -239,5 +386,13 @@ r.get(
     });
   }
 );
+
+export const getInvitesOpenApiPaths = () => {
+  const gen = new OpenApiGeneratorV3(invitesRegistry.definitions);
+  return gen.generateDocument({
+    openapi: '3.0.0',
+    info: { title: 'Invites (Bulk) API', version: '1.0.0' },
+  });
+};
 
 export default r;

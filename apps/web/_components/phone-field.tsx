@@ -1,17 +1,21 @@
 import { Label } from '@workspace/ui/components/label';
 import { cn } from '@workspace/ui/lib/utils';
 import { useEffect, useId, useState } from 'react';
-import { isValidPhoneNumber } from 'react-phone-number-input';
+import { isValidPhoneNumber, type Country } from 'react-phone-number-input';
 import { PhoneInput } from '@workspace/ui/components/phone-input';
 
 export default function PhoneField({
   value,
   onChange,
   error,
+  country,
+  onCountryChange,
 }: {
   value?: string;
   onChange: (v?: string) => void;
   error?: string;
+  country?: Country;
+  onCountryChange?: (cc: Country) => void;
 }) {
   const id = useId();
   const [hint, setHint] = useState('');
@@ -35,7 +39,8 @@ export default function PhoneField({
           id={id}
           value={value}
           onChange={onChange}
-          /* country selection is handled internally by the component */
+          {...(country ? { country, defaultCountry: country } : {})}
+          {...(onCountryChange ? { onCountryChange } : {})}
           international
           countryCallingCodeEditable={false}
           className="w-full"

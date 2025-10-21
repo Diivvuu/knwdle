@@ -12,7 +12,7 @@ import {
 import storage from 'redux-persist/lib/storage';
 import {
   authReducer,
-  orgDashboardReducer,
+  orgMegaDashboardReducer,
   orgTypeReducer,
   uploadReducer,
 } from '@workspace/state';
@@ -20,7 +20,7 @@ import {
 const rootReducer = combineReducers({
   auth: authReducer,
   orgType: orgTypeReducer,
-  org: orgDashboardReducer,
+  org: orgMegaDashboardReducer,
   upload: uploadReducer
 });
 

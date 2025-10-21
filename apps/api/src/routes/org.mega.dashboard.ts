@@ -3,7 +3,7 @@ import { z } from 'zod';
 
 import { OrgType, OrgUnitType, ParentRole } from '../generated/prisma';
 
-import { getMetaSchema } from '../lib/org-types';
+import { getMetaSchema } from '../lib/org.types';
 
 import { requireAuth } from '../middleware/auth';
 import {

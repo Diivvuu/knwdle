@@ -1,17 +1,19 @@
 import 'dotenv/config';
 import express, { NextFunction, Request, Response } from 'express';
+import swaggerUi from 'swagger-ui-express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
 import authRoutes from './routes/auth';
-import orgTypeRoutes from './routes/org-types';
-import orgDashboardRoutes from './routes/org-dashboard';
+import orgTypeRoutes from './routes/org.types';
+import orgDashboardRoutes from './routes/org.mega.dashboard';
 import orgRoutes from './routes/orgs';
 import inviteRoutes from './routes/invite';
 import invitesRoutes from './routes/invites';
 import roleRoutes from './routes/roles';
-import orgUnitTypeRoutes from './routes/orgs/org-unit-type';
+import orgUnitTypeRoutes from './routes/orgs/org.unit.types';
 import uploadRoutes from './routes/uploads';
+import { buildOpenApiDocument } from './lib/openapi';
 
 const app = express();
 const PORT = Number(process.env.API_PORT || 4000);
@@ -40,9 +42,16 @@ app.use(
   })
 );
 
+const openapiDoc = buildOpenApiDocument();
 app.get('/health', (_req, res) => res.json({ ok: true }));
+app.get('/openapi.json', (_req, res) => res.json(openapiDoc));
+app.use(
+  '/docs',
+  swaggerUi.serve,
+  swaggerUi.setup(openapiDoc, { explorer: true })
+);
 app.use('/auth', authRoutes);
-//dashboard specific org routes
+// dashboard specific org routes
 app.use('/dashboard', orgDashboardRoutes);
 app.use('/api', orgTypeRoutes);
 // admin specific app org routes

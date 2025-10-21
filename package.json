@@ -35,5 +35,9 @@
     "public-hoist-pattern": [
       "*"
     ]
+  },
+  "dependencies": {
+    "@asteasolutions/zod-to-openapi": "7.1.0",
+    "zod": "3.25.8"
   }
 }

@@ -13,7 +13,12 @@ import {
   ModalTitle,
   ModalFooter,
 } from '@workspace/ui/components/modal';
-import { uploadImage, selectUpload, fetchOrgBasic } from '@workspace/state';
+import {
+  uploadImage,
+  selectUpload,
+  fetchOrgBasic,
+  fetchOrgById,
+} from '@workspace/state';
 import { Textarea } from '@workspace/ui/components/textarea';
 import { z } from 'zod';
 import { nanoid } from '@reduxjs/toolkit';
@@ -23,12 +28,64 @@ import { toast } from 'sonner';
 import { cn } from '@workspace/ui/lib/utils';
 import { ImageIcon, Upload } from 'lucide-react';
 import { Button } from '@workspace/ui/components/button';
-import { isValidPhoneNumber } from 'react-phone-number-input';
+import {
+  isValidPhoneNumber,
+  getCountries,
+  type Country,
+} from 'react-phone-number-input';
 import { Label } from '@workspace/ui/components/label';
 import CountrySelect from '@/_components/country-select';
 import TimezoneSelect from '@/_components/timezone-select';
 import { Separator } from '@workspace/ui/components/separator';
 import PhoneField from '@/_components/phone-field';
+import BrandingHeader from '@workspace/ui/components/app/branding-header';
+
+// Country -> sensible default IANA timezone (must exist in COMMON_TZS)
+const COUNTRY_DEFAULT_TZ: Record<string, string> = {
+  IN: 'Asia/Kolkata',
+  AE: 'Asia/Dubai',
+  SA: 'Asia/Riyadh',
+  SG: 'Asia/Singapore',
+  MY: 'Asia/Singapore',
+  ID: 'Asia/Jakarta',
+  CN: 'Asia/Shanghai',
+  JP: 'Asia/Tokyo',
+  KR: 'Asia/Seoul',
+  AU: 'Australia/Sydney',
+
+  GB: 'Europe/London',
+  IE: 'Europe/London',
+  DE: 'Europe/Berlin',
+  FR: 'Europe/Berlin',
+  NL: 'Europe/Berlin',
+  BE: 'Europe/Berlin',
+  ES: 'Europe/Berlin',
+  IT: 'Europe/Berlin',
+  SE: 'Europe/Berlin',
+  NO: 'Europe/Berlin',
+  DK: 'Europe/Berlin',
+  PL: 'Europe/Berlin',
+
+  RU: 'Europe/Moscow',
+  ZA: 'Africa/Johannesburg',
+  NG: 'Africa/Lagos',
+  BR: 'America/Sao_Paulo',
+
+  US: 'America/New_York',
+  CA: 'America/Toronto',
+  MX: 'America/Mexico_City',
+
+  AR: 'America/Sao_Paulo',
+  CO: 'America/Bogota',
+  CL: 'America/Santiago',
+};
+
+const COUNTRY_SET = new Set(getCountries());
+
+function pickTimezoneForCountry(cc?: string): string | undefined {
+  if (!cc) return undefined;
+  return COUNTRY_DEFAULT_TZ[cc.toUpperCase()];
+}
 
 const Schema = z.object({
   name: z.string().trim().min(2, 'Name is required'),
@@ -57,6 +114,18 @@ const Schema = z.object({
     .optional()
     .or(z.literal('')),
   address: z.string().optional(),
+
+  // New structured business address separate from org country
+  business_address: z
+    .object({
+      line1: z.string().optional().or(z.literal('')),
+      line2: z.string().optional().or(z.literal('')),
+      city: z.string().optional().or(z.literal('')),
+      state: z.string().optional().or(z.literal('')),
+      postalCode: z.string().optional().or(z.literal('')),
+      country: z.string().optional().or(z.literal('')),
+    })
+    .optional(),
 });
 
 type Values = z.infer<typeof Schema>;
@@ -67,18 +136,53 @@ type AddressParts = {
   city: string;
   state: string;
   postalCode: string;
-  country: string;
+  country: Country | '';
 };
 
-function makeAddressString(parts: AddressParts): string {
-  const segs = [
-    parts.line1,
-    parts.line2,
-    [parts.city, parts.state].filter(Boolean).join(', '),
-    parts.country,
-  ].filter(Boolean);
-  return segs.join('\n');
+function getInitialBusinessAddress(
+  org: Org | null,
+  fallbackAddrString?: string
+): AddressParts {
+  const fromObject =
+    (org as any)?.business_address || (org as any)?.businessAddress;
+
+  // Prefer structured object if present
+  if (fromObject && typeof fromObject === 'object') {
+    const o = fromObject as Partial<AddressParts>;
+    return {
+      line1: o.line1 || '',
+      line2: o.line2 || '',
+      city: o.city || '',
+      state: o.state || '',
+      postalCode: o.postalCode || '',
+      country: (o.country as Country | undefined) || '',
+    };
+  }
+
+  // If legacy address is a JSON string, parse and map
+  if (
+    typeof fallbackAddrString === 'string' &&
+    fallbackAddrString.trim().startsWith('{')
+  ) {
+    try {
+      const parsed = JSON.parse(fallbackAddrString) as Partial<AddressParts>;
+      return {
+        line1: parsed.line1 || '',
+        line2: parsed.line2 || '',
+        city: parsed.city || '',
+        state: parsed.state || '',
+        postalCode: parsed.postalCode || '',
+        country: (parsed.country as Country | undefined) || '',
+      };
+    } catch {
+      // fall through to string parser
+    }
+  }
+
+  // Fallback: parse old newline-separated string
+  return parseAddressString(fallbackAddrString);
 }
+
 function parseAddressString(s?: string): AddressParts {
   const lines = (s || '')
     .split('\n')
@@ -89,8 +193,9 @@ function parseAddressString(s?: string): AddressParts {
     line2 = '',
     cityState = '',
     postalCode = '',
-    country = '',
+    countryRaw = '',
   ] = lines;
+
   let city = '',
     state = '';
   if (cityState.includes(',')) {
@@ -100,11 +205,26 @@ function parseAddressString(s?: string): AddressParts {
   } else {
     city = cityState || '';
   }
+
+  // Coerce to valid Country (ISO alpha-2) or empty string
+  const cc = countryRaw.toUpperCase();
+  const country: Country | '' = COUNTRY_SET.has(cc as Country)
+    ? (cc as Country)
+    : '';
+
   return { line1, line2, city, state, postalCode, country };
 }
 
 function getDefaults(org: Org | null): Values {
-  const safe = (v: unknown) => (v == null ? '' : String(v));
+  const safe = (v: unknown) => {
+    if (v == null) return '';
+    if (typeof v === 'string') return v;
+    try {
+      return JSON.stringify(v);
+    } catch {
+      return String(v);
+    }
+  };
   return {
     name: safe(org?.name),
     description: safe(org?.description),
@@ -119,188 +239,14 @@ function getDefaults(org: Org | null): Values {
   };
 }
 
-function BrandingHeader({
-  coverUrl,
-  logoUrl,
-  brandColor,
-  onPickCover,
-  onPickLogo,
-  onBrandColorChange,
-  uploadingCover,
-  uploadingLogo,
-  coverProgress = 0,
-  logoProgress = 0,
-}: {
-  coverUrl?: string;
-  logoUrl?: string;
-  brandColor?: string;
-  onPickCover: (file: File) => void;
-  onPickLogo: (file: File) => void;
-  onBrandColorChange: (hex: string) => void;
-  uploadingCover?: boolean;
-  uploadingLogo?: boolean;
-  coverProgress?: number;
-  logoProgress?: number;
-}) {
-  const [dragOver, setDragOver] = useState(false);
-  const coverInputRef = useRef<HTMLInputElement | null>(null);
-  const logoInputRef = useRef<HTMLInputElement | null>(null);
-
-  const onCoverDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const dt = e.dataTransfer;
-    const f = dt.files?.item(0) ?? dt.files?.[0] ?? null;
-    if (!f) return;
-    if (!f.type.startsWith('image/')) {
-      toast.error('Please drop an image');
-      return;
-    }
-    if (f.size > 5 * 1024 * 1024) {
-      toast.error('Max size 5MB');
-      return;
-    }
-    const demoUrl = URL.createObjectURL(f);
-    // For drag-drop, call onPickCover
-    onPickCover(f);
-    // toast will be shown by handler
-  };
-
-  return (
-    <div className="rounded-xl border border-border/60 overflow-hidden elev-1">
-      {/* Cover area */}
-      <div
-        className={cn(
-          'relative h-48 sm:h-56 md:h-64 w-full bg-muted/60 group',
-          dragOver && 'ring-2 ring-primary/40'
-        )}
-        style={{
-          backgroundImage: coverUrl ? `url(${coverUrl})` : undefined,
-          backgroundSize: 'cover',
-          backgroundPosition: 'center',
-        }}
-        onDragOver={(e) => {
-          e.preventDefault();
-          setDragOver(true);
-        }}
-        onDragLeave={() => setDragOver(false)}
-        onDrop={onCoverDrop}
-      >
-        {!coverUrl && (
-          <div className="absolute inset-0 grid place-items-center text-sm text-muted-foreground">
-            <button
-              type="button"
-              onClick={() => coverInputRef.current?.click()}
-              className="flex items-center gap-2 rounded-md border border-dashed border-border/70 bg-background/70 px-3 py-2 hover:bg-background/90 transition-colors"
-              disabled={uploadingCover}
-            >
-              <Upload className="h-4 w-4" />
-              <span>Click or drag image to add a cover</span>
-            </button>
-          </div>
-        )}
-
-        {/* Hover overlay */}
-        <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity bg-gradient-to-t from-black/40 to-transparent">
-          <div className="absolute bottom-3 right-3 flex items-center gap-2">
-            <Button
-              size="sm"
-              variant="secondary"
-              onClick={() => coverInputRef.current?.click()}
-              className="backdrop-blur bg-white/80 dark:bg-black/30"
-              disabled={uploadingCover}
-            >
-              {uploadingCover
-                ? `Uploading… ${Math.max(0, Math.min(100, Math.round(coverProgress)))}%`
-                : 'Change cover'}
-            </Button>
-          </div>
-        </div>
-
-        <input
-          ref={coverInputRef}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(e) => {
-            const f = e.target.files?.[0];
-            if (f) onPickCover(f);
-            e.currentTarget.value = '';
-          }}
-        />
-
-        {/* Logo chip */}
-        <div className="absolute -bottom-8 left-5 h-20 w-20 sm:h-24 sm:w-24 rounded-xl border border-border/60 overflow-hidden bg-background shadow-lg grid place-items-center">
-          {logoUrl ? (
-            // eslint-disable-next-line @next/next/no-img-element
-            <img src={logoUrl} alt="" className="h-full w-full object-cover" />
-          ) : (
-            <div className="text-xs text-muted-foreground flex items-center gap-1">
-              <ImageIcon className="h-4 w-4" /> Logo
-            </div>
-          )}
-
-          <button
-            type="button"
-            onClick={() => !uploadingLogo && logoInputRef.current?.click()}
-            className="absolute inset-0 bg-black/0 hover:bg-black/25 transition-colors disabled:opacity-60"
-            aria-label="Change logo"
-            title="Change logo"
-            disabled={uploadingLogo}
-          />
-
-          <input
-            ref={logoInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const f = e.target.files?.[0];
-              if (f) onPickLogo(f);
-              e.currentTarget.value = '';
-            }}
-          />
-        </div>
-        {uploadingLogo && (
-          <div className="absolute -bottom-10 left-5 text-xs rounded-md bg-background/80 px-2 py-0.5 border">
-            Uploading logo…{' '}
-            {Math.max(0, Math.min(100, Math.round(logoProgress)))}%
-          </div>
-        )}
-      </div>
-
-      {/* Toolbar under the header */}
-      <div className="pt-10 px-4 sm:px-6 pb-4 flex items-center justify-between gap-3 bg-card/60">
-        <div className="text-sm text-muted-foreground">Branding</div>
-        <div className="flex items-center gap-3">
-          <Input
-            type="color"
-            value={brandColor || '#78489d'}
-            onChange={(e) => onBrandColorChange(e.target.value)}
-            className="h-9 w-10 p-1 cursor-pointer rounded-md"
-            aria-label="Brand color"
-          />
-          <Input
-            placeholder="#78489d"
-            value={brandColor || ''}
-            onChange={(e) => onBrandColorChange(e.target.value)}
-            className="h-9 w-28"
-            inputMode="text"
-          />
-        </div>
-      </div>
-    </div>
-  );
-}
-
 const EditOrgModal = () => {
   const dispatch = useDispatch<AppDispatch>();
   const [state, setState] = useEditOrgModal();
   const { open, org } = state;
 
   const [values, setValues] = useState<Values>(getDefaults(org));
-  const [addr, setAddr] = useState<AddressParts>(
-    parseAddressString(values.address)
+  const [businessAddr, setBusinessAddr] = useState<AddressParts>(
+    getInitialBusinessAddress(org, values.address)
   );
   const [errors, setErrors] = useState<
     Partial<
@@ -324,20 +270,7 @@ const EditOrgModal = () => {
   );
   const [tempLogoPreview, setTempLogoPreview] = useState<string | null>(null);
   const [tempCoverPreview, setTempCoverPreview] = useState<string | null>(null);
-  const [signedLogoUrl, setSignedLogoUrl] = useState<string | null>(null);
-  const [signedCoverUrl, setSignedCoverUrl] = useState<string | null>(null);
 
-  async function fetchSignedUrl(key: string) {
-    const res = await fetch('/api/uploads/presign-get', {
-      method: 'POST',
-      credentials: 'include',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ key }),
-    });
-    if (!res.ok) throw new Error('Failed to sign image URL');
-    const j = await res.json();
-    return j.url as string;
-  }
   const handlePickLogo = async (file: File) => {
     if (
       !/^image\/(png|jpe?g|webp|svg\+xml)$/i.test(file.type) ||
@@ -387,71 +320,30 @@ const EditOrgModal = () => {
       toast.error((res as any).payload || res.error.message || 'Upload failed');
     }
   };
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (tempLogoPreview) {
-          setSignedLogoUrl(null);
-          return;
-        }
-        const val = (values as any).logoUrl?.trim();
-        if (!val) {
-          setSignedLogoUrl(null);
-          return;
-        }
-        // If it's already an http(s) URL, use as-is; otherwise presign the S3 key
-        if (/^https?:\/\//i.test(val)) {
-          if (!cancelled) setSignedLogoUrl(val);
-        } else {
-          const u = await fetchSignedUrl(val);
-          if (!cancelled) setSignedLogoUrl(u);
-        }
-      } catch {
-        if (!cancelled) setSignedLogoUrl(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, (values as any).logoUrl, tempLogoPreview]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        if (tempCoverPreview) {
-          setSignedCoverUrl(null);
-          return;
-        }
-        const val = (values as any).coverUrl?.trim();
-        if (!val) {
-          setSignedCoverUrl(null);
-          return;
-        }
-        // If it's already an http(s) URL, use as-is; otherwise presign the S3 key
-        if (/^https?:\/\//i.test(val)) {
-          if (!cancelled) setSignedCoverUrl(val);
-        } else {
-          const u = await fetchSignedUrl(val);
-          if (!cancelled) setSignedCoverUrl(u);
-        }
-      } catch {
-        if (!cancelled) setSignedCoverUrl(null);
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, (values as any).coverUrl, tempCoverPreview]);
 
   useEffect(() => {
     const v = getDefaults(org);
     setValues(v);
-    setAddr(parseAddressString(v.address));
+    setBusinessAddr(getInitialBusinessAddress(org, v.address));
     setErrors({});
     setDirty(false);
   }, [org, open]);
+
+  // Seed previews from the server once we have the org (presigned URLs).
+  useEffect(() => {
+    if (!open) return;
+
+    setTempLogoPreview((prev) => {
+      // keep existing blob/preview if present
+      if (prev) return prev;
+      return org?.logoUrl ?? null; // presigned or public URL
+    });
+
+    setTempCoverPreview((prev) => {
+      if (prev) return prev;
+      return org?.coverUrl ?? null; // presigned or public URL
+    });
+  }, [open, org?.logoUrl, org?.coverUrl]);
 
   const validateField = useCallback(
     <K extends keyof Values>(key: K, next: Values) => {
@@ -511,10 +403,14 @@ const EditOrgModal = () => {
 
   async function onSave() {
     if (!org) return;
-    const address = makeAddressString({
-      ...addr,
-      country: values.country || addr.country,
-    });
+    const businessAddress = {
+      line1: businessAddr.line1?.trim() || '',
+      line2: businessAddr.line2?.trim() || '',
+      city: businessAddr.city?.trim() || '',
+      state: businessAddr.state?.trim() || '',
+      postalCode: businessAddr.postalCode?.trim() || '',
+      country: businessAddr.country?.trim() || '',
+    };
     if (
       values.contactPhone &&
       values.contactPhone.trim() !== '' &&
@@ -534,7 +430,7 @@ const EditOrgModal = () => {
       logoUrl: (values as any).logoUrl?.trim() || undefined,
       coverUrl: (values as any).coverUrl?.trim() || undefined,
       brand_color: values.brand_color?.trim() || undefined,
-      address: address?.trim() || undefined,
+      business_address: businessAddress,
       contactPhone: values?.contactPhone?.trim() || undefined,
       description: values?.description?.trim() || undefined,
       teamSize: values.teamSize?.trim() || undefined,
@@ -575,8 +471,10 @@ const EditOrgModal = () => {
         payload.coverUrl = (cleaned as any).coverUrl || null;
       if (cleaned.brand_color !== undefined)
         payload.brand_color = cleaned.brand_color || null;
-      if (cleaned.address !== undefined)
-        payload.address = cleaned.address || null;
+      if (cleaned.business_address !== undefined)
+        payload.business_address = businessAddress;
+      // Legacy: also provide JSON string under `address` for old readers
+      payload.address = JSON.stringify(businessAddress);
       if (cleaned.contactPhone !== undefined)
         payload.contactPhone = cleaned.contactPhone || null;
 
@@ -595,7 +493,7 @@ const EditOrgModal = () => {
 
   useEffect(() => {
     if (org) {
-      dispatch(fetchOrgBasic(org.id));
+      dispatch(fetchOrgById(org.id)).unwrap();
     }
   }, [open, org?.id, dispatch]);
 
@@ -635,14 +533,12 @@ const EditOrgModal = () => {
           <div ref={popoverContainerRef} className="contents">
             <section className="space-y-4">
               <BrandingHeader
-                coverUrl={tempCoverPreview || signedCoverUrl || undefined}
-                logoUrl={tempLogoPreview || signedLogoUrl || undefined}
+                coverUrl={tempCoverPreview || org?.coverUrl || undefined}
+                logoUrl={tempLogoPreview || org?.logoUrl || undefined}
                 brandColor={values.brand_color}
                 onPickCover={handlePickCover}
                 onPickLogo={handlePickLogo}
-                onBrandColorChange={(hex) => {
-                  set('brand_color', hex);
-                }}
+                onBrandColorChange={(hex) => set('brand_color', hex)}
                 uploadingCover={
                   !!coverUpload &&
                   coverUpload.status !== 'succeeded' &&
@@ -695,8 +591,14 @@ const EditOrgModal = () => {
                     <CountrySelect
                       value={values.country}
                       onChange={(c) => {
+                        // 1) Update country as before
                         set('country', c);
-                        setAddr((a) => ({ ...a, country: c }));
+
+                        // 2) If timezone not chosen yet, auto-suggest a sensible default
+                        if (!values.timezone || values.timezone.trim() === '') {
+                          const suggested = pickTimezoneForCountry(c);
+                          if (suggested) set('timezone', suggested);
+                        }
                       }}
                       portalContainer={popoverContainerRef.current}
                       error={errors.country}
@@ -754,45 +656,86 @@ const EditOrgModal = () => {
                 <PhoneField
                   value={values.contactPhone}
                   onChange={(v) => set('contactPhone', v || '')}
+                  country={businessAddr.country || undefined}
+                  onCountryChange={(cc) => {
+                    if (cc && cc !== (businessAddr.country || '')) {
+                      setBusinessAddr((a) => ({ ...a, country: cc }));
+                      setDirty(true);
+                    }
+                    if (!values.timezone || values.timezone.trim() === '') {
+                      const suggested = pickTimezoneForCountry(cc);
+                      if (suggested) set('timezone', suggested);
+                    }
+                  }}
                   error={errors.contactPhone}
                 />
 
                 <div className="space-y-2">
-                  <Label>Address</Label>
+                  <Label>Business address</Label>
                   <div className="grid grid-cols-1 gap-3">
                     <Input
                       placeholder="Address line 1"
-                      value={addr.line1}
+                      value={businessAddr.line1}
                       onChange={(e) => {
-                        setAddr((a) => ({ ...a, line1: e.target.value }));
+                        setBusinessAddr((a) => ({
+                          ...a,
+                          line1: e.target.value,
+                        }));
                         setDirty(true);
                       }}
                       className="h-11"
                     />
                     <Input
                       placeholder="Address line 2"
-                      value={addr.line2}
+                      value={businessAddr.line2}
                       onChange={(e) => {
-                        setAddr((a) => ({ ...a, line2: e.target.value }));
+                        setBusinessAddr((a) => ({
+                          ...a,
+                          line2: e.target.value,
+                        }));
                         setDirty(true);
                       }}
                       className="h-11"
                     />
+
+                    {/* Country for BUSINESS ADDRESS */}
+                    <CountrySelect
+                      value={businessAddr.country}
+                      onChange={(c) => {
+                        setBusinessAddr((a) => ({
+                          ...a,
+                          country: c as Country,
+                        }));
+                        setDirty(true);
+                        if (!values.timezone || values.timezone.trim() === '') {
+                          const suggested = pickTimezoneForCountry(c);
+                          if (suggested) set('timezone', suggested);
+                        }
+                      }}
+                      portalContainer={popoverContainerRef.current}
+                    />
+
                     <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                       <Input
                         placeholder="City"
-                        value={addr.city}
+                        value={businessAddr.city}
                         onChange={(e) => {
-                          setAddr((a) => ({ ...a, city: e.target.value }));
+                          setBusinessAddr((a) => ({
+                            ...a,
+                            city: e.target.value,
+                          }));
                           setDirty(true);
                         }}
                         className="h-11"
                       />
                       <Input
                         placeholder="State / Province"
-                        value={addr.state}
+                        value={businessAddr.state}
                         onChange={(e) => {
-                          setAddr((a) => ({ ...a, state: e.target.value }));
+                          setBusinessAddr((a) => ({
+                            ...a,
+                            state: e.target.value,
+                          }));
                           setDirty(true);
                         }}
                         className="h-11"
@@ -800,9 +743,9 @@ const EditOrgModal = () => {
                       <Input
                         placeholder="Postal code"
                         inputMode="text"
-                        value={addr.postalCode}
+                        value={businessAddr.postalCode}
                         onChange={(e) =>
-                          setAddr((a) => ({
+                          setBusinessAddr((a) => ({
                             ...a,
                             postalCode: e.target.value.replace(
                               /[^\dA-Za-z-\s]/g,

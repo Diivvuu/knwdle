@@ -6,7 +6,7 @@ import {
   reviveAuthClient,
   setAuthToken,
 } from '../api';
-import { ParentRole } from './org';
+import { ParentRole } from './org.dashboard';
 
 export interface MemberShipSummary {
   org: { id: string; name: string; type: string };

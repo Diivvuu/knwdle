@@ -2,7 +2,7 @@ import { Router } from 'express';
 import {
   getOrgUnitMetaSchema,
   OrgUnitMetaSchemas,
-} from '../../lib/org-unit-types';
+} from '../../lib/org.unit.types';
 import { requireAuth } from '../../middleware/auth';
 import zodToJsonSchema from 'zod-to-json-schema';
 

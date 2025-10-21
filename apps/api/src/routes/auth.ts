@@ -10,12 +10,23 @@ import { MailTemplates } from '../lib/mail-templates';
 import { sessionCookieOptions } from '../lib/cookies';
 
 import { requireAuth } from '../middleware/auth';
+import {
+  OpenApiGeneratorV3,
+  OpenAPIRegistry,
+} from '@asteasolutions/zod-to-openapi';
+import '../lib/openapi/extend';
 
 const r = Router();
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
-const COOKIE_DOMAIN = process.env.COOKIE_DOMAIN || 'localhost';
-const secure = process.env.NODE_ENV === 'production';
+
+const authRegistry = new OpenAPIRegistry();
+
+authRegistry.registerComponent('securitySchemes', 'cookieAuth', {
+  type: 'apiKey',
+  in: 'cookie',
+  name: COOKIE_NAME,
+});
 
 function generateToken(len = 32) {
   return crypto.randomBytes(len).toString('hex');
@@ -26,10 +37,88 @@ function generateOtp() {
 }
 
 /*----------------- Signup -----------------*/
-const SignupBody = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
-  name: z.string().optional(),
+const SignupBody = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(6),
+    name: z.string().optional(),
+  })
+  .openapi('AuthSignupBody');
+
+const LoginBody = z
+  .object({
+    email: z.string().email(),
+    password: z.string().min(6),
+  })
+  .openapi('AuthLoginBody');
+
+const RequestOtpBody = z
+  .object({
+    email: z.string().email(),
+  })
+  .openapi('AuthRequestOtpBody');
+
+const VerifyOtpBody = z
+  .object({
+    email: z.string().email(),
+    code: z.string().min(4).max(10),
+  })
+  .openapi('AuthVerifyOtpBody');
+
+const AuthBasicMessage = z
+  .object({
+    message: z.string(),
+  })
+  .openapi('AuthBasicMessage');
+
+const AuthError = z
+  .object({
+    error: z.string(),
+  })
+  .openapi('AuthError');
+
+// Define once, give each a name
+const AuthUser = z
+  .object({
+    id: z.string(),
+    email: z.string().email(),
+    name: z.string().nullable().optional(),
+  })
+  .openapi('AuthUser');
+
+const AuthAccessResponse = z
+  .object({
+    accessToken: z.string(),
+    user: AuthUser,
+  })
+  .openapi('AuthAccessResponse');
+
+authRegistry.registerPath({
+  method: 'post',
+  path: '/auth/signup',
+  summary: 'Create a new user account',
+  request: {
+    body: { content: { 'application/json': { schema: SignupBody } } },
+  },
+  responses: {
+    200: {
+      description: 'Verification email sent',
+      content: { 'application/json': { schema: AuthBasicMessage } },
+    },
+    400: {
+      description: 'Invalid input',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    403: {
+      description: 'Unverified user exists (resent email)',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    409: {
+      description: 'Already verified',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
 });
 
 r.post('/signup', async (req, res) => {
@@ -102,6 +191,32 @@ r.post('/signup', async (req, res) => {
   res.json({ message: 'Signup successfull. Check email to verify account' });
 });
 
+authRegistry.registerPath({
+  method: 'get',
+  path: '/auth/verify',
+  summary: 'Verify email via token and create a session',
+  request: { query: z.object({ token: z.string() }) },
+  responses: {
+    200: {
+      description: 'Email verified, returs access token',
+      content: {
+        'application/json': {
+          schema: z.object({
+            message: z.string(),
+            accessToken: z.string(),
+            user: z.any(),
+          }),
+        },
+      },
+    },
+    400: {
+      description: 'Invalid/expired token',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
+});
+
 r.get('/verify', async (req, res) => {
   const token = req.query.token as string;
   if (!token) return res.status(400).json({ error: 'Missing token' });
@@ -132,9 +247,32 @@ r.get('/verify', async (req, res) => {
   res.json({ message: 'Email verified', accessToken: access, user });
 });
 
-const LoginBody = z.object({
-  email: z.string().email(),
-  password: z.string().min(6),
+authRegistry.registerPath({
+  method: 'post',
+  path: '/auth/login',
+  summary: 'Login using email + password',
+  request: {
+    body: { content: { 'application/json': { schema: LoginBody } } },
+  },
+  responses: {
+    200: {
+      description: 'Logged in',
+      content: { 'application/json': { schema: AuthAccessResponse } },
+    },
+    400: {
+      description: 'Invalid body',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    401: {
+      description: 'Invalid credentials',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    403: {
+      description: 'Email not verified',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
 });
 
 r.post('/login', async (req, res) => {
@@ -172,6 +310,30 @@ r.post('/login', async (req, res) => {
   });
 });
 
+authRegistry.registerPath({
+  method: 'post',
+  path: '/auth/request-otp',
+  summary: 'Request a login OTP via email',
+  request: {
+    body: { content: { 'application/json': { schema: RequestOtpBody } } },
+  },
+  responses: {
+    200: {
+      description: 'OTP sent',
+      content: { 'application/json': { schema: AuthBasicMessage } },
+    },
+    400: {
+      description: 'Email required',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    404: {
+      description: 'User not found',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
+});
+
 //otp based routes
 r.post('/request-otp', async (req, res) => {
   const { email } = req.body;
@@ -197,6 +359,30 @@ r.post('/request-otp', async (req, res) => {
   );
 
   res.json({ message: 'OTP sent to email' });
+});
+
+authRegistry.registerPath({
+  method: 'post',
+  path: '/auth/verify-otp',
+  summary: 'Verify OTP and login',
+  request: {
+    body: { content: { 'application/json': { schema: VerifyOtpBody } } },
+  },
+  responses: {
+    200: {
+      description: 'OTP login success',
+      content: { 'application/json': { schema: AuthAccessResponse } },
+    },
+    400: {
+      description: 'Invalid/expired OTP',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    404: {
+      description: 'User not found',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
 });
 
 // verify routes
@@ -241,8 +427,27 @@ r.post('/verify-otp', async (req, res) => {
   res.json({ message: 'OTP login success', accessToken: access, user });
 });
 
-//refresh routes
+authRegistry.registerPath({
+  method: 'post',
+  path: '/auth/refresh',
+  summary: 'Rotate refresh token and gew new access token',
+  responses: {
+    200: {
+      description: 'New access token',
+      content: {
+        'application/json': { schema: z.object({ accessToken: z.string() }) },
+      },
+    },
+    401: {
+      description: 'No/invalid session',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
+  security: [{ cookieAuth: [] }],
+});
 
+//refresh routes
 r.post('/refresh', async (req, res) => {
   const token = req.cookies?.[COOKIE_NAME];
   if (!token) return res.status(401).json({ error: 'No session' });
@@ -268,6 +473,14 @@ r.post('/refresh', async (req, res) => {
   res.json({ accessToken: newAccess });
 });
 
+authRegistry.registerPath({
+  method: 'post',
+  path: '/auth/logout',
+  summary: 'Logout and clear refresh cookie',
+  responses: { 204: { description: 'Logged out' } },
+  tags: ['auth'],
+  security: [{ cookieAuth: [] }],
+});
 //logout
 r.post('/logout', async (req, res) => {
   try {
@@ -282,6 +495,20 @@ r.post('/logout', async (req, res) => {
     res.clearCookie(COOKIE_NAME, sessionCookieOptions());
     return res.sendStatus(204);
   }
+});
+
+authRegistry.registerPath({
+  method: 'get',
+  path: '/auth/me',
+  summary: 'Get current user + org memberships',
+  responses: {
+    200: {
+      description: 'Current user',
+      content: { 'application/json': { schema: z.any() } },
+    },
+  },
+  tags: ['auth'],
+  security: [{ cookieAuth: [] }],
 });
 
 r.get('/me', requireAuth, async (req, res) => {
@@ -301,6 +528,28 @@ r.get('/me', requireAuth, async (req, res) => {
     },
   });
   res.json(user);
+});
+
+authRegistry.registerPath({
+  method: 'get',
+  path: '/auth/invites/{token}/preview',
+  summary: 'Preview an invite token',
+  request: { params: z.object({ token: z.string() }) },
+  responses: {
+    200: {
+      description: 'Invite preview',
+      content: { 'application/json': { schema: z.any() } },
+    },
+    404: {
+      description: 'Invite not found',
+      content: { 'application/json': { schema: AuthError } },
+    },
+    410: {
+      description: 'Invite expired',
+      content: { 'application/json': { schema: AuthError } },
+    },
+  },
+  tags: ['auth'],
 });
 
 r.get('/invites/:token/preview', async (req, res) => {
@@ -335,5 +584,13 @@ r.get('/invites/:token/preview', async (req, res) => {
     expiresAt: inv.expiresAt.toISOString(),
   });
 });
+
+export const getAuthOpenApiPaths = () => {
+  const generator = new OpenApiGeneratorV3(authRegistry.definitions);
+  return generator.generateDocument({
+    openapi: '3.0.0',
+    info: { title: 'Auth API', version: '1.0.0' },
+  });
+};
 
 export default r;

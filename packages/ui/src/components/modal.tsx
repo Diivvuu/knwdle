@@ -93,7 +93,7 @@ export function ModalContent({
             // motion + positioning from your dialog.tsx base
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
             'fixed top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2',
-            'w-[calc(100%-2rem)] max-h-[83vh]',
+            'w-[calc(100%-2rem)] max-h-[90vh]',
             sizeClass[size],
             className
           )}

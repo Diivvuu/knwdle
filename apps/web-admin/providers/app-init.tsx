@@ -26,7 +26,7 @@ export default function AppInit() {
         }
       } catch {}
     })();
-  }, [dispatch, accessToken]);
+  }, [dispatch, accessToken]) ;
 
   return null;
 }
