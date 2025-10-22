@@ -3,9 +3,16 @@ import {
   PathsObject,
   ComponentsObject,
 } from 'openapi3-ts/oas30';
-import { getAuthOpenApiPaths } from '../routes/auth';
-import { getInviteOpenApiPaths } from '../routes/invite';
-import { getInvitesOpenApiPaths } from '../routes/invites';
+
+import { getAuthOpenApiPaths } from '../docs/auth.docs';
+import { getInviteOpenApiPaths } from '../docs/invite.docs';
+import { getOrgMegaDashboardPaths } from '../docs/org.mega-dashboard.docs';
+import { getOrgTypePaths } from '../docs/org-types.docs';
+import { getRolesPaths } from '../docs/roles.docs';
+import { getUploadsPaths } from '../docs/uploads.docs';
+import { getOrgAdminDashboardPaths } from '../docs/org.admin-dashboard.docs';
+import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
+import z from 'zod';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
@@ -16,11 +23,7 @@ function mergeDocs(docs: OpenAPIObject[]): OpenAPIObject {
   const mergedPaths: PathsObject = {};
   const mergedComponents: ComponentsObject = {
     securitySchemes: {
-      cookieAuth: {
-        type: 'apiKey',
-        in: 'cookie',
-        name: COOKIE_NAME,
-      },
+      bearerAuth: { type: 'http', scheme: 'bearer', bearerFormat: 'JWT' },
     },
     schemas: {},
   };
@@ -43,21 +46,35 @@ function mergeDocs(docs: OpenAPIObject[]): OpenAPIObject {
       { name: 'auth', description: 'Authentication & session' },
       { name: 'invite', description: 'Creating & accepting invite' },
       {
-        name: 'invite',
+        name: 'invites',
         description: 'Creating bulk invites & streaming their statuses',
+      },
+      {
+        name: 'mega-dashboard',
+        description: 'CRUD for orgs in mega dashboard in main app',
+      },
+      {
+        name: 'org-types',
+        description:
+          'Types of orgs and schema of additional fields for each type.',
       },
     ],
     components: mergedComponents,
-    security: [],
+    security: [{ bearerAuth: [] }],
     paths: mergedPaths,
   };
 }
 
 export function buildOpenApiDocument(): OpenAPIObject {
+  extendZodWithOpenApi(z);
   const docs = [
     getAuthOpenApiPaths(),
     getInviteOpenApiPaths(),
-    getInvitesOpenApiPaths(),
+    getOrgMegaDashboardPaths(),
+    getOrgTypePaths(),
+    getRolesPaths(),
+    getUploadsPaths(),
+    getOrgAdminDashboardPaths(),
   ];
 
   return mergeDocs(docs);

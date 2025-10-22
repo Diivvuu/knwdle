@@ -4,15 +4,14 @@ import swaggerUi from 'swagger-ui-express';
 import cors from 'cors';
 import cookieParser from 'cookie-parser';
 
-import authRoutes from './routes/auth';
-import orgTypeRoutes from './routes/org.types';
-import orgDashboardRoutes from './routes/org.mega.dashboard';
+import authRoutes from './routes/auth.routes';
+import orgTypeRoutes from './routes/org-types.routes';
+import orgMegaDashboardRoutes from './routes/org.mega-dashboard.routes';
 import orgRoutes from './routes/orgs';
-import inviteRoutes from './routes/invite';
-import invitesRoutes from './routes/invites';
-import roleRoutes from './routes/roles';
+import inviteRoutes from './routes/invite.routes';
+import roleRoutes from './routes/roles.route';
 import orgUnitTypeRoutes from './routes/orgs/org.unit.types';
-import uploadRoutes from './routes/uploads';
+import uploadRoutes from './routes/uploads.routes';
 import { buildOpenApiDocument } from './lib/openapi';
 
 const app = express();
@@ -52,12 +51,11 @@ app.use(
 );
 app.use('/auth', authRoutes);
 // dashboard specific org routes
-app.use('/dashboard', orgDashboardRoutes);
+app.use('/dashboard', orgMegaDashboardRoutes);
 app.use('/api', orgTypeRoutes);
 // admin specific app org routes
 app.use('/api', orgRoutes);
 app.use('/api', inviteRoutes);
-app.use('/api', invitesRoutes);
 app.use('/api', roleRoutes);
 app.use('/api', orgUnitTypeRoutes);
 app.use('/api', uploadRoutes);

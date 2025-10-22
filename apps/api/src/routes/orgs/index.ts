@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import dashboard from './org.dashboard';
+import dashboard from './org.admin-dashboard.router';
 import units from './org.units';
 import members from './org.members';
 

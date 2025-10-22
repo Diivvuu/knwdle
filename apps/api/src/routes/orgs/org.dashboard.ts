@@ -9,8 +9,15 @@ import {
 } from '../../middleware/permissions';
 import { prisma } from '../../lib/prisma';
 import { createGetObjectUrl } from '../../lib/s3';
+import {
+  extendZodWithOpenApi,
+  OpenApiGeneratorV3,
+  OpenAPIRegistry,
+} from '@asteasolutions/zod-to-openapi';
 
 const r = Router();
+const adminDashboardRegistry = new OpenAPIRegistry();
+extendZodWithOpenApi(z);
 
 /**
  * Dashboard Router (read-only, lightweight)
@@ -24,7 +31,22 @@ const r = Router();
  * - Units Summary:   /orgs/:id/units/summary       -> org.units.ts
  */
 
-const IdParam = z.object({ id: z.string().min(1) });
+const IdParam = z.object({ id: z.string().min(1) }).openapi('IdParam');
+
+const ActivityQuery = z
+  .object({
+    limit: z.coerce.number().int().min(1).max(50).default(20),
+    cursor: z.string().optional(),
+    unitId: z.string().min(1).optional(),
+  })
+  .openapi('OrgActivityQuery');
+
+const BasicError = z
+  .object({
+    error: z.string(),
+    detail: z.any().optional(),
+  })
+  .openapi('BasicError');
 
 // Treat non-HTTP(S) strings as S3 keys we need to presign
 const isS3Key = (v?: string | null) => !!v && !/^https?:\/\//i.test(v);
@@ -55,6 +77,28 @@ function decodeCursor(raw?: string | null) {
 }
 
 // GET /orgs/:id
+adminDashboardRegistry.registerPath({
+  method: 'get',
+  path: '/api/orgs/{id}',
+  summary: 'Org Dashboard hero card (org + aggregates + signed image URLs)',
+  security: [{ bearerAuth: [] }],
+  tags: ['admin-dashboard'],
+  request: { params: IdParam },
+  responses: {
+    200: {
+      description: 'Org hero payload',
+      content: { 'application/json': { schema: z.any() } },
+    },
+    400: {
+      description: 'Bad org id',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    404: {
+      description: 'Org not found',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get('/:id', requireAuth, requirePermission('org.read'), async (req, res) => {
   const p = IdParam.safeParse(req.params);
   if (!p.success) return res.status(400).json({ error: 'Bad org id' });
@@ -99,6 +143,28 @@ r.get('/:id', requireAuth, requirePermission('org.read'), async (req, res) => {
 });
 
 // GET /orgs/:id/summary
+adminDashboardRegistry.registerPath({
+  method: 'get',
+  path: '/api/orgs/{id}/summary',
+  summary: 'Lightweight org summary {counts, pending invites, last join time}',
+  tags: ['admin-dashboard'],
+  security: [{ bearerAuth: [] }],
+  request: { params: IdParam },
+  responses: {
+    200: {
+      description: 'Summary',
+      content: { 'application/json': { schema: z.any() } },
+    },
+    400: {
+      description: 'Bad org id',
+      content: { 'application/json': { schema: BasicError } },
+    },
+    404: {
+      description: 'Org not found',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get(
   '/:id/summary',
   requireAuth,
@@ -166,8 +232,24 @@ r.get(
 );
 
 // GET /orgs/:id/activity?unitId&limit&cursor
-// -cursro-paginated by createdAt | id
-// audit log (single table, already indexed by orgId, action, createdAt)
+adminDashboardRegistry.registerPath({
+  method: 'get',
+  path: '/orgs/{id}/activity',
+  summary: 'Org activity feed (cursor-paginated audit log)',
+  tags: ['admin-dashboard'],
+  security: [{ bearerAuth: [] }],
+  request: { params: IdParam },
+  responses: {
+    200: {
+      description: 'Activity Page',
+      content: { 'application/json': { schema: z.any() } },
+    },
+    400: {
+      description: 'Invalid query/bad org id',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get(
   '/:id/activity',
   requireAuth,
@@ -232,6 +314,27 @@ r.get(
   }
 );
 
+// GET dashboard config by user role and org id
+adminDashboardRegistry.registerPath({
+  method: 'get',
+  path: '/api/orgs/{id}/dashboard-config',
+  summary: 'Server-driven dashboard visibility (widgets, tables, caps)',
+  tags: ['admin-dashboard'],
+  security: [{ bearerAuth: [] }],
+  request: {
+    params: IdParam,
+  },
+  responses: {
+    200: {
+      description: 'Dashboard config',
+      content: { 'application/json': { schema: z.any() } },
+    },
+    403: {
+      description: 'Forbidden',
+      content: { 'application/json': { schema: BasicError } },
+    },
+  },
+});
 r.get(
   '/:id/dashboard-config',
   requireAuth,
@@ -383,6 +486,14 @@ r.get(
     });
   }
 );
+
+export const getAdminDashboardPaths = () => {
+  const gen = new OpenApiGeneratorV3(adminDashboardRegistry.definitions);
+  return gen.generateDocument({
+    openapi: '3.0.0',
+    info: { title: 'Admin Dashboard API', version: '1.0.0' },
+  });
+};
 
 export default r;
 
