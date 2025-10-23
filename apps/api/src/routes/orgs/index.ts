@@ -1,6 +1,6 @@
 import { Router } from 'express';
-import dashboard from './org.admin-dashboard.router';
-import units from './org.units';
+import dashboard from './org.admin-dashboard.routes';
+import units from './org.units.routes';
 import members from './org.members';
 
 const r = Router();

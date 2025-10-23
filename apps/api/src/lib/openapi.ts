@@ -1,3 +1,4 @@
+import z from 'zod';
 import {
   OpenAPIObject,
   PathsObject,
@@ -12,7 +13,7 @@ import { getRolesPaths } from '../docs/roles.docs';
 import { getUploadsPaths } from '../docs/uploads.docs';
 import { getOrgAdminDashboardPaths } from '../docs/org.admin-dashboard.docs';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import z from 'zod';
+import { getOrgUnitsPaths } from '../docs/org.unit.docs';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
@@ -75,6 +76,7 @@ export function buildOpenApiDocument(): OpenAPIObject {
     getRolesPaths(),
     getUploadsPaths(),
     getOrgAdminDashboardPaths(),
+    getOrgUnitsPaths(),
   ];
 
   return mergeDocs(docs);
