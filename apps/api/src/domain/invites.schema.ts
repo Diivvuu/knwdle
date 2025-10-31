@@ -54,11 +54,6 @@ export const InviteListResponse = z.object({
   nextCursor: z.string().nullable(),
 });
 
-export const BasicError = z.object({
-  error: z.string(),
-  details: z.any().optional(),
-});
-
 // ---------- Bulk ----------
 export const BulkInviteOptions = z.object({
   expiresInDays: z.number().int().min(1).max(30).default(7),

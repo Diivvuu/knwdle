@@ -21,6 +21,12 @@ model User {
   email         String    @unique
   password      String
   name          String?
+  profilePhoto  String?
+  mobile        String?   @db.VarChar(20)
+  gender        String?
+  dateOfBirth   DateTime?
+  address       String?
+  bio           String?
   emailVerified DateTime?
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -35,8 +41,65 @@ model User {
   submissions    Submission[]       @relation("UserSubmissions")
   attendance     AttendanceRecord[] @relation("UserAttendance")
 
+  results        ResultRecord[]
+  achievements   Achievement[]
+  taughtSessions TimeTableEntry[] @relation("TeacherSessions")
+
   verificationTokens VerificationToken[]
   otpTokens          OtpToken[]
+}
+
+model TimeTableEntry {
+  id        String   @id @default(cuid())
+  orgId     String
+  unitId    String
+  subjectId String?
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  teacherId String?
+  room      String?
+  mode      String?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  unit    OrgUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  subject OrgUnit? @relation("TimeTableSubject", fields: [subjectId], references: [id])
+  teacher User?    @relation("TeacherSessions", fields: [teacherId], references: [id])
+
+  @@index([orgId, unitId, dayOfWeek])
+}
+
+model ResultRecord {
+  id        String   @id @default(cuid())
+  orgId     String
+  studentId String
+  subjectId String?
+  testId    String?
+  title     String
+  score     Float
+  total     Float
+  grade     String?
+  remarks   String?
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  student User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  subject OrgUnit? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+
+  @@index([orgId, studentId, date])
+}
+
+model Achievement {
+  id          String   @id @default(cuid())
+  orgId       String
+  studentId   String
+  title       String
+  description String
+  icon        String?
+  awardedAt   DateTime @default(now())
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -119,6 +182,7 @@ model OrgProfile {
 }
 
 enum OrgUnitType {
+  ROOT
   ORGANISATION
   DEPARTMENT
   CLASS
@@ -152,6 +216,10 @@ model OrgUnit {
   feeInvoices        FeeInvoice[]
   announcements      Announcement[]
   invites            Invite[]
+
+  timetableEntries  TimeTableEntry[]
+  timetableSubjects TimeTableEntry[] @relation("TimeTableSubject")
+  resultRecords     ResultRecord[]
 
   @@index([orgId, parentId])
   @@index([orgId, path])
@@ -269,7 +337,7 @@ model Invite {
   roleId  String?
   roleRef Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
   org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  unit    OrgUnit?     @relation(fields: [unitId], references: [id], onDelete:  SetNull)
+  unit    OrgUnit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
   @@index([orgId, expiresAt])

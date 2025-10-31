@@ -1,25 +1,23 @@
 import { OrgType, ParentRole } from '../generated/prisma';
 import { forbidden, notFound } from '../lib/https';
-import { getMetaSchema } from '../lib/org.types';
+import { getMetaSchema } from '../lib/org.type.meta';
 import { decodeCursor } from '../lib/pagination';
 import { createGetObjectUrl } from '../lib/s3';
 import { PERMISSIONS_BY_BASE_ROLE } from '../middleware/permissions';
-import { prisma } from '../lib/prisma';
+import { OrgRepo } from '../repositories/org.repo';
 
 const isS3Key = (v?: string | null) => !!v && !/^https?:\/\//i.test(v);
 
 export const OrgAdminDashboardService = {
   async hero(orgId?: string) {
-    const org = await prisma.organisation.findUnique({
-      where: { id: orgId },
-      include: { profile: true },
-    });
+    if (!orgId) throw notFound('Organisation ID not found');
+    const org = await OrgRepo.findByIdWithProfile(orgId);
 
     if (!org) throw notFound('Org not found');
 
     const [unitsCount, membersCount] = await Promise.all([
-      prisma.orgUnit.count({ where: { orgId } }),
-      prisma.orgMembership.count({ where: { orgId } }),
+      OrgRepo.countUnits(orgId),
+      OrgRepo.countMembers(orgId),
     ]);
 
     const logoKey = isS3Key(org.logoUrl as any)
@@ -49,10 +47,7 @@ export const OrgAdminDashboardService = {
   },
 
   async summary(orgId: string) {
-    const exists = await prisma.organisation.findUnique({
-      where: { id: orgId },
-      select: { id: true },
-    });
+    const exists = await OrgRepo.getOrgTypeAndMeta(orgId);
     if (!exists) throw notFound('Org not found');
     const [
       unitsCount,
@@ -63,31 +58,21 @@ export const OrgAdminDashboardService = {
       pendingInvites,
       latestMember,
     ] = await Promise.all([
-      prisma.orgUnit.count({ where: { orgId } }),
-      prisma.orgMembership.count({ where: { orgId, role: ParentRole.admin } }),
-      prisma.orgMembership.count({ where: { orgId, role: ParentRole.staff } }),
-      prisma.orgMembership.count({
-        where: { orgId, role: ParentRole.student },
-      }),
-      prisma.orgMembership.count({
-        where: { orgId, role: ParentRole.parent },
-      }),
-      prisma.invite.count({
-        where: { orgId, acceptedBy: null, expiresAt: { gt: new Date() } },
-      }),
-      prisma.orgMembership.findFirst({
-        where: { orgId },
-        orderBy: { createdAt: 'desc' },
-        select: { createdAt: true },
-      }),
+      OrgRepo.countUnits(orgId),
+      OrgRepo.countRoleMembers(orgId, ParentRole.admin),
+      OrgRepo.countRoleMembers(orgId, ParentRole.staff),
+      OrgRepo.countRoleMembers(orgId, ParentRole.student),
+      OrgRepo.countRoleMembers(orgId, ParentRole.parent),
+      OrgRepo.countPendingInvites(orgId),
+      OrgRepo.getLastJoinedMember(orgId),
     ]);
 
     return {
       unitsCount,
       roleCounts: {
-        adming: adminCount,
+        admin: adminCount,
         staff: staffCount,
-        student: studentCount,
+        students: studentCount,
         parent: parentCount,
       },
       pendingInvites,
@@ -100,53 +85,28 @@ export const OrgAdminDashboardService = {
     opts: { limit: number; cursor?: string; unitId?: string }
   ) {
     const cur = decodeCursor(opts.cursor ?? null);
-    const rows = await prisma.auditLog.findMany({
-      where: {
-        orgId,
-        ...(opts.unitId ? { entityId: opts.unitId } : {}),
-        ...(cur
-          ? {
-              OR: [
-                { createdAt: { lt: cur.createdAt } },
-                { createdAt: cur.createdAt, id: { lt: cur.id } },
-              ],
-            }
-          : {}),
-      },
-      orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
-      take: opts.limit + 1,
-      select: {
-        id: true,
-        action: true,
-        entity: true,
-        entityId: true,
-        meta: true,
-        actorId: true,
-        createdAt: true,
-      },
-    });
-
+    const cursorArg = cur ?? undefined
+    const rows = await OrgRepo.getAuditLogs(
+      orgId,
+      opts.unitId,
+      cursorArg,
+      opts.limit
+    );
     return rows;
   },
 
   async dashboardConfig(orgId: string, userId: string) {
-    const membership = await prisma.orgMembership.findFirst({
-      where: { orgId, userId },
-      select: { role: true, roleId: true },
-    });
+    const membership = await OrgRepo.getMembership(orgId, userId);
     if (!membership) throw forbidden('Not a member');
 
-    const org = await prisma.organisation.findUnique({
-      where: { id: orgId },
-      select: { type: true, profile: { select: { meta: true } } },
-    });
+    const org = await OrgRepo.getOrgTypeAndMeta(orgId);
 
     let featureCaps: string[] = [];
     if (org?.profile?.meta) {
       const schema = getMetaSchema(org.type as OrgType);
       const parsed = schema.safeParse(org.profile.meta);
 
-      if (parsed.success) {
+      if (parsed.success && 'features' in parsed.data) {
         const features = (parsed.data.features ?? {}) as Record<
           string,
           boolean
@@ -174,10 +134,7 @@ export const OrgAdminDashboardService = {
         'reports.export',
       ].forEach((c) => permCodes.add(c));
     } else if (membership.roleId) {
-      const perms = await prisma.rolePermission.findMany({
-        where: { roleId: membership.roleId },
-        select: { permission: { select: { code: true } } },
-      });
+      const perms = await OrgRepo.getPermissionCodesForRole(membership.roleId);
       perms?.forEach((p) => permCodes.add(p.permission.code));
     } else {
       (PERMISSIONS_BY_BASE_ROLE[membership.role] ?? []).forEach((c) =>
@@ -206,17 +163,18 @@ export const OrgAdminDashboardService = {
 
     const registry = {
       widgets: {
-        members_counts: { requires: ['org.read'] },
-        units_by_type: { requires: ['org.read'] },
-        attendance_rate: { requires: ['attendance.enabled'] },
-        fees_due: { requires: ['finance.enabled', 'finance.read'] },
-        pending_invites: { requires: ['people.invite'] },
-        roles_overview: { requires: ['roles.read'] },
+        units_glance: { requires: ['org.read'] },
+        members_peek: { requires: ['people.read'] },
+        announcements_peek: { requires: ['announce.read'] },
+        attendance_snapshot: {
+          requires: ['attendance.enabled', 'attendance.read'],
+        },
+        fees_snapshot: { requires: ['finance.enabled', 'finance.read'] },
       },
       tables: {
-        announcements: { requires: ['org.read'] },
         members: { requires: ['people.read'] },
         invites: { requires: ['people.invite'] },
+        announcements: { requires: ['announce.read'] },
         roles: { requires: ['roles.read'] },
         fees: { requires: ['finance.enabled', 'finance.read'] },
         assignments: { requires: ['academics.read'] },
@@ -238,11 +196,80 @@ export const OrgAdminDashboardService = {
       .map(([k]) => k);
 
     return {
-      roles: membership.role,
+      role: membership.role,
       orgType: org?.type,
       features: featureCaps,
       widgets,
       tables,
     };
+  },
+
+  async unitsGlance(orgId: string) {
+    const exists = await OrgRepo.getOrgTypeAndMeta(orgId);
+    if (!exists) throw notFound('Org not found');
+
+    const units = await OrgRepo.getRecentUnits(orgId);
+
+    return units.map((u) => ({
+      id: u.id,
+      name: u.name,
+      type: u.type,
+      memberCount: u._count.members,
+    }));
+  },
+
+  async membersPeek(orgId: string) {
+    const rows = await OrgRepo.getRecentMembers(orgId);
+  },
+
+  async announcementsPeek(orgId: string) {
+    const rows = await OrgRepo.getRecentAnnouncements(orgId);
+  },
+
+  async attendanceSnapshot(orgId: string) {
+    const sessions = await OrgRepo.getAttendanceSessions(orgId);
+
+    if (sessions.length === 0) {
+      return { totalSessions: 0, avgRate: 0, lastSessionAt: null };
+    }
+
+    const total = sessions.length;
+    let presentSum = 0;
+    let recordSum = 0;
+
+    sessions.forEach((s) => {
+      s.records.forEach((r) => {
+        recordSum++;
+        if (r.status === 'present') presentSum++;
+      });
+    });
+
+    const avgRate = recordSum ? (presentSum / recordSum) * 100 : 0;
+
+    return {
+      totalSessions: total,
+      avgRate: Math.round(avgRate),
+      lastSessionAt: sessions[0].date.toISOString(),
+    };
+  },
+
+  async feesSnapshot(orgId: string) {
+    const invoices = await OrgRepo.getFeeInvoice(orgId);
+
+    let totalPaid = 0,
+      totalDue = 0,
+      overdueCount = 0;
+
+    const now = new Date();
+
+    for (const i of invoices) {
+      if (i.status === 'paid') totalPaid += i.amount;
+      else {
+        totalDue += i.amount;
+        if (i.dueAt < now) overdueCount++;
+      }
+    }
+
+    return { totalDue, totalPaid, overdueCount };
   },
 };

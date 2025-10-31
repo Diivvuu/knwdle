@@ -9,8 +9,7 @@ import orgTypeRoutes from './routes/org-types.routes';
 import orgMegaDashboardRoutes from './routes/org.mega-dashboard.routes';
 import orgRoutes from './routes/orgs';
 import inviteRoutes from './routes/invite.routes';
-import roleRoutes from './routes/roles.route';
-import orgUnitTypeRoutes from './routes/orgs/org.unit.types';
+import roleRoutes from './routes/roles.routes';
 import uploadRoutes from './routes/uploads.routes';
 import { buildOpenApiDocument } from './lib/openapi';
 
@@ -57,7 +56,6 @@ app.use('/api', orgTypeRoutes);
 app.use('/api', orgRoutes);
 app.use('/api', inviteRoutes);
 app.use('/api', roleRoutes);
-app.use('/api', orgUnitTypeRoutes);
 app.use('/api', uploadRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

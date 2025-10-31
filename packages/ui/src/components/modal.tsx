@@ -80,6 +80,7 @@ export function ModalContent({
       value={{ scroll, separators, stickyFooter, gradientHeader }}
     >
       <DialogPortal>
+        {/* Keep overlay neutral and discreet */}
         <DialogOverlay />
         <BaseContent
           {...rest}
@@ -117,12 +118,10 @@ export function ModalHeader({
       className={cn(
         'relative p-6 pb-4',
         separators && 'border-b border-border/40',
+        gradientHeader && 'bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/15 dark:to-secondary/15',
         className
       )}
     >
-      {gradientHeader && (
-        <div className="pointer-events-none absolute inset-0 bg-gradient-to-br from-primary/10 via-transparent to-transparent" />
-      )}
       {children}
     </BaseHeader>
   );
@@ -179,8 +178,8 @@ export function ModalFooter({
         'p-4 gap-3',
         'flex flex-col-reverse sm:flex-row sm:justify-end',
         separators && 'border-t border-border/40',
-
-        'bg-background',
+        // subtle two-tone lift using secondary tint
+        'bg-gradient-to-t from-background to-secondary/5 dark:to-secondary/10',
         className
       )}
     >

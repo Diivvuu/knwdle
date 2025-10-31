@@ -4,6 +4,7 @@ import {
   invitesReducer,
   OrgAdminDashboardReducer,
   orgMegaDashboardReducer,
+  orgMember,
   orgTypeReducer,
   orgUnitReducer,
   orgUnitTypeReducer,
@@ -30,6 +31,7 @@ const rootReducer = combineReducers({
   invites: invitesReducer,
   orgUnit: orgUnitReducer,
   orgUnitTypes: orgUnitTypeReducer,
+  orgMembers : orgMember
 });
 
 const persistConfig = {

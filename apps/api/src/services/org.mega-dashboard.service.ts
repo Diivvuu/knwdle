@@ -1,6 +1,6 @@
 import { OrgType, ParentRole } from '../generated/prisma';
 import { OrgRepo } from '../repositories/org.repo';
-import { getMetaSchema } from '../lib/org.types';
+import { getMetaSchema } from '../lib/org.type.meta';
 import { createGetObjectUrl } from '../lib/s3';
 import { PERMISSIONS_BY_BASE_ROLE } from '../middleware/permissions';
 import { badRequest, forbidden, notFound } from '../lib/https';

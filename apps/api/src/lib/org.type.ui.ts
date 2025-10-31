@@ -49,7 +49,7 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       widget: 'select',
       group: 'Basics',
       order: 20,
-      help: 'Select your Board affiliation',
+      help: 'Select your board affiliation',
     },
     academicYear: {
       widget: 'select',
@@ -57,6 +57,26 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       group: 'Basics',
       order: 30,
       help: 'Current academic session',
+    },
+    termStructure: {
+      widget: 'radio',
+      group: 'Academics',
+      order: 40,
+      help: 'How your academic year is structured',
+    },
+    grades: {
+      widget: 'chips',
+      group: 'Academics',
+      order: 50,
+      placeholder: 'e.g. 1, 2, …, 12',
+      help: 'Add the grades you run (use numbers or short labels).',
+    },
+    sectionsPreset: {
+      widget: 'chips',
+      group: 'Academics',
+      order: 60,
+      placeholder: 'A, B, C',
+      help: 'Default section labels for new classes',
     },
   },
 
@@ -73,8 +93,23 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       group: 'Academics',
       order: 20,
       suggestions: ['JEE', 'NEET', 'CUET', 'CAT', 'GATE'],
-      placeholder: 'comma separated e.g. JEE, NEET',
+      placeholder: 'JEE, NEET, …',
       help: 'Add one or more courses.',
+    },
+    batchCadence: {
+      widget: 'radio',
+      group: 'Operations',
+      order: 30,
+      help: 'How often do batches typically start?',
+    },
+    sessionMinutes: {
+      widget: 'stepper',
+      group: 'Operations',
+      order: 40,
+      unit: 'min',
+      help: 'Usual session length',
+      minLabel: 'Shorter',
+      maxLabel: 'Longer',
     },
   },
 
@@ -84,6 +119,21 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       group: 'Basics',
       order: 10,
       placeholder: 'e.g. Math tutorials for Grades 8–10',
+    },
+    groupSize: {
+      widget: 'select',
+      group: 'Operations',
+      order: 20,
+      help: 'Usual group size',
+    },
+    sessionMinutes: {
+      widget: 'stepper',
+      group: 'Operations',
+      order: 30,
+      unit: 'min',
+      help: 'Usual session length',
+      minLabel: 'Shorter',
+      maxLabel: 'Longer',
     },
   },
 
@@ -104,16 +154,23 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       minLabel: 'Fewer',
       maxLabel: 'More',
     },
-    accreditation: {
-      widget: 'text',
-      group: 'Compliance',
+    creditSystem: {
+      widget: 'radio',
+      group: 'Academics',
       order: 30,
-      placeholder: 'e.g. NAAC A+, NBA',
-      examples: ['NAAC A+', 'NBA', 'ABET'],
+      help: 'Calendar structure for programmes',
     },
   },
 
-  [OrgType.UNIVERSITY]: {},
+  [OrgType.UNIVERSITY]: {
+    campuses: {
+      widget: 'stepper',
+      group: 'Basics',
+      order: 10,
+      unit: 'campuses',
+      help: 'How many campuses (optional)?',
+    },
+  },
 
   [OrgType.EDTECH]: {
     productType: {
@@ -126,6 +183,12 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       group: 'Product',
       order: 20,
       help: 'Who primarily uses your product?',
+    },
+    deliveryMode: {
+      widget: 'radio',
+      group: 'Product',
+      order: 30,
+      help: 'Primary delivery mode',
     },
   },
 
@@ -141,6 +204,12 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       group: 'Compliance',
       order: 20,
       help: 'Applicable certifications',
+    },
+    deliveryMode: {
+      widget: 'radio',
+      group: 'Operations',
+      order: 30,
+      help: 'How you usually deliver trainings',
     },
   },
 
@@ -158,12 +227,12 @@ export const UI_HINTS: Record<OrgType, UIHintsPerType> = {
       order: 20,
       placeholder: 'Primary area of work',
     },
-    volunteers: {
+    beneficiariesMonthly: {
       widget: 'stepper',
-      group: 'People',
+      group: 'Impact',
       order: 30,
-      unit: 'volunteers',
-      help: 'Approximate active volunteers',
+      unit: 'per month',
+      help: 'Approx. beneficiaries served each month (optional)',
     },
   },
 };

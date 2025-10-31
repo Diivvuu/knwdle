@@ -31,8 +31,3 @@ export const UpdateOrgBody = z.object({
 });
 
 export const IdParam = z.object({ id: z.string().min(1) });
-
-export const BasicError = z.object({
-  error: z.string(),
-  details: z.any().optional(),
-});

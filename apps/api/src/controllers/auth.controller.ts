@@ -8,6 +8,7 @@ import {
 } from '../domain/auth.schema';
 import { AuthService } from '../services/auth.service';
 import { badRequest } from '../lib/https';
+import { InvitesService } from '../services/invite.service';
 
 export const AuthController = {
   signup: async (req: Request, res: Response) => {
@@ -59,4 +60,17 @@ export const AuthController = {
     res.clearCookie(out.clearCookie.name, out.clearCookie.options);
     return res.sendStatus(204);
   },
+
+  async me(req: Request, res: Response) {
+    const userId = req.user!.id;
+    const data = await AuthService.getMe(userId);
+    res.json(data);
+  },
+
+  async invitePreview(req: Request, res: Response) { 
+    const token = req.params.token
+    const user =req.user!
+    const preview = await InvitesService.getInvitePreview(token, user.email)
+    res.json(preview)
+  }
 };

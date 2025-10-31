@@ -1,224 +1,216 @@
+// packages/state/src/slices/orgUnits.ts
 import { createAsyncThunk, createSlice } from '@reduxjs/toolkit';
 import { api } from '../api';
+
+/* ---------------------------------- Types --------------------------------- */
 
 export type OrgUnitType =
   | 'ORGANISATION'
   | 'DEPARTMENT'
   | 'CLASS'
+  | 'SECTION'
   | 'SUBJECT'
   | 'BATCH'
-  | 'SECTION'
   | 'GROUP'
   | 'OTHER';
 
-type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
+export type FeatureFlags = Record<
+  | 'attendance'
+  | 'assignments'
+  | 'tests'
+  | 'notes'
+  | 'fees'
+  | 'announcements'
+  | 'content'
+  | 'liveClass'
+  | 'interactions',
+  boolean
+>;
 
 export interface OrgUnit {
   id: string;
-  orgId?: string;
   name: string;
-  parentId: string | null;
-  parentName?: string | null;
-  code: string | null;
-  path?: string;
-  type?: OrgUnitType;
-  meta?: Record<string, any>;
-  createdAt: string;
-  updatedAt?: string;
-  children?: OrgUnit[];
-  _count?: { children: number; members: number };
-}
-
-export interface OrgUnitCreatePayload {
-  orgId: string;
-  name: string;
-  code?: string;
-  parentId?: string | null;
   type: OrgUnitType;
-  meta?: Record<string, any>;
+  orgId: string;
+  parentId: string | null;
+  meta: Record<string, any> | null;
+  features: FeatureFlags;
+  createdAt: string;
+  updatedAt: string;
+  children?: OrgUnit[];
 }
 
-interface UnitsState {
-  unitsByOrg: Record<
-    string,
-    { status: Status; items: OrgUnit[]; error?: string }
-  >;
-  unitsTreeByOrg: Record<
-    string,
-    { status: Status; data?: OrgUnit[]; error?: string }
-  >;
-  createStatus: Status;
-  createError?: string | null;
-  lastCreated?: OrgUnit;
-}
+type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
-const initialState: UnitsState = {
-  unitsByOrg: {},
-  unitsTreeByOrg: {},
-  createStatus: 'idle',
-  createError: null,
-  lastCreated: undefined,
-};
+/* --------------------------------- Thunks --------------------------------- */
 
+// GET /api/orgs/:orgId/units
 export const fetchOrgUnits = createAsyncThunk(
-  'orgUnits/fetchAll',
+  'orgUnits/fetchList',
   async (orgId: string) => {
-    const { data } = await api.get(`/api/orgs/${orgId}/units`);
-    return { orgId, items: data as OrgUnit[] };
+    const { data } = await api.get<OrgUnit[]>(`/api/orgs/${orgId}/units`);
+    return data;
   }
 );
 
-export const fetchOrgUnitsTree = createAsyncThunk(
+// GET /api/orgs/:orgId/tree
+export const fetchOrgTree = createAsyncThunk(
   'orgUnits/fetchTree',
   async (orgId: string) => {
-    const { data } = await api.get(`/api/orgs/${orgId}/units/tree`);
-    return { orgId, data: data as OrgUnit[] };
+    const { data } = await api.get<OrgUnit[]>(`/api/orgs/${orgId}/tree`);
+    return data;
   }
 );
 
-export const fetchOrgUnitDetail = createAsyncThunk(
+// GET /api/orgs/:orgId/units/:unitId
+export const fetchOrgUnit = createAsyncThunk(
   'orgUnits/fetchOne',
   async (p: { orgId: string; unitId: string }) => {
-    const { data } = await api.get(`/api/orgs/${p.orgId}/units/${p.unitId}`);
-    return data as OrgUnit;
+    const { data } = await api.get<OrgUnit>(
+      `/api/orgs/${p.orgId}/units/${p.unitId}`
+    );
+    return data;
   }
 );
 
+// POST /api/orgs/:orgId/units
 export const createOrgUnit = createAsyncThunk(
   'orgUnits/create',
-  async (p: OrgUnitCreatePayload) => {
-    const { orgId, ...body } = p;
-    const { data } = await api.post(`/api/orgs/${orgId}/units`, body);
-    return { orgId, unit: { ...(data as OrgUnit), orgId } };
+  async (p: { orgId: string; body: Partial<OrgUnit> }) => {
+    const { data } = await api.post<OrgUnit>(
+      `/api/orgs/${p.orgId}/units`,
+      p.body
+    );
+    return data;
   }
 );
 
+// PATCH /api/orgs/:orgId/units/:unitId
 export const updateOrgUnit = createAsyncThunk(
   'orgUnits/update',
-  async (p: {
-    orgId: string;
-    unitId: string;
-    name?: string;
-    code?: string;
-    parentId?: string | null;
-    type?: OrgUnitType;
-    meta?: Record<string, any>;
-  }) => {
-    const { orgId, unitId, ...body } = p;
-    const { data } = await api.patch(
-      `/api/orgs/${orgId}/units/${unitId}`,
-      body
+  async (p: { orgId: string; unitId: string; body: Partial<OrgUnit> }) => {
+    const { data } = await api.patch<OrgUnit>(
+      `/api/orgs/${p.orgId}/units/${p.unitId}`,
+      p.body
     );
-    return { orgId, unit: data as OrgUnit };
+    return data;
   }
 );
 
+// DELETE /api/orgs/:orgId/units/:unitId
 export const deleteOrgUnit = createAsyncThunk(
   'orgUnits/delete',
-  async (p: { orgId: string; unitId: string; force?: boolean }) => {
-    const { orgId, unitId, force } = p;
-    await api.delete(`/api/orgs/${orgId}/units/${unitId}`, {
-      params: { force: Boolean(force) },
-    });
-    return { orgId, unitId };
+  async (p: { orgId: string; unitId: string }) => {
+    await api.delete(`/api/orgs/${p.orgId}/units/${p.unitId}`);
+    return p.unitId;
   }
 );
 
-function insertIntoTree(tree: OrgUnit[], unit: OrgUnit): OrgUnit[] {
-  if (!unit.parentId) return [{ ...unit, children: [] }, ...tree];
-  const stack = [...tree];
-  while (stack.length) {
-    const node = stack.pop()!;
-    if (node.id === unit.parentId) {
-      node.children = node.children ? [unit, ...node.children] : [unit];
-      return tree;
-    }
-    if (node.children?.length) stack.push(...node.children);
-  }
-  return [{ ...unit, children: [] }, ...tree];
+/* ---------------------------------- Slice --------------------------------- */
+
+interface OrgUnitsState {
+  list: OrgUnit[];
+  tree: OrgUnit[];
+  selected?: OrgUnit | null;
+
+  listStatus: Status;
+  treeStatus: Status;
+  selectedStatus: Status;
+  mutateStatus: Status;
+  error?: string | null;
 }
 
-const slice = createSlice({
+const initialState: OrgUnitsState = {
+  list: [],
+  tree: [],
+  selected: null,
+  listStatus: 'idle',
+  treeStatus: 'idle',
+  selectedStatus: 'idle',
+  mutateStatus: 'idle',
+  error: null,
+};
+
+const orgUnitsSlice = createSlice({
   name: 'orgUnits',
   initialState,
   reducers: {
-    resetCreateState(state) {
-      state.createStatus = 'idle';
-      state.createError = null;
-      state.lastCreated = undefined;
+    resetOrgUnitsState(state) {
+      Object.assign(state, initialState);
     },
   },
   extraReducers: (b) => {
-    b.addCase(fetchOrgUnits.pending, (s, a) => {
-      const orgId = a.meta.arg;
-      s.unitsByOrg[orgId] = s.unitsByOrg[orgId] || {
-        status: 'idle',
-        items: [],
-      };
-      s.unitsByOrg[orgId].status = 'loading';
+    /* ---------------------------- List endpoints ---------------------------- */
+    b.addCase(fetchOrgUnits.pending, (s) => {
+      s.listStatus = 'loading';
     });
     b.addCase(fetchOrgUnits.fulfilled, (s, a) => {
-      const { orgId, items } = a.payload;
-      s.unitsByOrg[orgId] = { status: 'succeeded', items };
+      s.listStatus = 'succeeded';
+      s.list = a.payload;
     });
     b.addCase(fetchOrgUnits.rejected, (s, a) => {
-      const orgId = a.meta.arg;
-      s.unitsByOrg[orgId] = {
-        status: 'failed',
-        items: [],
-        error: a.error.message,
-      };
+      s.listStatus = 'failed';
+      s.error = a.error.message ?? 'Failed to load org units';
     });
 
-    b.addCase(fetchOrgUnitsTree.pending, (s, a) => {
-      s.unitsTreeByOrg[a.meta.arg] = { status: 'loading' };
+    /* ----------------------------- Tree endpoint ---------------------------- */
+    b.addCase(fetchOrgTree.pending, (s) => {
+      s.treeStatus = 'loading';
     });
-    b.addCase(fetchOrgUnitsTree.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.unitsTreeByOrg[orgId] = { status: 'succeeded', data };
+    b.addCase(fetchOrgTree.fulfilled, (s, a) => {
+      s.treeStatus = 'succeeded';
+      s.tree = a.payload;
     });
-    b.addCase(fetchOrgUnitsTree.rejected, (s, a) => {
-      s.unitsTreeByOrg[a.meta.arg] = {
-        status: 'failed',
-        error: a.error.message,
-      };
+    b.addCase(fetchOrgTree.rejected, (s, a) => {
+      s.treeStatus = 'failed';
+      s.error = a.error.message ?? 'Failed to load org unit tree';
     });
 
+    /* ----------------------------- Single unit ------------------------------ */
+    b.addCase(fetchOrgUnit.pending, (s) => {
+      s.selectedStatus = 'loading';
+    });
+    b.addCase(fetchOrgUnit.fulfilled, (s, a) => {
+      s.selectedStatus = 'succeeded';
+      s.selected = a.payload;
+    });
+    b.addCase(fetchOrgUnit.rejected, (s, a) => {
+      s.selectedStatus = 'failed';
+      s.error = a.error.message ?? 'Failed to fetch org unit';
+    });
+
+    /* ----------------------------- Mutations -------------------------------- */
     b.addCase(createOrgUnit.pending, (s) => {
-      s.createStatus = 'loading';
+      s.mutateStatus = 'loading';
     });
     b.addCase(createOrgUnit.fulfilled, (s, a) => {
-      s.createStatus = 'succeeded';
-      const { orgId, unit } = a.payload;
-      s.lastCreated = unit;
-
-      const flat = s.unitsByOrg[orgId];
-      if (flat?.items) flat.items = [unit, ...flat.items];
-
-      const tree = s.unitsTreeByOrg[orgId];
-      if (tree?.data) tree.data = insertIntoTree([...tree.data], unit);
+      s.mutateStatus = 'succeeded';
+      s.list.push(a.payload);
     });
-    b.addCase(createOrgUnit.rejected, (s, a) => {
-      s.createStatus = 'failed';
-      s.createError = a.error.message;
-    });
-
     b.addCase(updateOrgUnit.fulfilled, (s, a) => {
-      const { orgId, unit } = a.payload;
-      const flat = s.unitsByOrg[orgId];
-      if (flat?.items) {
-        const i = flat.items.findIndex((u) => u.id === unit.id);
-        if (i >= 0) flat.items[i] = { ...flat.items[i], ...unit };
-      }
+      s.mutateStatus = 'succeeded';
+      const idx = s.list.findIndex((u) => u.id === a.payload.id);
+      if (idx >= 0) s.list[idx] = a.payload;
     });
-
     b.addCase(deleteOrgUnit.fulfilled, (s, a) => {
-      const { orgId, unitId } = a.payload;
-      const flat = s.unitsByOrg[orgId];
-      if (flat?.items) flat.items = flat.items.filter((u) => u.id !== unitId);
+      s.mutateStatus = 'succeeded';
+      s.list = s.list.filter((u) => u.id !== a.payload);
     });
   },
 });
 
-export const { resetCreateState } = slice.actions;
-export default slice.reducer;
+export const { resetOrgUnitsState } = orgUnitsSlice.actions;
+export default orgUnitsSlice.reducer;
+
+/* -------------------------------- Selectors -------------------------------- */
+
+const slice = (s: any) => s.orgUnit ?? s.orgUnits ?? {};
+
+export const selectOrgUnits = (s: any): OrgUnit[] => slice(s).list ?? [];
+export const selectOrgTree = (s: any): OrgUnit[] => slice(s).tree ?? [];
+export const selectOrgUnitsStatus = (s: any): Status =>
+  slice(s).listStatus ?? 'idle';
+export const selectOrgTreeStatus = (s: any): Status =>
+  slice(s).treeStatus ?? 'idle';
+export const selectSelectedUnit = (s: any): OrgUnit | null =>
+  slice(s).selected ?? null;

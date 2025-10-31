@@ -1,25 +1,15 @@
 import zodToJsonSchema from 'zod-to-json-schema';
-import { OrgType } from '../generated/prisma';
-import { getMetaSchema } from '../lib/org.types';
-import { UI_HINTS } from '../lib/org.unit';
+import { OrgType, OrgUnitType } from '../generated/prisma';
+import { getMetaSchema } from '../lib/org.type.meta';
 import { badRequest, notFound } from '../lib/https';
+import { UI_HINTS } from '../lib/org.type.ui';
+import { ALLOWED_CHILDREN } from '../lib/org.unit.rules';
 
 function toOrgType(raw: string): OrgType | null {
   const up = String(raw || '').toUpperCase();
-  return (Object.values(OrgType) as string[]).includes(up) ? (up as OrgType) : null;
-}
-
-function extractKeyFromS3Url(maybeUrl?: string | null): string | undefined {
-  if (!maybeUrl) return undefined;
-  try {
-    const u = new URL(maybeUrl);
-    if (!/\.amazonaws\.com$/.test(u.hostname)) return undefined;
-    const path = decodeURIComponent(u.pathname.replace(/^\/+/, ''));
-    if (path.startsWith('users/') || path.startsWith('orgs/')) return path;
-    return undefined;
-  } catch {
-    return undefined;
-  }
+  return (Object.values(OrgType) as string[]).includes(up)
+    ? (up as OrgType)
+    : null;
 }
 
 /** Build the UI-enhanced JSON schema + field groups */
@@ -41,8 +31,7 @@ export const OrgTypesService = {
     // Resolve the object schema that has properties
     const defKey = `OrgMeta_${type}`;
     const def =
-      json.definitions?.[defKey] ??
-      (json.title === defKey ? json : null);
+      json.definitions?.[defKey] ?? (json.title === defKey ? json : null);
 
     if (!def || !def.properties) {
       throw badRequest('Schema transform failed');
@@ -68,6 +57,19 @@ export const OrgTypesService = {
       groups: Object.entries(groups)
         .sort((a, b) => a[1].order - b[1].order)
         .map(([name, v]) => ({ name, fields: v.fields })),
+    };
+  },
+
+  getUnitStructure(rawType: string) {
+    const type = toOrgType(rawType);
+    if (!type) throw notFound('Unknwon type');
+
+    const hierarchy = ALLOWED_CHILDREN[type];
+    if (!hierarchy) throw notFound('No hierarchy defined for this org type');
+
+    return {
+      orgType: type,
+      hierarchy,
     };
   },
 };

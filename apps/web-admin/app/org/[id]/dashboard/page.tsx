@@ -10,6 +10,11 @@ import {
   fetchOrgBasic,
   fetchOrgSummary,
   fetchDashboardConfig,
+  fetchUnitsGlance,
+  fetchMembersPeek,
+  fetchAnnouncementsPeek,
+  fetchAttendanceSnapshot,
+  fetchFeesSnapshot,
   clearOrgCache,
 } from '@workspace/state';
 
@@ -23,16 +28,14 @@ import {
   Megaphone,
   Settings,
   PlusCircle,
-  Check,
-  X,
   ChevronRight,
 } from 'lucide-react';
 
 // -----------------------------------------------------------------------------
-// Small helpers
+// Helpers
 // -----------------------------------------------------------------------------
 const noop = () => {};
-const fmt = (v?: number | string) => (v ?? '—');
+const fmt = (v?: number | string) => v ?? '—';
 
 // -----------------------------------------------------------------------------
 // Page
@@ -40,7 +43,6 @@ const fmt = (v?: number | string) => (v ?? '—');
 export default function OrgDashboardPage() {
   const params = useParams<{ id: string }>();
   const orgId = params?.id;
-
   const dispatch = useDispatch<AppDispatch>();
 
   const basic = useSelector((s: RootState) =>
@@ -53,14 +55,45 @@ export default function OrgDashboardPage() {
     orgId ? s.orgAdmin.dashboardById[orgId] : undefined
   );
 
-  // Kick off fetches whenever orgId changes
+  const unitsGlance = useSelector((s: RootState) =>
+    orgId ? s.orgAdmin.unitsGlanceById[orgId]?.data : []
+  );
+  const membersPeek = useSelector((s: RootState) =>
+    orgId ? s.orgAdmin.membersPeekById[orgId]?.data : []
+  );
+  const announcementsPeek = useSelector((s: RootState) =>
+    orgId ? s.orgAdmin.announcementsPeekById[orgId]?.data : []
+  );
+  const attendanceSnapshot = useSelector((s: RootState) =>
+    orgId ? s.orgAdmin.attendanceSnapshotById[orgId]?.data : null
+  );
+  const feesSnapshot = useSelector((s: RootState) =>
+    orgId ? s.orgAdmin.feesSnapshotById[orgId]?.data : null
+  );
+
+  // Base fetches
   useEffect(() => {
     if (!orgId) return;
     dispatch(fetchOrgBasic(orgId));
     dispatch(fetchOrgSummary(orgId));
     dispatch(fetchDashboardConfig(orgId));
   }, [dispatch, orgId]);
+ 
+  // Conditional peek/snapshot fetches once config arrives
+  useEffect(() => {
+    if (!orgId || !config?.data) return;
+    const widgets = config.data.widgets || [];
 
+    if (widgets.includes('units_glance')) dispatch(fetchUnitsGlance(orgId));
+    if (widgets.includes('members_peek')) dispatch(fetchMembersPeek(orgId));
+    if (widgets.includes('announcements_peek'))
+      dispatch(fetchAnnouncementsPeek(orgId));
+    if (widgets.includes('attendance_snapshot'))
+      dispatch(fetchAttendanceSnapshot(orgId));
+    if (widgets.includes('fees_snapshot')) dispatch(fetchFeesSnapshot(orgId));
+  }, [dispatch, orgId, config?.data]);
+
+  // Derived state
   const loading =
     !orgId ||
     basic?.status === 'loading' ||
@@ -68,11 +101,10 @@ export default function OrgDashboardPage() {
     config?.status === 'loading';
 
   const error = basic?.error || summary?.error || config?.error;
-
   const org = basic?.data;
   const brandColor = org?.brand_color || undefined;
-  const logoUrl = org?.logoUrl || undefined; // presigned/public from API
-  const coverUrl = org?.coverUrl || undefined; // presigned/public from API
+  const logoUrl = org?.logoUrl || undefined;
+  const coverUrl = org?.coverUrl || undefined;
 
   const roleCounts = summary?.data?.roleCounts;
   const unitsCount = summary?.data?.unitsCount ?? 0;
@@ -86,10 +118,11 @@ export default function OrgDashboardPage() {
     () => config?.data?.tables ?? [],
     [config?.data?.tables]
   );
+  const userRole = config?.data?.role ?? 'guest';
 
   return (
     <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Top bar: title + actions */}
+      {/* Header */}
       <div className="flex items-center justify-between">
         <div>
           <h1 className="text-xl font-semibold">
@@ -131,26 +164,46 @@ export default function OrgDashboardPage() {
           coverProgress={0}
           logoProgress={0}
         />
-
-        {/* KPI strip floating over the bottom of cover */}
-        {!loading && !error ? (
+        {!loading && !error && (
           <div className="-mt-6 px-2 sm:px-4">
             <div className="mx-auto max-w-5xl glass elev-2 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 sm:gap-3">
-              <StatPill icon={<Building2 size={16} />} label="Units" value={fmt(unitsCount)} />
-              <StatPill icon={<UserPlus size={16} />} label="Admins" value={fmt(roleCounts?.admin)} />
-              <StatPill icon={<UserPlus size={16} />} label="Staff" value={fmt(roleCounts?.staff)} />
-              <StatPill icon={<UserPlus size={16} />} label="Students" value={fmt(roleCounts?.students)} />
-              <StatPill icon={<UserPlus size={16} />} label="Parents" value={fmt(roleCounts?.parent)} />
-              <StatPill icon={<Megaphone size={16} />} label="Invites" value={fmt(pendingInvites)} />
+              <StatPill
+                icon={<Building2 size={16} />}
+                label="Units"
+                value={fmt(unitsCount)}
+              />
+              <StatPill
+                icon={<UserPlus size={16} />}
+                label="Admins"
+                value={fmt(roleCounts?.admin)}
+              />
+              <StatPill
+                icon={<UserPlus size={16} />}
+                label="Staff"
+                value={fmt(roleCounts?.staff)}
+              />
+              <StatPill
+                icon={<UserPlus size={16} />}
+                label="Students"
+                value={fmt(roleCounts?.students)}
+              />
+              <StatPill
+                icon={<UserPlus size={16} />}
+                label="Parents"
+                value={fmt(roleCounts?.parent)}
+              />
+              <StatPill
+                icon={<Megaphone size={16} />}
+                label="Invites"
+                value={fmt(pendingInvites)}
+              />
             </div>
           </div>
-        ) : null}
+        )}
       </div>
 
-      {/* Loading / error states */}
-      {loading && (
-        <SkeletonGrid />
-      )}
+      {/* Loading / error */}
+      {loading && <SkeletonGrid />}
       {!loading && error && (
         <ErrorBanner
           error={error}
@@ -164,68 +217,85 @@ export default function OrgDashboardPage() {
         />
       )}
 
-      {/* MAIN LAYOUT */}
+      {/* Main layout */}
       {!loading && !error && (
         <>
-          {/* Row A: Quick Actions + Org Health */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+          {/* Quick Actions */}
+          <div className="grid grid-cols-1 gap-4">
             <div className="lg:col-span-1">
-              <CardSection title="Quick Actions" actionHref={`/org/${orgId}/actions`} actionLabel="Manage">
+              <CardSection title="Quick Actions">
                 <QuickActions orgId={orgId!} />
               </CardSection>
             </div>
-            <div className="lg:col-span-2">
-              <CardSection title="Organisation Health" actionHref={`/org/${orgId}/settings`} actionLabel="Settings">
-                <OrgHealthCard pendingInvites={pendingInvites} totalUnits={unitsCount} />
-              </CardSection>
-            </div>
           </div>
 
           <Separator className="my-2" />
 
-          {/* Row B: Activity + Approvals */}
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-            <CardSection title="Recent Activity" actionHref={`/org/${orgId}/activity`} actionLabel="View all">
-              <ActivityTimeline orgId={orgId!} />
+          {/* Dynamic Widgets */}
+          {widgets.includes('attendance_snapshot') && (
+            <CardSection title="Attendance Snapshot">
+              <SnapshotCard
+                data={attendanceSnapshot}
+                label="Average Attendance"
+                unit="%"
+              />
             </CardSection>
-            <CardSection title="Awaiting Attention" actionHref={`/org/${orgId}/invites`} actionLabel="Review">
-              <ApprovalsList orgId={orgId!} pendingInvites={pendingInvites} />
+          )}
+
+          {widgets.includes('fees_snapshot') && (
+            <CardSection title="Finance Snapshot">
+              <SnapshotCard data={feesSnapshot} label="Total Paid" unit="₹" />
             </CardSection>
-          </div>
+          )}
+
+          {widgets.includes('announcements_peek') && (
+            <CardSection
+              title="Announcements"
+              actionHref={`/org/${orgId}/announcements`}
+            >
+              <AnnouncementsPeek data={announcementsPeek} />
+            </CardSection>
+          )}
+
+          {widgets.includes('members_peek') && (
+            <CardSection
+              title="Recent Members"
+              actionHref={`/org/${orgId}/members`}
+            >
+              <MembersPeek data={membersPeek} />
+            </CardSection>
+          )}
+
+          {widgets.includes('units_glance') && (
+            <CardSection
+              title="Units at a glance"
+              actionHref={`/org/${orgId}/units`}
+            >
+              <UnitsAtGlance orgId={orgId!} data={unitsGlance} />
+            </CardSection>
+          )}
 
           <Separator className="my-2" />
 
-          {/* Row C: Units glance + Goals */}
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
-            <div className="lg:col-span-2">
-              <CardSection title="Units at a glance" actionHref={`/org/${orgId}/units`} actionLabel="View all">
-                <UnitsAtGlance orgId={orgId!} count={unitsCount} />
-              </CardSection>
-            </div>
-            <div className="lg:col-span-1">
-              <CardSection title="This month’s goals" actionHref={`/org/${orgId}/goals`} actionLabel="Manage">
-                <div className="space-y-4">
-                  <Goal title="Onboard new students" pct={62} />
-                  <Goal title="Configure fee structure" pct={35} />
-                  <Goal title="Publish first newsletter" pct={80} />
-                </div>
-              </CardSection>
-            </div>
-          </div>
-
-          <Separator className="my-2" />
-
-          {/* Row D: Peek tables */}
+          {/* Tables */}
           {tables.length > 0 ? (
             <div className="space-y-3">
-              <Label variant="muted" className="text-sm font-medium">Tables</Label>
+              <Label variant="muted" className="text-sm font-medium">
+                Tables
+              </Label>
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                <PeekTable title="Members" href={`/org/${orgId}/members`} />
-                <PeekTable title="Invites" href={`/org/${orgId}/invites`} />
+                {tables.includes('members') && (
+                  <PeekTable title="Members" href={`/org/${orgId}/members`} />
+                )}
+                {tables.includes('invites') && (
+                  <PeekTable title="Invites" href={`/org/${orgId}/invites`} />
+                )}
               </div>
             </div>
           ) : (
-            <p className="text-sm text-muted-foreground">No tables configured for this role.</p>
+            <p className="text-sm text-muted-foreground">
+              No tables configured for this role.
+            </p>
           )}
         </>
       )}
@@ -234,24 +304,21 @@ export default function OrgDashboardPage() {
 }
 
 // -----------------------------------------------------------------------------
-// UI Sections (composed of Label + content) to keep consistent header actions
+// Shared UI
 // -----------------------------------------------------------------------------
 function CardSection({
   title,
   actionHref,
   actionLabel = 'View all',
   children,
-}: {
-  title: string;
-  actionHref?: string;
-  actionLabel?: string;
-  children: React.ReactNode;
-}) {
+}: any) {
   return (
     <div className="rounded-xl border bg-card p-4 elev-1 hover:bg-muted/30 transition-colors">
       <div className="mb-3 flex items-center justify-between">
-        <Label className="font-medium" variant="default">{title}</Label>
-        {actionHref ? (
+        <Label className="font-medium" variant="default">
+          {title}
+        </Label>
+        {actionHref && (
           <Link
             href={actionHref}
             className="inline-flex items-center gap-1 text-xs rounded-md border bg-background px-2.5 py-1 hover:bg-muted"
@@ -259,25 +326,14 @@ function CardSection({
             {actionLabel}
             <ChevronRight size={14} />
           </Link>
-        ) : null}
+        )}
       </div>
       {children}
     </div>
   );
 }
 
-// -----------------------------------------------------------------------------
-// Components used inside sections
-// -----------------------------------------------------------------------------
-function StatPill({
-  icon,
-  label,
-  value,
-}: {
-  icon: React.ReactNode;
-  label: string;
-  value: string | number;
-}) {
+function StatPill({ icon, label, value }: any) {
   return (
     <div className="flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 elev-1 hover:bg-muted/50">
       {icon}
@@ -303,10 +359,10 @@ function SkeletonGrid() {
   );
 }
 
-function ErrorBanner({ error, onRetry }: { error?: string; onRetry: () => void }) {
+function ErrorBanner({ error, onRetry }: any) {
   return (
     <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
-      <p className="text-destructive font-medium">Failed to load the dashboard</p>
+      <p className="text-destructive font-medium">Failed to load dashboard</p>
       <p className="text-muted-foreground mt-1">{error}</p>
       <div className="mt-3">
         <button
@@ -320,12 +376,28 @@ function ErrorBanner({ error, onRetry }: { error?: string; onRetry: () => void }
   );
 }
 
-function QuickActions({ orgId }: { orgId: string }) {
+function QuickActions({ orgId }: any) {
   const items = [
-    { label: 'Invite member', icon: <UserPlus size={16} />, href: `/org/${orgId}/members/invite` },
-    { label: 'Create unit', icon: <Building2 size={16} />, href: `/org/${orgId}/units/new` },
-    { label: 'Send announcement', icon: <Megaphone size={16} />, href: `/org/${orgId}/announcements/new` },
-    { label: 'Configure settings', icon: <Settings size={16} />, href: `/org/${orgId}/settings` },
+    {
+      label: 'Invite member',
+      icon: <UserPlus size={16} />,
+      href: `/org/${orgId}/members/invite`,
+    },
+    {
+      label: 'Create unit',
+      icon: <Building2 size={16} />,
+      href: `/org/${orgId}/units/new`,
+    },
+    {
+      label: 'Send announcement',
+      icon: <Megaphone size={16} />,
+      href: `/org/${orgId}/announcements/new`,
+    },
+    {
+      label: 'Configure settings',
+      icon: <Settings size={16} />,
+      href: `/org/${orgId}/settings`,
+    },
   ];
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -343,135 +415,87 @@ function QuickActions({ orgId }: { orgId: string }) {
   );
 }
 
-function OrgHealthCard({ pendingInvites, totalUnits }: { pendingInvites: number; totalUnits: number }) {
-  // naive health metric for now
-  const healthScore = Math.max(20, Math.min(100, 100 - pendingInvites * 3 + totalUnits * 4));
-  const barClass =
-    healthScore >= 75 ? 'bg-success' : healthScore >= 50 ? 'bg-warning' : 'bg-destructive';
-
-  return (
-    <div className="space-y-3">
-      <div className="h-2 rounded bg-muted/60 overflow-hidden">
-        <div style={{ width: `${healthScore}%` }} className={`h-full ${barClass}`} />
-      </div>
-      <p className="text-sm text-muted-foreground">
-        Composite score from invites, unit setup, and activity. <span className="font-medium text-foreground">{healthScore}% healthy</span>.
-      </p>
-      <div className="flex flex-wrap gap-2 text-xs">
-        <span className="badge-teal px-2 py-1 rounded-full">{totalUnits} units</span>
-        <span className="badge-yellow px-2 py-1 rounded-full">{pendingInvites} invites pending</span>
-      </div>
-    </div>
-  );
-}
-
-function ActivityTimeline({ orgId }: { orgId: string }) {
-  // Placeholder items (wire real data later)
-  const items = [
-    { who: 'A. Sharma', what: 'joined Staff unit', when: '2h ago', href: `/org/${orgId}/members` },
-    { who: 'System', what: 'generated monthly report', when: '1d ago', href: `/org/${orgId}/reports` },
-    { who: 'R. Khan', what: 'invited 5 parents', when: '3d ago', href: `/org/${orgId}/invites` },
-  ];
-  return (
-    <div className="divide-y">
-      {items.map((i, idx) => (
-        <TimelineRow key={idx} who={i.who} what={i.what} when={i.when} href={i.href} />
-      ))}
-    </div>
-  );
-}
-
-function TimelineRow({ who, what, when, href }: { who: string; what: string; when: string; href: string }) {
-  return (
-    <Link href={href} className="group flex items-start gap-3 py-2 hover:bg-muted/40 rounded-md px-2">
-      <div className="mt-1 h-2 w-2 rounded-full bg-primary/70" />
-      <div className="min-w-0">
-        <p className="text-sm">
-          <span className="font-medium">{who}</span> {what}
-        </p>
-        <p className="text-xs text-muted-foreground">{when}</p>
-      </div>
-    </Link>
-  );
-}
-
-function ApprovalsList({ orgId, pendingInvites }: { orgId: string; pendingInvites: number }) {
-  return (
-    <div className="space-y-2">
-      <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-background">
-        <div className="text-sm">
-          <p className="font-medium">Invites awaiting action</p>
-          <p className="text-xs text-muted-foreground">{pendingInvites} pending</p>
-        </div>
-        <div className="flex items-center gap-1.5">
-          <Link href={`/org/${orgId}/invites`} className="inline-flex items-center gap-1 text-xs rounded-md border bg-background px-2.5 py-1 hover:bg-muted">
-            Review
-            <ChevronRight size={14} />
-          </Link>
-        </div>
-      </div>
-
-      <div className="flex items-center justify-between rounded-lg border px-3 py-2 bg-background">
-        <div className="text-sm">
-          <p className="font-medium">Profile completion</p>
-          <p className="text-xs text-muted-foreground">Finish setup to boost health</p>
-        </div>
-        <Link href={`/org/${orgId}/settings`} className="inline-flex items-center gap-1 text-xs rounded-md border bg-background px-2.5 py-1 hover:bg-muted">
-          Complete
-          <ChevronRight size={14} />
-        </Link>
-      </div>
-    </div>
-  );
-}
-
-function UnitsAtGlance({ orgId, count }: { orgId: string; count: number }) {
-  const items = Array.from({ length: Math.min(6, Math.max(1, count)) }).map((_, i) => ({
-    name: `Unit ${i + 1}`,
-    href: `/org/${orgId}/units/${i + 1}`,
-    meta: `${Math.floor(Math.random() * 60) + 10} members`,
-  }));
-
+// -----------------------------------------------------------------------------
+// New lightweight peek cards
+// -----------------------------------------------------------------------------
+function UnitsAtGlance({ orgId, data }: { orgId: string; data: any[] }) {
+  if (!data?.length)
+    return <p className="text-sm text-muted-foreground">No units found</p>;
   return (
     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {items.map((u, i) => (
+      {data.map((u: any) => (
         <Link
-          key={i}
-          href={u.href}
+          key={u.id}
+          href={`/org/${orgId}/units/${u.id}`}
           className="hover-lift overlay-sheen hover-glow rounded-lg border bg-background p-3"
         >
           <p className="font-medium">{u.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">{u.meta}</p>
+          <p className="text-xs text-muted-foreground mt-0.5">
+            {u.memberCount} members
+          </p>
         </Link>
       ))}
-      {count === 0 && (
-        <Link
-          href={`/org/${orgId}/units/new`}
-          className="rounded-lg border-dashed border bg-background p-3 flex items-center justify-center gap-2 text-sm hover:bg-muted"
-        >
-          <PlusCircle size={16} /> Create your first unit
-        </Link>
-      )}
     </div>
   );
 }
 
-function Goal({ title, pct }: { title: string; pct: number }) {
+function MembersPeek({ data }: any) {
+  if (!data?.length)
+    return <p className="text-sm text-muted-foreground">No recent members</p>;
   return (
-    <div className="space-y-1.5">
-      <Label variant="default" className="text-sm">{title}</Label>
-      <div className="h-2 rounded bg-muted/60 overflow-hidden">
-        <div style={{ width: `${pct}%` }} className="h-full bg-grad-primary" />
-      </div>
+    <div className="space-y-2">
+      {data.slice(0, 5).map((m: any) => (
+        <div
+          key={m.id}
+          className="flex justify-between border rounded-md px-3 py-2 bg-background"
+        >
+          <span className="font-medium">{m.name || 'Unknown'}</span>
+          <span className="text-xs text-muted-foreground">{m.role}</span>
+        </div>
+      ))}
     </div>
   );
 }
 
-function PeekTable({ title, href }: { title: string; href: string }) {
+function AnnouncementsPeek({ data }: any) {
+  if (!data?.length)
+    return <p className="text-sm text-muted-foreground">No announcements</p>;
+  return (
+    <div className="space-y-2">
+      {data.slice(0, 4).map((a: any) => (
+        <div
+          key={a.id}
+          className="border rounded-md px-3 py-2 bg-background flex justify-between"
+        >
+          <span className="font-medium truncate">{a.title}</span>
+          {a.pin && <span className="text-xs text-primary">📌</span>}
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function SnapshotCard({ data, label, unit }: any) {
+  if (!data) return <p className="text-sm text-muted-foreground">No data</p>;
+  const val = Object.values(data)[1] ?? 0;
+  return (
+    <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-background">
+      <span className="font-medium">{label}</span>
+      <span className="text-sm text-muted-foreground">
+        {unit}
+        {val}
+      </span>
+    </div>
+  );
+}
+
+function PeekTable({ title, href }: any) {
   return (
     <div className="rounded-xl border bg-card p-4">
       <div className="flex items-center justify-between mb-2">
-        <Label className="font-medium" variant="default">{title}</Label>
+        <Label className="font-medium" variant="default">
+          {title}
+        </Label>
         <Link
           href={href}
           className="text-xs inline-flex items-center gap-1 underline underline-offset-4 hover:no-underline"
@@ -479,24 +503,8 @@ function PeekTable({ title, href }: { title: string; href: string }) {
           View all <ChevronRight size={14} />
         </Link>
       </div>
-
-      <div className="h-40 rounded-lg bg-muted/50 border">
-        {/* Faux table header */}
-        <div className="grid grid-cols-3 gap-2 text-xs text-muted-foreground px-3 py-2 border-b">
-          <span>Name</span>
-          <span>Role</span>
-          <span>Updated</span>
-        </div>
-        {/* Faux rows */}
-        <div className="p-3 space-y-2">
-          {[0,1,2].map(i => (
-            <div key={i} className="grid grid-cols-3 gap-2 text-sm">
-              <div className="h-6 rounded bg-background/60 border" />
-              <div className="h-6 rounded bg-background/60 border" />
-              <div className="h-6 rounded bg-background/60 border" />
-            </div>
-          ))}
-        </div>
+      <div className="h-40 rounded-lg bg-muted/50 border flex items-center justify-center text-sm text-muted-foreground">
+        Loading table preview...
       </div>
     </div>
   );

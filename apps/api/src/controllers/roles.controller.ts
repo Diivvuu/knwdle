@@ -1,6 +1,5 @@
 import { Request, Response } from 'express';
 import {
-  OrgIdParam,
   RoleIdParam,
   RoleCreateBody,
   RoleUpdateBody,
@@ -8,6 +7,11 @@ import {
 } from '../domain/roles.schema';
 import { RolesService } from '../services/roles.service';
 import { asyncHandler, badRequest, HttpError } from '../lib/https';
+import z from 'zod';
+
+const OrgIdParam = z.object({
+  id: z.string().cuid(),
+});
 
 export const RolesController = {
   listPermissions: asyncHandler(async (_req: Request, res: Response) => {
@@ -16,13 +20,14 @@ export const RolesController = {
   }),
 
   list: asyncHandler(async (req: Request, res: Response) => {
+    console.log(req.params)
     const p = OrgIdParam.safeParse(req.params);
     if (!p.success) {
       const e = badRequest('Invalid org id');
       (e as HttpError & { details?: any }).details = p.error.flatten();
       throw e;
     }
-    const roles = await RolesService.listRoles(p.data.id);
+    const roles = await RolesService.listRoles( p.data.id );
     res.json(roles);
   }),
 

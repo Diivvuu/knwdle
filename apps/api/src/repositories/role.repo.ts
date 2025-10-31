@@ -1,6 +1,7 @@
 import { prisma } from '../lib/prisma';
 import type { scopeEnum } from '../domain/roles.schema';
 import z from 'zod';
+import { Prisma } from '../generated/prisma';
 
 type Scope = z.infer<typeof scopeEnum>;
 
@@ -70,5 +71,18 @@ export const RoleRepo = {
 
   delete(roleId: string) {
     return prisma.role.delete({ where: { id: roleId } });
+  },
+  findroleById(orgId: string, roleId: string) {
+    return prisma.role.findFirst({
+      where: { id: roleId, orgId },
+      select: { id: true, parentRole: true },
+    });
+  },
+
+  txFindRoleById(tx: Prisma.TransactionClient, orgId: string, roleId: string) {
+    return tx.role.findFirst({
+      where: { id: roleId, orgId },
+      select: { id: true, parentRole: true },
+    });
   },
 };

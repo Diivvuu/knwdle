@@ -45,7 +45,6 @@ export default function RootLayout({
         className="light"
         suppressHydrationWarning
         suppressContentEditableWarning
-        style={{ colorScheme: 'light' }}
       >
         <body
           className={`${fontSans.variable} ${fontMono.variable} font-sans antialiased`}

@@ -28,4 +28,16 @@ export const OrgTypesController = {
     if (process.env.NODE_ENV !== 'production') UISchemaResponse.parse(payload);
     res.json(payload);
   },
+
+  async unitStructure(req: Request, res: Response) {
+    const p = OrgTypeParam.safeParse(req.params);
+    if (!p.success) {
+      const e = badRequest('Bad org id');
+      (e as HttpError & { details?: any }).details = p.error.flatten();
+      throw e;
+    }
+
+    const payload = OrgTypesService.getUnitStructure(p.data.type);
+    res.json(payload);
+  },
 };

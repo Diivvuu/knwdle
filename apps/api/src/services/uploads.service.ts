@@ -1,8 +1,8 @@
 import { randomUUID } from 'crypto';
-import { prisma } from '../lib/prisma';
 import { createUploadPost, createGetObjectUrl } from '../lib/s3';
 import { env } from '../lib/env';
 import { badRequest, forbidden } from '../lib/https';
+import { OrgRepo } from '../repositories/org.repo';
 
 function sanitizeFileName(name: string) {
   return name
@@ -27,10 +27,7 @@ export const UploadsService = {
     const { filename, contentType, orgId } = body;
 
     if (orgId) {
-      const membership = await prisma.orgMembership.findFirst({
-        where: { orgId, userId },
-        select: { id: true },
-      });
+      const membership = await OrgRepo.getMemberShipLite(orgId, userId);
       if (!membership) throw forbidden('Not a member of the organization');
     }
 
@@ -58,10 +55,7 @@ export const UploadsService = {
       const orgId = getOrgIdFromKey(key);
       if (!orgId) throw badRequest('Invalid key prefix');
 
-      const membership = await prisma.orgMembership.findFirst({
-        where: { orgId, userId },
-        select: { id: true },
-      });
+      const membership = await OrgRepo.getMemberShipLite(orgId, userId);
       if (!membership) throw forbidden('Forbidden');
     }
 

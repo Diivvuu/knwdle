@@ -6,8 +6,13 @@ import {
 import {
   IdParam,
   ActivityQuery,
-  BasicError,
+  UnitsGlanceResponse,
+  MembersPeekResponse,
+  AnnouncementsPeekResponse,
+  AttendanceSnapshotResponse,
+  FeesSnapshotResponse,
 } from '../domain/org.admin-dashboard.schema';
+import { BasicError } from '../domain/roles.schema';
 
 export function getOrgAdminDashboardPaths() {
   const registry = new OpenAPIRegistry();
@@ -97,6 +102,89 @@ export function getOrgAdminDashboardPaths() {
     },
   });
 
+  registry.registerPath({
+    method: 'get',
+    path: '/api/orgs/{id}/units/glance',
+    summary: 'Units at a glance (limited set with member counts)',
+    tags: ['admin-dashboard'],
+    security: [{ bearerAuth: [] }],
+    request: { params: IdParam },
+    responses: {
+      200: {
+        description: 'List of units with member counts.',
+        content: {
+          'application/json': { schema: z.array(UnitsGlanceResponse) },
+        },
+      },
+      404: {
+        description: 'Org not found',
+        content: { 'application/json': { schema: BasicError } },
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/orgs/{id}/members/peek',
+    summary: 'Recent members (peek view)',
+    tags: ['admin-dashboard'],
+    security: [{ bearerAuth: [] }],
+    request: { params: IdParam },
+    responses: {
+      200: {
+        description: 'Last few members joined',
+        content: {
+          'application/json': { schema: z.array(MembersPeekResponse) },
+        },
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/orgs/{id}/announcements/peek',
+    summary: 'Recent or pinned announcements (peek view)',
+    tags: ['admin-dashboard'],
+    security: [{ bearerAuth: [] }],
+    request: { params: IdParam },
+    responses: {
+      200: {
+        description: 'Recent announcements list',
+        content: {
+          'application/json': { schema: z.array(AnnouncementsPeekResponse) },
+        },
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/orgs/{id}/attendance/snapshot',
+    summary: 'Attendance rate snapshot',
+    tags: ['admin-dashboard'],
+    security: [{ bearerAuth: [] }],
+    request: { params: IdParam },
+    responses: {
+      200: {
+        description: 'Attendance rate and last sessions summary',
+        content: { 'application/json': { schema: AttendanceSnapshotResponse } },
+      },
+    },
+  });
+  registry.registerPath({
+    method: 'get',
+    path: '/api/orgs/{id}/fees/snapshot',
+    summary: 'Fees summary snapshot (paid, due, overdue)',
+    tags: ['admin-dashboard'],
+    security: [{ bearerAuth: [] }],
+    request: { params: IdParam },
+    responses: {
+      200: {
+        description: 'Summary of finance status',
+        content: { 'application/json': { schema: FeesSnapshotResponse } },
+      },
+    },
+  });
   const gen = new OpenApiGeneratorV3(registry.definitions);
   return gen.generateDocument({
     openapi: '3.0.0',

@@ -2,7 +2,6 @@
 
 import { Geist, Geist_Mono } from 'next/font/google';
 
-import { Providers } from '@workspace/ui/components/provider';
 import { Provider as JotaiProvider } from 'jotai';
 import AppInit from '@/providers/app-init';
 
@@ -29,9 +28,8 @@ export default function OrgScopedLayout({
         <Modals />
         <Toaster />
         <AppInit />
-        <Providers>
-          <AdminShell>{children}</AdminShell>
-        </Providers>
+
+        <AdminShell>{children}</AdminShell>
       </JotaiProvider>
     </ReduxWrapper>
   );

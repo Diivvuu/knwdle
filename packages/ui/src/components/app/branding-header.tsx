@@ -112,7 +112,7 @@ export default function BrandingHeader({
         )}
         {!coverUrl && (
           <div
-            className="absolute inset-0 grid place-items-center text-sm text-muted-foreground cursor-pointer"
+            className="absolute inset-0 grid place-items-center text-sm text-muted-foreground cursor-pointer overflow-hidden"
             role="button"
             tabIndex={0}
             aria-label="Add a cover image"

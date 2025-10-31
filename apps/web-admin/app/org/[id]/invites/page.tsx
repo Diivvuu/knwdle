@@ -33,6 +33,7 @@ import {
   Users,
 } from 'lucide-react';
 import { cn } from '@workspace/ui/lib/utils';
+import { Label } from '@workspace/ui/components/label';
 
 type InviteRow = {
   id: string;
@@ -359,7 +360,9 @@ export default function InvitesPage() {
       {/* Minimal page header: keep CTAs only */}
       <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between pt-4">
         <div>
-          <h1 className="text-2xl font-semibold tracking-tight">Invites</h1>
+          <Label className="text-2xl font-semibold tracking-tight">
+            Invites
+          </Label>
           <p className="text-sm text-muted-foreground">
             Send and manage invitations for this organisation.
           </p>

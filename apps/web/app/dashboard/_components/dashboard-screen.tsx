@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useMemo, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/store/store';
 import { fetchOrgs } from '@workspace/state';
@@ -110,6 +111,7 @@ function InviteRow({
 
 export function DashboardScreen() {
   const dispatch = useDispatch<AppDispatch>();
+  const router = useRouter();
   const { items, listStatus } = useSelector((s: RootState) => s.org);
 
   // keep your future invites wiring; just not in the main feed anymore
@@ -182,7 +184,7 @@ export function DashboardScreen() {
             </Button>
             <Button
               variant="outline"
-              onClick={() => setOpenCreate(true)}
+              onClick={() => router.push('/org/create')}
               className="gap-2"
             >
               <PlusCircle className="h-4 w-4" />
@@ -241,7 +243,7 @@ export function DashboardScreen() {
                 </Button>
                 <Button
                   variant="outline"
-                  onClick={() => setOpenCreate(true)}
+                  onClick={() => router.push('/org/create')}
                   className="gap-2"
                 >
                   <PlusCircle className="h-4 w-4" />

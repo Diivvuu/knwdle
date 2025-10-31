@@ -17,7 +17,7 @@
     "next.config.ts",
     "**/*.ts",
     "**/*.tsx",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts", "../../packages/ui/src/components/app/timezone-select.tsx", "../../packages/ui/src/components/app/country-select.tsx", "../../packages/ui/src/components/app/type-picker.tsx",
   ],
   "exclude": ["node_modules"]
 }

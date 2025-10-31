@@ -60,4 +60,44 @@ export const AdminDashboardController = {
     res.set('Cache-Control', 'private, max-age=120');
     res.json(payload);
   }),
+
+  unitsGlance: asyncHandler(async (req: Request, res: Response) => {
+    const p = IdParam.safeParse(req.params);
+    if (!p.success) throw badRequest('Bad org id');
+    const data = await OrgAdminDashboardService.unitsGlance(p.data.id);
+    res.set('Cache-Control', 'private, max-age=60');
+    res.json(data);
+  }),
+
+  membersPeek: asyncHandler(async (req: Request, res: Response) => {
+    const p = IdParam.safeParse(req.params);
+    if (!p.success) throw badRequest('Bad org id');
+    const data = await OrgAdminDashboardService.membersPeek(p.data.id);
+    res.set('Cache-Control', 'private, max-age=60');
+    res.json(data);
+  }),
+
+  announcementsPeek: asyncHandler(async (req: Request, res: Response) => {
+    const p = IdParam.safeParse(req.params);
+    if (!p.success) throw badRequest('Bad org id');
+    const data = await OrgAdminDashboardService.announcementsPeek(p.data.id);
+    res.set('Cache-Control', 'private, max-age=60');
+    res.json(data);
+  }),
+
+  attendanceSnapshot: asyncHandler(async (req: Request, res: Response) => {
+    const p = IdParam.safeParse(req.params);
+    if (!p.success) throw badRequest('Bad org id');
+    const data = await OrgAdminDashboardService.attendanceSnapshot(p.data.id);
+    res.set('Cache-Control', 'private, max-age=60');
+    res.json(data);
+  }),
+
+  feesSnapshot: asyncHandler(async (req: Request, res: Response) => {
+    const p = IdParam.safeParse(req.params);
+    if (!p.success) throw badRequest('Bad org id');
+    const data = await OrgAdminDashboardService.feesSnapshot(p.data.id);
+    res.set('Cache-Control', 'private, max-age=60');
+    res.json(data);
+  }),
 };

@@ -7,8 +7,8 @@ import {
   CreateOrgBody,
   UpdateOrgBody,
   IdParam,
-  BasicError,
 } from '../domain/org.mega-dashboard.schema';
+import { BasicError } from '../domain/roles.schema';
 
 export function getOrgMegaDashboardPaths() {
   const registry = new OpenAPIRegistry();

@@ -46,7 +46,7 @@ export default function PhoneField({
           className="w-full"
           numberInputProps={{
             className:
-              'flex-1 h-11 bg-transparent outline-none text-base md:text-sm px-2',
+              'flex-1 h-11 outline-none text-base md:text-sm px-2',
             'aria-invalid': !!error,
             'aria-describedby': error ? `${id}-err` : undefined,
           }}

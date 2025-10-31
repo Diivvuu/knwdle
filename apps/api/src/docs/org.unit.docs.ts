@@ -1,113 +1,113 @@
 import {
-  OpenApiGeneratorV3,
   OpenAPIRegistry,
+  OpenApiGeneratorV3,
 } from '@asteasolutions/zod-to-openapi';
 import {
-  CreateUnitBody,
-  ListUnitsQuery,
-  OrgIdParam,
-  SearchUnitsQuery,
   UnitIdParam,
-  UnitListResponse,
-  UnitSchema,
-  UpdateUnitBody,
+  CreateOrgUnitBody,
+  UpdateOrgUnitBody,
+  OrgUnitResponse,
+  OrgUnitListResponse,
+  OrgUnitTreeResponse,
 } from '../domain/org.unit.schema';
+import { OrgIdParam } from '../domain/org.unit-types.schema';
+import z from 'zod';
 
 export function getOrgUnitsPaths() {
-  const reg = new OpenAPIRegistry();
+  const registry = new OpenAPIRegistry();
 
-  reg.registerPath({
-    method: 'post',
-    path: '/api/orgs/{id}/units',
-    summary: 'Create an org unit (optionally under a parent)',
-    tags: ['org-units'],
-    security: [{ bearerAuth: [] }],
-    request: {
-      params: OrgIdParam,
-      body: { content: { 'application/json': { schema: CreateUnitBody } } },
-    },
-    responses: {
-      201: {
-        description: 'Created',
-        content: { 'application/json': { schema: UnitSchema } },
-      },
-    },
-  });
-
-  reg.registerPath({
+  registry.registerPath({
     method: 'get',
-    path: '/api/orgs/{id}/units',
-    summary: 'List children (or root units with parentId=null)',
+    path: '/api/orgs/{orgId}/units',
+    summary: 'List org units (flat)',
     tags: ['org-units'],
     security: [{ bearerAuth: [] }],
-    request: { params: OrgIdParam, query: ListUnitsQuery },
+    request: { params: OrgIdParam },
     responses: {
       200: {
         description: 'OK',
-        content: { 'application/json': { schema: UnitListResponse } },
+        content: { 'application/json': { schema: OrgUnitListResponse } },
       },
     },
   });
 
-  reg.registerPath({
+  registry.registerPath({
     method: 'get',
-    path: '/api/orgs/{id}/units/{unitId}',
-    summary: 'Get a single unit',
+    path: '/api/orgs/{orgId}/units/tree',
+    summary: 'Get full org unit hierarchy',
+    tags: ['org-units'],
+    security: [{ bearerAuth: [] }],
+    request: { params: OrgIdParam },
+    responses: {
+      200: {
+        description: 'OK',
+        content: { 'application/json': { schema: z.any() } },
+      },
+    },
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/api/orgs/{orgId}/units/{unitId}',
+    summary: 'Get org unit details',
     tags: ['org-units'],
     security: [{ bearerAuth: [] }],
     request: { params: UnitIdParam },
     responses: {
       200: {
         description: 'OK',
-        content: { 'application/json': { schema: UnitSchema } },
+        content: { 'application/json': { schema: OrgUnitResponse } },
       },
     },
   });
 
-  reg.registerPath({
+  registry.registerPath({
+    method: 'post',
+    path: '/api/orgs/{orgId}/units',
+    summary: 'Create new org unit',
+    tags: ['org-units'],
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: OrgIdParam,
+      body: { content: { 'application/json': { schema: CreateOrgUnitBody } } },
+    },
+    responses: {
+      201: {
+        description: 'Created',
+        content: { 'application/json': { schema: OrgUnitResponse } },
+      },
+    },
+  });
+
+  registry.registerPath({
     method: 'patch',
-    path: '/api/orgs/{id}/units/{unitId}',
-    summary: 'Update an unit (rename/meta) or move by changing parentId',
+    path: '/api/orgs/{orgId}/units/{unitId}',
+    summary: 'Update org unit',
     tags: ['org-units'],
     security: [{ bearerAuth: [] }],
     request: {
       params: UnitIdParam,
-      body: { content: { 'application/json': { schema: UpdateUnitBody } } },
+      body: { content: { 'application/json': { schema: UpdateOrgUnitBody } } },
     },
     responses: {
       200: {
-        description: 'OK',
-        content: { 'application/json': { schema: UnitSchema } },
+        description: 'Updated',
+        content: { 'application/json': { schema: OrgUnitResponse } },
       },
     },
   });
 
-  reg.registerPath({
+  registry.registerPath({
     method: 'delete',
-    path: '/api/orgs/{id}/units/{unitId}',
-    summary: 'Delete a unit (409 if has children unless ?force=true supported)',
+    path: '/api/orgs/{orgId}/units/{unitId}',
+    summary: 'Delete org unit',
     tags: ['org-units'],
     security: [{ bearerAuth: [] }],
     request: { params: UnitIdParam },
     responses: { 204: { description: 'Deleted' } },
   });
 
-  reg.registerPath({
-    method: 'get',
-    path: '/api/orgs/{id}/units/search',
-    summary: 'Search units by name/code (cursor paginated)',
-    tags: ['org-units'],
-    security: [{ bearerAuth: [] }],
-    request: { params: OrgIdParam, query: SearchUnitsQuery },
-    responses: {
-      200: {
-        description: 'OK',
-        content: { 'application/json': { schema: UnitListResponse } },
-      },
-    },
-  });
-
-  const gen = new OpenApiGeneratorV3(reg.definitions);
+  const gen = new OpenApiGeneratorV3(registry.definitions);
   return gen.generateDocument({
     openapi: '3.0.0',
     info: { title: 'Org Units API', version: '1.0.0' },

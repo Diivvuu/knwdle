@@ -1,6 +1,7 @@
 // packages/state/src/slices/orgType.ts
 import { createAsyncThunk, createSlice, PayloadAction } from '@reduxjs/toolkit';
 import { api } from '../api';
+import { create } from 'domain';
 
 export type OrgTypeId =
   | 'SCHOOL'
@@ -34,6 +35,13 @@ export interface OrgTypeState {
   schemas: Record<OrgTypeId, OrgTypeSchemaPayload | undefined>;
   schemaStatus: Record<OrgTypeId, Loading>;
   schemaError: Record<OrgTypeId, string | undefined>;
+
+  structures: Record<
+    OrgTypeId,
+    { orgType: OrgTypeId; hierarchy: Record<string, string[]> } | undefined
+  >;
+  structureStatus: Record<OrgTypeId, Loading>;
+  structureError: Record<OrgTypeId, string | undefined>;
 }
 
 const initialState: OrgTypeState = {
@@ -42,6 +50,9 @@ const initialState: OrgTypeState = {
   schemas: {},
   schemaStatus: {},
   schemaError: {},
+  structures: {},
+  structureStatus: {},
+  structureError: {},
 };
 
 /**
@@ -89,6 +100,26 @@ export const fetchOrgTypeSchema = createAsyncThunk<
       err?.response?.data?.error ||
       err?.message ||
       'Failed to load org type schema';
+    return rejectWithValue(msg) as any;
+  }
+});
+
+export const fetchOrgTypeStructure = createAsyncThunk<
+  { type: OrgTypeId; orgType: OrgTypeId; hierarchy: Record<string, string[]> },
+  { type: OrgTypeId }
+>('orgType/fetchStructure', async ({ type }, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get(`/api/org-types/${String(type)}/structure`);
+
+    const payload = {
+      type: (data?.type ?? type) as OrgTypeId,
+      orgType: (data?.orgType ?? type) as OrgTypeId,
+      hierarchy: data?.hierarchy ?? {},
+    };
+
+    return payload;
+  } catch (error: any) {
+    const msg = error?.response?.data?.error || error?.message;
     return rejectWithValue(msg) as any;
   }
 });
@@ -141,6 +172,26 @@ const orgTypeSlice = createSlice({
       s.schemaStatus[t] = 'failed';
       s.schemaError[t] = (a.payload as string) || a.error.message;
     });
+
+    // structure
+    b.addCase(fetchOrgTypeStructure.pending, (s, a) => {
+      const t = a.meta.arg.type;
+      s.structureStatus[t] = 'loading';
+      s.structureError[t] = undefined;
+    });
+    b.addCase(fetchOrgTypeStructure.fulfilled, (s, a) => {
+      const { type } = a.payload;
+      s.structureStatus[type] = 'succeeded';
+      s.structures[type] = {
+        orgType: a.payload.orgType,
+        hierarchy: a.payload.hierarchy,
+      };
+    });
+    b.addCase(fetchOrgTypeStructure.rejected, (s, a) => {
+      const t = (a.meta.arg as { type: OrgTypeId }).type;
+      s.structureStatus[t] = 'failed';
+      s.structureError[t] = (a.payload as string) || a.error.message;
+    });
   },
 });
 
@@ -161,3 +212,7 @@ export const selectOrgTypeSchemaStatus = (type: OrgTypeId) => (state: any) =>
 
 export const selectOrgTypeSchemaError = (type: OrgTypeId) => (state: any) =>
   state.orgType.schemaError?.[type];
+
+export const selectOrgTypesStructure = (type: OrgTypeId) => (state: any) => {
+  state.orgType.structures?.[type];
+};

@@ -11,7 +11,6 @@ import {
   JoinCodeBody,
   InviteListResponse,
   InviteSchema,
-  BasicError,
   AcceptInviteResponse,
 } from '../domain/invite.schema';
 import {
@@ -20,8 +19,9 @@ import {
   BulkInviteKickoffResponse,
   BulkInviteStatusResponse,
   OrgBatchParams,
-  OrgIdParam,
 } from '../domain/bulk-invite.schema';
+import { BasicError } from '../domain/roles.schema';
+import { OrgIdParam } from '../domain/org.unit-types.schema';
 
 export function getInviteOpenApiPaths() {
   const registry = new OpenAPIRegistry();

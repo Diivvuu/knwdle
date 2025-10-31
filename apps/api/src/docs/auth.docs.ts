@@ -16,6 +16,7 @@ import {
   VerifyEmailResponse,
   RefreshResponse,
 } from '../domain/auth.schema';
+import { InvitePreviewSchema } from '../domain/invite.schema';
 
 export function getAuthOpenApiPaths() {
   const registry = new OpenAPIRegistry();
@@ -181,6 +182,33 @@ export function getAuthOpenApiPaths() {
     },
     tags: ['auth'],
     security: [{ bearerAuth: [] }],
+  });
+
+  registry.registerPath({
+    method: 'get',
+    path: '/auth/invites/{token}/preview',
+    summary: 'Preview an invite before accepting',
+    tags: ['auth'],
+    security: [{ bearerAuth: [] }],
+    request: {
+      params: z.object({
+        token: z.string().describe('Unique invite token'),
+      }),
+    },
+    responses: {
+      200: {
+        description: 'Invite preview data',
+        content: { 'application/json': { schema: InvitePreviewSchema } },
+      },
+      404: {
+        description: 'Invite not found',
+        content: { 'application/json': { schema: AuthError } },
+      },
+      410: {
+        description: 'Invite expired',
+        content: { 'application/json': { schema: AuthError } },
+      },
+    },
   });
 
   const generator = new OpenApiGeneratorV3(registry.definitions);

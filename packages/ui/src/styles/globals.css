@@ -17,99 +17,99 @@
    Fresh, Professional, Energetic
    ========================= */
 :root {
-  /* ---------- Foundations (Light) ---------- */
-  --background: #fafaf8; /* warm soft white */
-  --foreground: #121316; /* near-black for strong readability */
+  /* ---------- Foundations (Light, Crayon Pastel) ---------- */
+  --background: #FFF9EF; /* warmer paper-like tone */
+  --foreground: #2D2D2D; /* dark graphite for cozy contrast */
 
-  --card: #ffffff;
-  --card-foreground: #121316;
+  --card: #FFF9F1;
+  --card-foreground: #2D2D2D;
 
-  --popover: #ffffff;
-  --popover-foreground: #121316;
+  --popover: #FFF9F1;
+  --popover-foreground: #2D2D2D;
 
-  --border: #e7e5ef; /* soft lavender-gray */
-  --input: #f5f3ff;  /* faint violet surface */
-  --ring: #a78bfa;   /* violet-300 focus */
+  --border: #D9D4C5; /* stronger separation, warm sand */
+  --input: #FAF4E7;  /* improved creamy surface */
+  --ring: #90CAF9;   /* pastel blue focus (unchanged) */
 
-  /* ---------- Brand Colors (Sorbet Pop) ---------- */
-  --primary: #78489d;              /* violet-600 */
-  --primary-foreground: #ffffff;
+  /* ---------- Brand Colors (Crayon Pastel) ---------- */
+  --primary: #6FB6E9;              /* deeper sky blue */
+  --primary-foreground: #2D2D2D;
 
-  --secondary: #ff7e33;            /* mango 500/600 hybrid */
-  --secondary-foreground: #1a0b02;
+  --secondary: #FFB961;            /* deeper peachy-orange */
+  --secondary-foreground: #2D2D2D;
 
-  --accent: #06d6a0;               /* mint / aquamarine */
-  --accent-foreground: #032c22;
+  --accent: #93D2A2;               /* deeper minty green */
+  --accent-foreground: #2D2D2D;
 
-  /* Support tints for playful UI */
-  --pink: #ff4d8d;     /* raspberry */
-  --lime: #16a34a;     /* green-600 */
-  --purple: #8b5cf6;   /* violet-500 */
-  --yellow: #facc15;   /* amber-300 */
-  --teal: #14b8a6;     /* teal-500 */
+  /* Support tints for playful UI (crayon pastels) */
+  --pink: #F8BBD0;     /* gentle pastel pink */
+  --lime: #D4E157;     /* grassy crayon lime */
+  --purple: #CE93D8;   /* lilac pastel */
+  --yellow: #FFF59D;   /* creamy yellow */
+  --teal: #80DEEA;     /* soft pastel teal */
 
-  /* ---------- Gradients ---------- */
-  --grad-primary: linear-gradient(135deg, #7c3aed 0%, #a78bfa 100%);
-  --grad-secondary: linear-gradient(135deg, #ff7e33 0%, #ffb86b 100%);
-  --grad-accent: linear-gradient(135deg, #06d6a0 0%, #9ef7df 100%);
-  --grad-candy: linear-gradient(135deg, #7c3aed 0%, #06d6a0 50%, #ff4d8d 100%);
+  /* ---------- Gradients (Livelier Pastel Blends) ---------- */
+  --grad-primary: linear-gradient(135deg, #6FB6E9 0%, #A6D3F2 100%);
+  --grad-secondary: linear-gradient(135deg, #FFB961 0%, #FFE39C 100%);
+  --grad-accent: linear-gradient(135deg, #93D2A2 0%, #7CD8C0 100%);
+  --grad-candy: linear-gradient(135deg, #F8BBD0 0%, #93D2A2 50%, #6FB6E9 100%);
 
   /* ---------- Neutrals ---------- */
-  --muted: #f4f2fb; /* soft lilac */
-  --muted-foreground: #646178; /* desaturated slate-violet */
+  --muted: #F5EFE3; /* softer, higher contrast muted surface */
+  --muted-foreground: #8A8A8A; /* soft graphite */
 
-  --destructive: #ef4444;
-  --destructive-foreground: #ffffff;
+  --destructive: #EF9A9A; /* gentle crayon red */
+  --destructive-foreground: #2D2D2D;
 
   /* ---------- Status Colors ---------- */
-  --success: #16a34a;
-  --success-foreground: #ffffff;
+  --success: #93D2A2;
+  --success-foreground: #2D2D2D;
 
-  --warning: #f59e0b;
-  --warning-foreground: #1f1300;
+  --warning: #FFE082;
+  --warning-foreground: #2D2D2D;
 
-  --info: #0ea5e9;
-  --info-foreground: #ffffff;
+  --info: #81D4FA;
+  --info-foreground: #2D2D2D;
 
   /* ---------- Educational Context Colors ---------- */
-  --attendance-present: #16a34a;
-  --attendance-absent: #ef4444;
-  --attendance-late: #f59e0b;
+  --attendance-present: #93D2A2;
+  --attendance-absent: #EF9A9A;
+  --attendance-late: #FFE082;
 
-  --fee-paid: #16a34a;
-  --fee-pending: #f59e0b;
-  --fee-overdue: #ef4444;
+  --fee-paid: #93D2A2;
+  --fee-pending: #FFE082;
+  --fee-overdue: #EF9A9A;
 
-  --performance-excellent: #16a34a;
-  --performance-good: #7c3aed;
-  --performance-needs-improvement: #f59e0b;
-  --performance-poor: #ef4444;
+  --performance-excellent: #93D2A2;
+  --performance-good: #6FB6E9;
+  --performance-needs-improvement: #FFE082;
+  --performance-poor: #EF9A9A;
 
   /* ---------- Charts ---------- */
-  --chart-1: #7c3aed;  /* violet */
-  --chart-2: #ff7e33;  /* mango */
-  --chart-3: #06d6a0;  /* mint */
-  --chart-4: #0ea5e9;  /* sky */
-  --chart-5: #ef5da8;  /* pink */
+  --chart-1: #6FB6E9;  /* sky blue */
+  --chart-2: #FFB961;  /* peachy orange */
+  --chart-3: #93D2A2;  /* minty green */
+  --chart-4: #CE93D8;  /* lilac */
+  --chart-5: #F8BBD0;  /* pink */
 
   --radius: 12px;
 
   /* ---------- Sidebar ---------- */
-  --sidebar: #ffffff;
-  --sidebar-foreground: #121316;
-  --sidebar-primary: #7c3aed;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: #f5f3ff;
-  --sidebar-accent-foreground: #121316;
-  --sidebar-border: #e7e5ef;
-  --sidebar-ring: #a78bfa;
+  --sidebar: #FFF9F1;
+  --sidebar-foreground: #2D2D2D;
+  --sidebar-primary: #6FB6E9;
+  --sidebar-primary-foreground: #2D2D2D;
+  --sidebar-accent: #F5EFE3;
+  --sidebar-accent-foreground: #2D2D2D;
+  --sidebar-border: #D9D4C5;
+  --sidebar-ring: #6FB6E9;
 
-  /* ---------- AI Assistant (Violet Glow) ---------- */
-  --ai-primary: #7c3aed;
-  --ai-secondary: #a78bfa;
-  --ai-accent: #06d6a0;
-  --ai-background: #f5f3ff;
-  --ai-glow: rgba(124, 58, 237, 0.14);
+  /* ---------- AI Assistant (Pastel Glow) ---------- */
+  --ai-primary: #6FB6E9;
+  --ai-secondary: #CE93D8;
+  --ai-accent: #93D2A2;
+  --ai-background: #F5EFE3;
+  --ai-glow: rgba(144, 202, 249, 0.13);
 }
 
 /* =========================
@@ -117,97 +117,97 @@
    Deep, Comfortable, Immersive
    ========================= */
 .dark {
-  /* ---------- Foundations (Dark) ---------- */
-  --background: #161a34;    /* softened indigo-night for better readability */
-  --foreground: #f4f6ff;    /* brighter cool white for higher contrast */
+  /* ---------- Foundations (Dark, Chalkboard Pastel) ---------- */
+  --background: #1B1B1B;    /* deeper, true blackboard */
+  --foreground: #F5F5F5;    /* chalk white */
 
-  --card: #1b1f3d;          /* slightly lighter surface */
-  --card-foreground: #f4f6ff;
+  --card: #242424;          /* slightly lighter blackboard */
+  --card-foreground: #F5F5F5;
 
-  --popover: #1b1f3d;
-  --popover-foreground: #f4f6ff;
+  --popover: #242424;
+  --popover-foreground: #F5F5F5;
 
-  --border: #3b4062;        /* clearer separation lines (lighter) */
-  --input: #232852;         /* brighter input for easier findability */
-  --ring: #cabdff;          /* slightly brighter focus ring */
+  --border: #353535;        /* chalky gray */
+  --input: #242424;         /* match card */
+  --ring: #81D4FA;          /* pastel blue ring (unchanged for glow) */
 
-  /* ---------- Brand Colors (Dark) ---------- */
-  --primary: #cabdff;        /* clearer violet for better contrast */
-  --primary-foreground: #0e0f17;
+  /* ---------- Brand Colors (Chalk Pastel) ---------- */
+  --primary: #81D4FA;        /* soft chalky blue */
+  --primary-foreground: #1B1B1B;
 
-  --secondary: #ffc58b;      /* slightly brighter mango for affordances */
-  --secondary-foreground: #22150c;
+  --secondary: #FFB74D;      /* pastel orange chalk */
+  --secondary-foreground: #1B1B1B;
 
-  --accent: #4be6c5;         /* mint pop toned for legibility */
-  --accent-foreground: #08241e;
+  --accent: #81C784;         /* minty green chalk */
+  --accent-foreground: #1B1B1B;
 
-  /* Playful extras (dark mode) */
-  --pink: #ff94c6;
-  --lime: #31dc74;
-  --purple: #cabdff;
-  --yellow: #ffe49a;
-  --teal: #56e9d6;
+  /* Playful extras (chalk pastels) */
+  --pink: #F48FB1;
+  --lime: #DCE775;
+  --purple: #B39DDB;
+  --yellow: #FFF176;
+  --teal: #4DD0E1;
 
-  /* ---------- Gradients (Dark) ---------- */
-  --grad-primary: linear-gradient(135deg, #cabdff 0%, #b4a8ff 100%);
-  --grad-secondary: linear-gradient(135deg, #ffc58b 0%, #ffdcb0 100%);
-  --grad-accent: linear-gradient(135deg, #4be6c5 0%, #b9ffea 100%);
-  --grad-candy: linear-gradient(135deg, #cabdff 0%, #4be6c5 50%, #ff94c6 100%);
+  /* ---------- Gradients (Soft Chalk Blends) ---------- */
+  --grad-primary: linear-gradient(135deg, #81D4FA 0%, #B39DDB 100%);
+  --grad-secondary: linear-gradient(135deg, #FFB74D 0%, #FFF176 100%);
+  --grad-accent: linear-gradient(135deg, #81C784 0%, #4DD0E1 100%);
+  --grad-candy: linear-gradient(135deg, #F48FB1 0%, #81C784 50%, #81D4FA 100%);
 
   /* ---------- Neutrals ---------- */
-  --muted: #1a1e3a;              /* lighter panels on dark bg */
-  --muted-foreground: #c6c9e6;   /* brighter muted text */
+  --muted: #2B2B2B;              /* more contrast muted panel */
+  --muted-foreground: #B0B0B0;   /* chalk gray */
 
-  --destructive: #f87171;
-  --destructive-foreground: #1b0a0a;
+  --destructive: #E57373;
+  --destructive-foreground: #1B1B1B;
 
   /* ---------- Status Colors ---------- */
-  --success: #22c55e;
-  --success-foreground: #07150c;
+  --success: #81C784;
+  --success-foreground: #1B1B1B;
 
-  --warning: #fbbf24;
-  --warning-foreground: #1f1600;
+  --warning: #FFF176;
+  --warning-foreground: #1B1B1B;
 
-  --info: #92c2ff;               /* brighter sky for contrast */
-  --info-foreground: #0b1a29;
+  --info: #81D4FA;
+  --info-foreground: #1B1B1B;
 
   /* ---------- Educational Context Colors ---------- */
-  --attendance-present: #22c55e;
-  --attendance-absent: #f87171;
-  --attendance-late: #fbbf24;
+  --attendance-present: #81C784;
+  --attendance-absent: #E57373;
+  --attendance-late: #FFF176;
 
-  --fee-paid: #22c55e;
-  --fee-pending: #fbbf24;
-  --fee-overdue: #f87171;
+  --fee-paid: #81C784;
+  --fee-pending: #FFF176;
+  --fee-overdue: #E57373;
 
-  --performance-excellent: #22c55e;
-  --performance-good: #cabdff;
-  --performance-needs-improvement: #fbbf24;
-  --performance-poor: #f87171;
+  --performance-excellent: #81C784;
+  --performance-good: #81D4FA;
+  --performance-needs-improvement: #FFF176;
+  --performance-poor: #E57373;
 
   /* ---------- Charts ---------- */
-  --chart-1: #cabdff;  /* violet */
-  --chart-2: #ffc58b;  /* mango */
-  --chart-3: #4be6c5;  /* mint */
-  --chart-4: #92c2ff;  /* sky */
-  --chart-5: #ff94c6;  /* pink */
+  --chart-1: #81D4FA;  /* blue */
+  --chart-2: #FFB74D;  /* orange */
+  --chart-3: #81C784;  /* green */
+  --chart-4: #B39DDB;  /* lilac */
+  --chart-5: #F48FB1;  /* pink */
 
   /* ---------- Sidebar ---------- */
-  --sidebar: #16193a;
-  --sidebar-foreground: #f2f4ff;
-  --sidebar-primary: #cabdff;
-  --sidebar-primary-foreground: #0e0f17;
-  --sidebar-accent: #1d2146;
-  --sidebar-accent-foreground: #e8ebff;
-  --sidebar-border: #3a3e62;
-  --sidebar-ring: #cabdff;
+  --sidebar: #1B1B1B;
+  --sidebar-foreground: #F5F5F5;
+  --sidebar-primary: #81D4FA;
+  --sidebar-primary-foreground: #1B1B1B;
+  --sidebar-accent: #242424;
+  --sidebar-accent-foreground: #F5F5F5;
+  --sidebar-border: #353535;
+  --sidebar-ring: #81D4FA;
 
-  /* ---------- AI Assistant (Dark) ---------- */
-  --ai-primary: #cabdff;
-  --ai-secondary: #d9d1ff;
-  --ai-accent: #4be6c5;
-  --ai-background: #14173a;
-  --ai-glow: rgba(202, 189, 255, 0.22); /* a touch brighter glow */
+  /* ---------- AI Assistant (Chalk Glow) ---------- */
+  --ai-primary: #81D4FA;
+  --ai-secondary: #B39DDB;
+  --ai-accent: #81C784;
+  --ai-background: #242424;
+  --ai-glow: rgba(129, 212, 250, 0.22);
 }
 
 /* =========================

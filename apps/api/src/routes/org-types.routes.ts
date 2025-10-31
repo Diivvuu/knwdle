@@ -8,11 +8,17 @@ const r = Router();
 // GET /api/org-types (public)
 r.get('/org-types', asyncHandler(OrgTypesController.list));
 
-// GET /api/org-types/:type/schema (auth)
+// GET schema of an org type
 r.get(
   '/org-types/:type/schema',
   requireAuth,
   asyncHandler(OrgTypesController.uiSchema)
+);
+// GET unit structure of org type
+r.get(
+  '/org-types/:type/structure',
+  requireAuth,
+  asyncHandler(OrgTypesController.unitStructure)
 );
 
 export default r;

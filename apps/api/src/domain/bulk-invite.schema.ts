@@ -44,5 +44,4 @@ export const BulkInviteStatusResponse = z.object({
   skipped: z.number().int().nullable().optional(),
 });
 
-export const OrgIdParam = z.object({ id: z.string() });
 export const OrgBatchParams = z.object({ id: z.string(), batchId: z.string() });

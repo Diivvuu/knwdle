@@ -2,12 +2,13 @@
 import crypto from 'crypto';
 import { z } from 'zod';
 import { ParentRole } from '../generated/prisma';
-import { prisma } from '../lib/prisma';
 import { MailTemplates } from '../lib/mail-templates';
 import { sendBulkWithProgress, wrapHtml } from '../lib/mailer';
-import { badRequest, notFound } from '../lib/https';
+import { notFound } from '../lib/https';
 import { ssePush } from '../lib/sse';
 import { BulkInviteItem } from '../domain/bulk-invite.schema';
+import { InviteRepo } from '../repositories/invite.repo';
+import { RoleRepo } from '../repositories/role.repo';
 
 const AUTH_ORIGIN = process.env.AUTH_ORIGIN!;
 if (!AUTH_ORIGIN) throw new Error('AUTH_ORIGIN not configured');
@@ -39,12 +40,10 @@ export const BulkInvitesService = {
     const unique = Array.from(new Map(body.map((i) => [asKey(i), i])).values());
     const total = unique.length;
 
-    const batch = await prisma.inviteBatch.create({
-      data: {
-        orgId,
-        total,
-        status: dryRun ? 'done' : sendEmail ? 'queued' : 'done',
-      },
+    const batch = await InviteRepo.createBatch({
+      orgId,
+      total,
+      status: dryRun ? 'done' : sendEmail ? 'queued' : 'done',
     });
 
     if (dryRun) {
@@ -66,20 +65,9 @@ export const BulkInvitesService = {
       [];
     let skipped = 0;
 
-    await prisma.$transaction(async (tx) => {
+    await InviteRepo.withTransaction(async (tx) => {
       for (const i of unique) {
-        const exists = await tx.invite.findFirst({
-          where: {
-            orgId,
-            email: i.email.toLowerCase(),
-            unitId: i.unitId ?? null,
-            acceptedBy: null,
-            expiresAt: { gt: new Date() },
-            role: i.role ?? undefined,
-            roleId: i.roleId ?? undefined,
-          },
-          select: { id: true },
-        });
+        const exists = await InviteRepo.txFindDuplicateInvite(tx, orgId, i);
         if (exists) {
           skipped++;
           continue;
@@ -89,10 +77,7 @@ export const BulkInvitesService = {
         let parentRole: ParentRole = i.role ?? ParentRole.staff;
 
         if (i.roleId) {
-          const role = await tx.role.findFirst({
-            where: { id: i.roleId, orgId },
-            select: { id: true, parentRole: true },
-          });
+          const role = await RoleRepo.txFindRoleById(tx, orgId, i.roleId);
           if (!role) {
             skipped++;
             continue;
@@ -101,19 +86,16 @@ export const BulkInvitesService = {
           parentRole = role.parentRole;
         }
 
-        const inv = await tx.invite.create({
-          data: {
-            orgId,
-            email: i.email.toLowerCase(),
-            role: parentRole,
-            roleId,
-            unitId: i.unitId,
-            token: token(),
-            joinCode: joinCode(),
-            expiresAt,
-            meta: i.meta,
-          },
-          select: { email: true, token: true, joinCode: true },
+        const inv = await InviteRepo.txCreateInvite(tx, {
+          orgId,
+          email: i.email.toLowerCase(),
+          role: parentRole,
+          roleId,
+          unitId: i.unitId,
+          token: token(),
+          joinCode: joinCode(),
+          expiresAt,
+          meta: i.meta,
         });
         created.push({
           email: inv.email,
@@ -122,18 +104,17 @@ export const BulkInvitesService = {
         });
       }
 
-      await tx.inviteBatch.update({
-        where: { id: batch.id },
-        data: { status: sendEmail ? 'running' : 'done', skipped },
-      });
+      await InviteRepo.txUpdateBatchStatus(
+        tx,
+        batch.id,
+        sendEmail ? 'running' : 'done',
+        skipped
+      );
     });
 
     // if not sending email, we are done
     if (!sendEmail || created.length === 0) {
-      await prisma.inviteBatch.update({
-        where: { id: batch.id },
-        data: { status: 'done' },
-      });
+      await InviteRepo.updateBatch(batch.id, { status: 'done' });
       ssePush(batch.id, 'done', { total, sent: 0, failed: 0, skipped });
       return { batchId: batch.id, total, status: 'done' } as const;
     }
@@ -164,15 +145,17 @@ export const BulkInvitesService = {
           },
         });
 
-        await prisma.inviteBatch.update({
-          where: { id: batch.id },
-          data: { status: 'done', sent, failed },
+        await InviteRepo.updateBatch(batch.id, {
+          status: 'done',
+          sent,
+          failed,
         });
         ssePush(batch.id, 'done', { total, sent, failed, skipped });
       } catch (e: any) {
-        await prisma.inviteBatch.update({
-          where: { id: batch.id },
-          data: { status: 'error', sent, failed },
+        await InviteRepo.updateBatch(batch.id, {
+          status: 'error',
+          sent,
+          failed,
         });
         ssePush(batch.id, 'error', {
           total,
@@ -188,9 +171,7 @@ export const BulkInvitesService = {
   },
 
   async batchStatus(batchId: string) {
-    const batch = await prisma.inviteBatch.findUnique({
-      where: { id: batchId },
-    });
+    const batch = await InviteRepo.findBatchById(batchId);
     if (!batch) throw notFound('Batch not found');
     return {
       status: batch.status,

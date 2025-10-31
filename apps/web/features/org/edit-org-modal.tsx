@@ -34,8 +34,8 @@ import {
   type Country,
 } from 'react-phone-number-input';
 import { Label } from '@workspace/ui/components/label';
-import CountrySelect from '@/_components/country-select';
-import TimezoneSelect from '@/_components/timezone-select';
+import CountrySelect from '@workspace/ui/components/app/country-select';
+import TimezoneSelect from '@workspace/ui/components/app/timezone-select';
 import { Separator } from '@workspace/ui/components/separator';
 import PhoneField from '@/_components/phone-field';
 import BrandingHeader from '@workspace/ui/components/app/branding-header';
@@ -322,12 +322,19 @@ const EditOrgModal = () => {
   };
 
   useEffect(() => {
+    if (!open) return;
+
+    // Rebuild defaults whenever org changes or modal opens
     const v = getDefaults(org);
     setValues(v);
     setBusinessAddr(getInitialBusinessAddress(org, v.address));
     setErrors({});
     setDirty(false);
-  }, [org, open]);
+    setTempLogoPreview(org?.logoUrl ?? null);
+    setTempCoverPreview(org?.coverUrl ?? null);
+    setLogoUploadId(null);
+    setCoverUploadId(null);
+  }, [open, org?.id]);
 
   // Seed previews from the server once we have the org (presigned URLs).
   useEffect(() => {

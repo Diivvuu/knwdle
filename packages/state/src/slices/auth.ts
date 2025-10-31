@@ -6,7 +6,7 @@ import {
   reviveAuthClient,
   setAuthToken,
 } from '../api';
-import { ParentRole } from './org.dashboard';
+import { ParentRole } from './roles';
 
 export interface MemberShipSummary {
   org: { id: string; name: string; type: string };
@@ -132,10 +132,27 @@ export const refreshSession = createAsyncThunk(
 
 export const fetchInvitePreview = createAsyncThunk<
   InvitePreview,
-  { token: string }
->('auth/fetchInvitePreview', async ({ token }) => {
-  const { data } = await api.get(`/auth/invites/${token}/preview`);
-  return data as InvitePreview;
+  { token: string },
+  { rejectValue: string }
+>('auth/fetchInvitePreview', async ({ token }, { rejectWithValue }) => {
+  try {
+    const { data } = await api.get(`/auth/invites/${token}/preview`);
+    return data as InvitePreview;
+  } catch (err: any) {
+    const status = err.response?.status;
+    const message =
+      err.response?.data?.error ||
+      err.response?.data?.message ||
+      err.message ||
+      'Failed to load invite';
+
+    // ✅ Preserve 403 forbidden message for frontend display
+    if (status === 403) {
+      return rejectWithValue(message || 'This invite is for another email');
+    }
+
+    return rejectWithValue(message);
+  }
 });
 
 export const acceptInviteByToken = createAsyncThunk<
@@ -267,8 +284,9 @@ const authSlice = createSlice({
       ((s.invite.previewStatus = 'succeeded'), (s.invite.preview = a.payload));
     });
     b.addCase(fetchInvitePreview.rejected, (s, a) => {
-      ((s.invite.previewStatus = 'failed'),
-        (s.invite.previewError = a.error.message || 'Failed to load invite'));
+      s.invite.previewStatus = 'failed';
+      s.invite.previewError =
+        (a.payload as string) || a.error.message || 'Failed to load invite';
       s.invite.preview = null;
     });
 

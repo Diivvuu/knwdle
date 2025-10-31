@@ -37,6 +37,8 @@ import {
   AvatarFallback,
   AvatarImage,
 } from '@workspace/ui/components/avatar';
+import { Label } from '@workspace/ui/components/label';
+import Image from 'next/image';
 
 const NAV = [
   { label: 'Dashboard', href: 'dashboard', icon: LayoutDashboard },
@@ -168,8 +170,22 @@ export default function AdminShell({
                     <Building2 className="h-4 w-4 text-primary" />
                   </div>
                   {!collapsed && (
-                    <span className="font-semibold tracking-tight">
-                      Knwdle Admin
+                    <span className="relative block h-16 w-16 md:h-20 md:w-20">
+                      {/* Light mode logo */}
+                      <Image
+                        src="/knwdle-light.svg"
+                        alt="Knwdle"
+                        fill
+                        priority
+                        className="object-contain dark:hidden"
+                      />
+                      {/* Dark mode logo */}
+                      <Image
+                        src="/knwdle-dark.svg"
+                        alt="Knwdle"
+                        fill
+                        className="object-contain hidden dark:block"
+                      />
                     </span>
                   )}
                 </Link>
@@ -230,7 +246,11 @@ export default function AdminShell({
                       <li key={item.href}>
                         <Tooltip>
                           <TooltipTrigger asChild>
-                            <Link href={item.href}>{content}</Link>
+                            <Label>
+                              <Link href={item.href} className="w-full">
+                                {content}
+                              </Link>
+                            </Label>
                           </TooltipTrigger>
                           {collapsed && (
                             <TooltipContent side="right">

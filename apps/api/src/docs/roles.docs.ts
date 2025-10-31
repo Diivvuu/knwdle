@@ -4,13 +4,13 @@ import {
   OpenApiGeneratorV3,
 } from '@asteasolutions/zod-to-openapi';
 import {
-  OrgIdParam,
   RoleIdParam,
   RoleCreateBody,
   RoleUpdateBody,
   AssignRoleBody,
   BasicError,
 } from '../domain/roles.schema';
+import { OrgIdParam } from '../domain/org.unit-types.schema';
 
 export function getRolesPaths() {
   const registry = new OpenAPIRegistry();

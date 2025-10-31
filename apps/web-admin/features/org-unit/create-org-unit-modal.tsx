@@ -4,10 +4,26 @@ import * as React from 'react';
 import { useEffect, useMemo, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/store/store';
-import { useCreateUnitModal } from './use-org-unit-atom';
+import { useParams } from 'next/navigation';
 
-import { Input } from '@workspace/ui/components/input';
+// state (slices)
+import {
+  fetchOrgUnits,
+  createOrgUnit,
+  fetchOrgTree,
+} from '@workspace/state'; // orgUnits thunks
+import {
+  fetchOrgUnitSchema,
+  fetchOrgUnitFeatures,
+  fetchAllowedChildTypes,
+  selectAllowedChildTypes,
+  selectAllowedStatus,
+} from '@workspace/state'; // orgUnitTypes thunks + selectors
+import type { OrgUnitType } from '@workspace/state';
+
+// ui
 import { Button } from '@workspace/ui/components/button';
+import { Input } from '@workspace/ui/components/input';
 import {
   Modal,
   ModalContent,
@@ -24,203 +40,177 @@ import {
   SelectValue,
 } from '@workspace/ui/components/select';
 import { Label } from '@workspace/ui/components/label';
-import { Switch } from '@workspace/ui/components/switch';
-import { Textarea } from '@workspace/ui/components/textarea';
-import { cn } from '@workspace/ui/lib/utils';
-import { Loader2, Undo2 } from 'lucide-react';
+import { Badge } from '@workspace/ui/components/badge';
+import { Separator } from '@workspace/ui/components/separator';
+import { Loader2, Check, Minus } from 'lucide-react';
 
-// slices
-import {
-  fetchOrgUnits,
-  fetchOrgUnitsTree,
-  createOrgUnit,
-} from '@workspace/state';
-import { fetchOrgUnitTypes, fetchOrgUnitSchema } from '@workspace/state';
+// dynamic schema renderer
+import SchemaFields from '@workspace/ui/components/app/schema-fields';
 
-/* -------------------------- JSON Schema (simple) -------------------------- */
+// modal atom
+import { useCreateUnitModal } from './use-org-unit-atom';
+
+/* ----------------------------- Local types ----------------------------- */
+
 type JSONSchema = {
-  type?: string;
+  type: 'object';
   title?: string;
-  description?: string;
-  enum?: string[];
-  properties?: Record<string, JSONSchema>;
-  items?: JSONSchema;
-  required?: string[];
-  default?: any;
-  format?: string;
-  pattern?: string;
-  minimum?: number;
-  maximum?: number;
-  [k: string]: any;
+  properties?: Record<string, any>;
 };
 
-type Errors = Record<string, string | undefined>;
+type FeatureKey =
+  | 'attendance'
+  | 'assignments'
+  | 'tests'
+  | 'notes'
+  | 'fees'
+  | 'announcements'
+  | 'content'
+  | 'liveClass'
+  | 'interactions';
 
-export default function AddUnitModal() {
+type FeatureFlags = Record<FeatureKey, boolean>;
+
+/* ------------------------------- Component ------------------------------- */
+
+export default function CreateOrgUnitModal() {
   const dispatch = useDispatch<AppDispatch>();
-  const [createState, setCreateState] = useCreateUnitModal(); // { orgId, parentId?, presetType? } | null
+  const params = useParams();
+  const orgId = (params as any)?.id as string;
 
-  const open = Boolean(createState);
-  const orgId = createState?.orgId ?? '';
+  // ---- global state reads
+  const units = useSelector((s: RootState) => s.orgUnit.list); // ✅ correct slice key
 
-  const orgUnitTypes = useSelector((s: RootState) => s.orgUnitTypes);
-  const types = orgUnitTypes.types;
-  const typesStatus = orgUnitTypes.typesStatus;
-  const schemaByType = orgUnitTypes.schemaByType;
-  const schemaStatus = orgUnitTypes.schemaStatus;
+  // parent candidates: all units in this org
+  const orgUnitsForOrg = useMemo(
+    () => (units || []).filter((u) => u.orgId === orgId),
+    [units, orgId]
+  );
 
-  const unitsState = useSelector((s: RootState) => s.orgUnit.unitsByOrg[orgId]);
-
+  // --- local form state
+  const [open, setOpen] = useCreateUnitModal();
   const [name, setName] = useState('');
-  const [code, setCode] = useState('');
+  const [type, setType] = useState<OrgUnitType | ''>('');
   const [parentId, setParentId] = useState<string | null>(null);
-  const [type, setType] = useState<string>('');
   const [meta, setMeta] = useState<Record<string, any>>({});
-  const [errors, setErrors] = useState<Errors>({});
   const [submitting, setSubmitting] = useState(false);
 
-  // bootstrap
+  // derived: parent type (for allowed children API + label)
+  const parentType: OrgUnitType =
+    (orgUnitsForOrg.find((u) => u.id === parentId)?.type as OrgUnitType) ||
+    ('ORGANISATION' as OrgUnitType);
+
+  // --- allowed child types state (curried selector usage)
+  const allowedStatus = useSelector(selectAllowedStatus);
+  const allowedTypes = useSelector(selectAllowedChildTypes(parentType));
+
+  // schema/features state
+  const schemaStatus = useSelector((s: RootState) => s.orgUnitTypes.schemaStatus);
+  const featuresByType = useSelector(
+    (s: RootState) => s.orgUnitTypes.featuresByType
+  ) as Partial<Record<OrgUnitType, FeatureFlags>>;
+  const loadingSchema = schemaStatus === 'loading';
+  const loadingTypes = allowedStatus === 'loading';
+
+  // active schema definition for selected type
+  const def: JSONSchema | undefined = useSelector((s: RootState) =>
+    type ? s.orgUnitTypes.schemaByType?.[type]?.definition : undefined
+  ) as any;
+
+  // feature preview for selected type
+  const featurePreview: FeatureFlags | null = type
+    ? (featuresByType[type] as FeatureFlags) || null
+    : null;
+
+  /* ------------------------------ Bootstrap ------------------------------ */
   useEffect(() => {
     if (!open || !orgId) return;
+
     dispatch(fetchOrgUnits(orgId));
-    dispatch(fetchOrgUnitTypes());
+    // initial allowed types for root-level (parentType = null)
+    dispatch(fetchAllowedChildTypes({ orgId, parentType: null }));
   }, [open, orgId, dispatch]);
 
-  // preset parent/type from opener payload
+  // fetch allowed child types whenever parent selection changes
   useEffect(() => {
-    if (!open) return;
-    if (createState?.parentId) setParentId(createState.parentId);
-    if (createState?.presetType) setType(createState.presetType);
-  }, [open, createState?.parentId, createState?.presetType]);
+    if (!open || !orgId) return;
+    // reset invalid type choice on parent change
+    setType('');
+    dispatch(fetchAllowedChildTypes({ orgId, parentType }));
+  }, [open, orgId, parentType, dispatch]);
 
-  // load schema whenever type changes
+  // fetch schema + features when type changes
   useEffect(() => {
     if (!open || !type) return;
-    dispatch(fetchOrgUnitSchema(type));
-  }, [open, type, dispatch]);
+    dispatch(fetchOrgUnitSchema({ orgId, unitType: type }));
+    dispatch(fetchOrgUnitFeatures({ orgId, unitType: type }));
+  }, [open, type, orgId, dispatch]);
 
-  // reset form on modal close
+  // reset on close
   useEffect(() => {
-    if (!open) {
-      setName('');
-      setCode('');
-      setParentId(null);
-      setType('');
-      setMeta({});
-      setErrors({});
-      setSubmitting(false);
-    }
+    if (open) return;
+    setName('');
+    setType('');
+    setParentId(null);
+    setMeta({});
+    setSubmitting(false);
   }, [open]);
 
-  const loadingTypes = typesStatus === 'loading';
-  const loadingSchema = schemaStatus === 'loading';
-  const jsonSchema = schemaByType[type]?.schema as JSONSchema | undefined;
-
-  // Apply defaults from schema to meta when schema loads or changes type
-  useEffect(() => {
-    if (!open || !jsonSchema) return;
-    setMeta((prev) => deepApplyDefaults(jsonSchema, prev));
-  }, [open, jsonSchema]);
-
-  const units = unitsState?.items ?? [];
-
-  // 1) pure function – no setState
-  function computeErrors(
-    schema: JSONSchema | undefined,
-    meta: Record<string, any>
-  ): Errors {
-    const errs: Errors = {};
-    if (!schema) return errs;
-
-    function dfs(s: JSONSchema, val: any, path = '') {
-      const r = s.required ?? [];
-      for (const k of r) {
-        const f = s.properties?.[k] as JSONSchema | undefined;
-        const v = val?.[k];
-        const full = path ? `${path}.${k}` : k;
-
-        if (f?.type === 'string' && (v === undefined || v === ''))
-          errs[full] = 'Required';
-        else if (
-          (f?.type === 'number' || f?.type === 'integer') &&
-          (v === '' || v === undefined || v === null)
-        )
-          errs[full] = 'Required';
-        else if (f?.type === 'object' && (v === undefined || v === null))
-          errs[full] = 'Required';
-        else if (f?.type === 'array' && (!Array.isArray(v) || v.length === 0))
-          errs[full] = 'Required';
-      }
-      if (s.type === 'object' && s.properties) {
-        for (const [k, child] of Object.entries(s.properties)) {
-          dfs(child as JSONSchema, val?.[k], path ? `${path}.${k}` : k);
-        }
-      }
-    }
-
-    dfs(schema, meta, '');
-    return errs;
-  }
-
-  // 2) derive validity without setState
-  const derivedErrors = useMemo(
-    () => computeErrors(jsonSchema, meta),
-    [jsonSchema, meta]
-  );
-  const isValid = Object.keys(derivedErrors).length === 0;
-
-  // 3) use derived validity (no setState here)
-  const canSubmit = !submitting && name.trim().length >= 2 && !!type && isValid;
+  /* ------------------------------ Submission ----------------------------- */
+  const canSubmit = !submitting && name.trim().length >= 2 && Boolean(type);
 
   async function onSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId || !type) return;
+    if (!orgId || !type || !name.trim()) return;
 
-    const errs = computeErrors(jsonSchema, meta);
-    if (Object.keys(errs).length) {
-      setErrors(errs);
-      return;
+    try {
+      setSubmitting(true);
+      const res = await dispatch(
+        createOrgUnit({
+          orgId,
+          body: {
+            name: name.trim(),
+            type,
+            parentId: parentId ?? null,
+            meta: Object.keys(meta || {}).length ? meta : undefined,
+          },
+        })
+      );
+      setSubmitting(false);
+      if ((res as any).error) return;
+
+      // refresh lists/tree for page
+      dispatch(fetchOrgUnits(orgId));
+      dispatch(fetchOrgTree(orgId));
+
+      setOpen(false);
+    } catch {
+      setSubmitting(false);
     }
-
-    const ok = validateClient(jsonSchema, meta, setErrors);
-    if (!ok) return;
-
-    setSubmitting(true);
-    const res = await dispatch(
-      createOrgUnit({
-        orgId,
-        name: name.trim(),
-        code: code.trim() || undefined,
-        parentId: parentId ?? undefined,
-        type,
-        meta: cleanMetaForSubmit(meta),
-      })
-    );
-    setSubmitting(false);
-
-    if ((res as any).error) return;
-
-    // refresh lists
-    dispatch(fetchOrgUnits(orgId));
-    dispatch(fetchOrgUnitsTree(orgId));
-
-    // close
-    setCreateState(null);
   }
 
+  /* ------------------------------- UI bits -------------------------------- */
+
+  const FeatureBadge = ({ on, label }: { on: boolean; label: string }) => (
+    <Badge
+      variant={on ? 'default' : 'secondary'}
+      className={on ? 'bg-emerald-600 text-white' : 'bg-muted'}
+    >
+      {on ? <Check className="mr-1 h-3.5 w-3.5" /> : <Minus className="mr-1 h-3.5 w-3.5" />}
+      {label}
+    </Badge>
+  );
+
+  /* --------------------------------- UI --------------------------------- */
   return (
-    <Modal open={open} onOpenChange={(v) => !v && setCreateState(null)}>
+    <Modal open={open} onOpenChange={() => setOpen(false)}>
       <ModalContent size="xl">
         <ModalHeader>
           <ModalTitle>Create organisation unit</ModalTitle>
         </ModalHeader>
-
-        <ModalBody className="space-y-6">
-          <form
-            className="grid grid-cols-1 md:grid-cols-2 gap-4"
-            onSubmit={onSubmit}
-          >
-            {/* Basic fields */}
+        <ModalBody>
+          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onSubmit}>
+            {/* Name */}
             <div className="space-y-2">
               <Label>
                 Name <span className="text-red-500">*</span>
@@ -228,126 +218,117 @@ export default function AddUnitModal() {
               <Input
                 value={name}
                 onChange={(e) => setName(e.target.value)}
-                placeholder="e.g. Department of Physics"
+                placeholder="e.g. Grade 10, Science Dept, Physics"
               />
             </div>
 
+            {/* Parent */}
             <div className="space-y-2">
-              <Label>Code (optional)</Label>
-              <Input
-                value={code}
-                onChange={(e) => setCode(e.target.value)}
-                placeholder="e.g. PHY"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <Label>Parent unit (optional)</Label>
+              <Label>Parent (optional)</Label>
               <Select
-                value={parentId ?? ''}
-                onValueChange={(v) => setParentId(v === '' ? null : v)}
+                value={parentId ?? 'none'}
+                onValueChange={(v) => setParentId(v === 'none' ? null : v)}
               >
                 <SelectTrigger>
                   <SelectValue placeholder="Select parent (optional)" />
                 </SelectTrigger>
                 <SelectContent>
                   <SelectItem value="none">— None —</SelectItem>
-                  {units.map((u) => (
+                  {orgUnitsForOrg.map((u) => (
                     <SelectItem key={u.id} value={u.id}>
-                      {u.name}
+                      <div className="flex items-center justify-between w-full">
+                        <span>{u.name}</span>
+                        <span className="ml-2 text-[11px] text-muted-foreground">• {u.type}</span>
+                      </div>
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
             </div>
 
+            {/* Type */}
             <div className="space-y-2">
               <Label>
                 Type <span className="text-red-500">*</span>
               </Label>
               <Select
-                value={type}
-                onValueChange={(v) => setType(v)}
+                value={type || ''}
+                onValueChange={(v) => setType(v as OrgUnitType)}
                 disabled={loadingTypes}
               >
                 <SelectTrigger>
-                  <SelectValue
-                    placeholder={
-                      loadingTypes ? 'Loading types…' : 'Select type'
-                    }
-                  />
+                  <SelectValue placeholder={loadingTypes ? 'Loading types…' : 'Select type'} />
                 </SelectTrigger>
                 <SelectContent>
-                  {types.map((t) => (
+                  {(allowedTypes || []).map((t) => (
                     <SelectItem key={t} value={t}>
                       {t}
                     </SelectItem>
                   ))}
                 </SelectContent>
               </Select>
+              <p className="text-[11px] text-muted-foreground">
+                {parentId ? `Allowed under ${parentType}` : 'Creating at organisation root'}
+              </p>
             </div>
 
-            {/* Meta dynamic renderer */}
-            <div className="md:col-span-2 pt-2">
-              <div className="mb-2 flex items-center justify-between">
-                <div className="font-medium text-sm">Additional settings</div>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="gap-2"
-                  onClick={() =>
-                    setMeta((prev) => deepApplyDefaults(jsonSchema, {}))
-                  }
-                  disabled={!jsonSchema}
-                >
-                  <Undo2 className="h-4 w-4" />
-                  Reset to defaults
-                </Button>
-              </div>
-
-              {loadingSchema ? (
-                <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                  <Loader2 className="h-4 w-4 animate-spin" />
-                  Loading schema…
-                </div>
-              ) : type && jsonSchema ? (
-                <div className="space-y-4">
-                  {/* Features block (if present & is object of booleans) */}
-                  <FeaturesBlock
-                    schema={jsonSchema}
-                    meta={meta}
-                    onChange={setMeta}
-                  />
-
-                  {/* All other properties */}
-                  <MetaForm
-                    schema={jsonSchema}
-                    value={meta}
-                    onChange={setMeta}
-                  />
-
-                  {/* Inline validation summary */}
-                  <InlineErrors errors={errors} />
-                </div>
+            {/* Feature preview */}
+            <div className="space-y-2">
+              <Label>Features this unit will have</Label>
+              {type ? (
+                featurePreview ? (
+                  <div className="flex flex-wrap gap-1.5">
+                    <FeatureBadge on={!!featurePreview.attendance} label="Attendance" />
+                    <FeatureBadge on={!!featurePreview.assignments} label="Assignments" />
+                    <FeatureBadge on={!!featurePreview.tests} label="Tests" />
+                    <FeatureBadge on={!!featurePreview.notes} label="Notes" />
+                    <FeatureBadge on={!!featurePreview.fees} label="Fees" />
+                    <FeatureBadge on={!!featurePreview.announcements} label="Announcements" />
+                    <FeatureBadge on={!!featurePreview.content} label="Content" />
+                    <FeatureBadge on={!!featurePreview.liveClass} label="Live class" />
+                    <FeatureBadge on={!!featurePreview.interactions} label="Interactions" />
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading features…
+                  </div>
+                )
               ) : (
-                <div className="text-xs text-muted-foreground">
-                  Select a type to configure its settings.
+                <p className="text-xs text-muted-foreground">Select a type to preview enabled features.</p>
+              )}
+            </div>
+
+            {/* Divider across columns */}
+            <div className="md:col-span-2">
+              <Separator className="my-1" />
+            </div>
+
+            {/* Dynamic meta fields */}
+            <div className="md:col-span-2">
+              {loadingSchema && type ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 className="h-4 w-4 animate-spin" /> Loading schema…
                 </div>
+              ) : type && def ? (
+                <SchemaFields
+                  def={def as any}
+                  details={meta}
+                  onChange={(k, v) => setMeta((prev) => ({ ...prev, [k]: v }))}
+                />
+              ) : (
+                <div className="text-xs text-muted-foreground">Select a type to configure additional settings.</div>
               )}
             </div>
           </form>
         </ModalBody>
-
         <ModalFooter>
-          <Button variant="outline" onClick={() => setCreateState(null)}>
+          <Button variant="outline" onClick={() => setOpen(false)}>
             Cancel
           </Button>
           <Button onClick={onSubmit} disabled={!canSubmit}>
             {submitting ? (
               <>
-                <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                Creating…
+                <Loader2 className="h-4 w-4 animate-spin mr-2" /> Creating…
               </>
             ) : (
               'Create'
@@ -357,428 +338,4 @@ export default function AddUnitModal() {
       </ModalContent>
     </Modal>
   );
-}
-
-/* ------------------------------ Features block ----------------------------- */
-
-function FeaturesBlock({
-  schema,
-  meta,
-  onChange,
-}: {
-  schema: JSONSchema;
-  meta: Record<string, any>;
-  onChange: (v: Record<string, any>) => void;
-}) {
-  const featuresSchema = schema.properties?.features as JSONSchema | undefined;
-  if (!featuresSchema || featuresSchema.type !== 'object') return null;
-
-  const props = featuresSchema.properties ?? {};
-  if (!Object.keys(props).length) return null;
-
-  const value = (meta.features ?? {}) as Record<string, any>;
-  function update(k: string, v: boolean) {
-    const next = { ...(meta.features ?? {}), [k]: v };
-    onChange({ ...meta, features: next });
-  }
-
-  return (
-    <div className="rounded-lg border p-3">
-      <div className="text-sm font-semibold mb-2">Features</div>
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
-        {Object.entries(props).map(([key, def]) => {
-          const label = def.title ?? startCase(key);
-          const help = def.description as string | undefined;
-          const checked =
-            typeof value[key] === 'boolean'
-              ? value[key]
-              : typeof def.default === 'boolean'
-                ? def.default
-                : false;
-
-          return (
-            <div
-              key={key}
-              className="flex items-center justify-between rounded-md border px-3 py-2"
-            >
-              <div className="mr-3">
-                <div className="text-sm font-medium">{label}</div>
-                {help ? (
-                  <div className="text-[11px] text-muted-foreground">
-                    {help}
-                  </div>
-                ) : null}
-              </div>
-              <Switch
-                checked={checked}
-                onCheckedChange={(v) => update(key, v)}
-              />
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
-}
-
-/* ------------------------- Generic meta form renderer ---------------------- */
-
-function MetaForm({
-  schema,
-  value,
-  onChange,
-  prefix = '',
-}: {
-  schema: JSONSchema;
-  value: Record<string, any>;
-  onChange: (v: Record<string, any>) => void;
-  prefix?: string;
-}) {
-  const properties = schema.properties ?? {};
-  const required = new Set<string>(schema.required ?? []);
-
-  // Show everything except "schemaVersion" (internal marker)
-  const entries = useMemo(
-    () => Object.entries(properties).filter(([key]) => key !== 'schemaVersion'),
-    [properties]
-  );
-
-  if (entries.length === 0) {
-    return (
-      <div className="rounded-md border border-dashed p-3 text-xs text-muted-foreground">
-        No additional fields for this type.
-      </div>
-    );
-  }
-
-  function update(key: string, v: any) {
-    onChange({ ...value, [key]: v });
-  }
-
-  return (
-    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-      {entries.map(([key, prop]) => {
-        // features are rendered in a dedicated block above — skip here
-        if (key === 'features') return null;
-
-        const fieldId = prefix ? `${prefix}.${key}` : key;
-        const label = prop.title ?? startCase(key);
-        const help = prop.description as string | undefined;
-        const isReq = required.has(key);
-        const current = value?.[key];
-
-        // enums -> select
-        if (prop.enum && Array.isArray(prop.enum)) {
-          return (
-            <div key={fieldId} className="space-y-2">
-              <Label>
-                {label} {isReq ? <span className="text-red-500">*</span> : null}
-              </Label>
-              <Select
-                value={(current ?? '') as string}
-                onValueChange={(v) => update(key, v)}
-              >
-                <SelectTrigger>
-                  <SelectValue placeholder="Select…" />
-                </SelectTrigger>
-                <SelectContent>
-                  {prop.enum.map((opt: string) => (
-                    <SelectItem key={opt} value={opt}>
-                      {opt}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              {help ? (
-                <div className="text-[11px] text-muted-foreground">{help}</div>
-              ) : null}
-            </div>
-          );
-        }
-
-        // boolean -> switch
-        if (prop.type === 'boolean') {
-          const checked =
-            typeof current === 'boolean'
-              ? current
-              : typeof prop.default === 'boolean'
-                ? prop.default
-                : false;
-          return (
-            <div
-              key={fieldId}
-              className="flex items-center justify-between rounded-md border p-3"
-            >
-              <div>
-                <div className="text-sm font-medium">
-                  {label}{' '}
-                  {isReq ? <span className="text-red-500">*</span> : null}
-                </div>
-                {help ? (
-                  <div className="text-[11px] text-muted-foreground">
-                    {help}
-                  </div>
-                ) : null}
-              </div>
-              <Switch
-                checked={checked}
-                onCheckedChange={(v) => update(key, v)}
-              />
-            </div>
-          );
-        }
-
-        // number / integer
-        if (prop.type === 'number' || prop.type === 'integer') {
-          return (
-            <div key={fieldId} className="space-y-2">
-              <Label>
-                {label} {isReq ? <span className="text-red-500">*</span> : null}
-              </Label>
-              <Input
-                type="number"
-                value={current ?? ''}
-                onChange={(e) => {
-                  const txt = e.target.value;
-                  update(
-                    key,
-                    txt === ''
-                      ? ''
-                      : Number.isNaN(Number(txt))
-                        ? ''
-                        : Number(txt)
-                  );
-                }}
-                placeholder={help}
-                min={prop.minimum as number | undefined}
-                max={prop.maximum as number | undefined}
-              />
-              {help ? (
-                <div className="text-[11px] text-muted-foreground">{help}</div>
-              ) : null}
-            </div>
-          );
-        }
-
-        // string (long text for likely description/body)
-        if (prop.type === 'string') {
-          const long =
-            /description|notes|about|detail|body/i.test(key) ||
-            prop.format === 'multiline';
-          if (long) {
-            return (
-              <div key={fieldId} className="space-y-2 md:col-span-2">
-                <Label>
-                  {label}{' '}
-                  {isReq ? <span className="text-red-500">*</span> : null}
-                </Label>
-                <Textarea
-                  value={current ?? ''}
-                  onChange={(e) => update(key, e.target.value)}
-                  placeholder={help}
-                  className="min-h-[96px]"
-                />
-                {help ? (
-                  <div className="text-[11px] text-muted-foreground">
-                    {help}
-                  </div>
-                ) : null}
-              </div>
-            );
-          }
-          return (
-            <div key={fieldId} className="space-y-2">
-              <Label>
-                {label} {isReq ? <span className="text-red-500">*</span> : null}
-              </Label>
-              <Input
-                value={current ?? ''}
-                onChange={(e) => update(key, e.target.value)}
-                placeholder={help}
-              />
-              {help ? (
-                <div className="text-[11px] text-muted-foreground">{help}</div>
-              ) : null}
-            </div>
-          );
-        }
-
-        // arrays of strings -> comma separated input
-        if (prop.type === 'array' && prop.items?.type === 'string') {
-          const arr: string[] = Array.isArray(current) ? current : [];
-          return (
-            <div key={fieldId} className="space-y-2 md:col-span-2">
-              <Label>
-                {label} {isReq ? <span className="text-red-500">*</span> : null}
-              </Label>
-              <Input
-                value={arr.join(', ')}
-                onChange={(e) =>
-                  update(
-                    key,
-                    e.target.value
-                      .split(',')
-                      .map((s) => s.trim())
-                      .filter(Boolean)
-                  )
-                }
-                placeholder={help ?? 'Comma-separated'}
-              />
-              {help ? (
-                <div className="text-[11px] text-muted-foreground">{help}</div>
-              ) : null}
-            </div>
-          );
-        }
-
-        // nested object -> recurse
-        if (prop.type === 'object' && prop.properties) {
-          const nestedVal = (current ?? {}) as Record<string, any>;
-          return (
-            <div key={fieldId} className="md:col-span-2 rounded-md border p-3">
-              <div className="text-sm font-semibold mb-3">{label}</div>
-              <MetaForm
-                schema={prop}
-                value={nestedVal}
-                onChange={(nv) => update(key, nv)}
-                prefix={fieldId}
-              />
-            </div>
-          );
-        }
-
-        // fallback: string
-        return (
-          <div key={fieldId} className="space-y-2">
-            <Label>{label}</Label>
-            <Input
-              value={current ?? ''}
-              onChange={(e) => update(key, e.target.value)}
-              placeholder={help}
-            />
-            {help ? (
-              <div className="text-[11px] text-muted-foreground">{help}</div>
-            ) : null}
-          </div>
-        );
-      })}
-    </div>
-  );
-}
-
-/* ----------------------------- Inline error list --------------------------- */
-
-function InlineErrors({ errors }: { errors: Errors }) {
-  const list = Object.entries(errors).filter(([, v]) => !!v);
-  if (!list.length) return null;
-  return (
-    <div className="rounded-md border border-destructive/30 bg-destructive/5 p-3 text-sm">
-      <div className="font-semibold mb-1">Please fix the following:</div>
-      <ul className="list-disc pl-5 space-y-1">
-        {list.map(([k, v]) => (
-          <li key={k}>
-            <span className="font-medium">{startCase(k)}:</span> {v}
-          </li>
-        ))}
-      </ul>
-    </div>
-  );
-}
-
-/* --------------------------------- Helpers -------------------------------- */
-
-function startCase(s: string) {
-  return s
-    .replace(/[_\-]/g, ' ')
-    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .replace(/\s+/g, ' ')
-    .trim()
-    .replace(/^./, (c) => c.toUpperCase());
-}
-
-// Deep apply defaults from schema into current value (without clobbering edits)
-function deepApplyDefaults(schema?: JSONSchema, current?: any): any {
-  if (!schema) return current ?? {};
-  const t = schema.type;
-
-  if (t === 'object' && schema.properties) {
-    const out: Record<string, any> = { ...(current ?? {}) };
-    for (const [k, s] of Object.entries(schema.properties)) {
-      const existing = out[k];
-      const applied = deepApplyDefaults(s as JSONSchema, existing);
-      // if no value and schema has default at this node
-      const nodeDefault = (s as JSONSchema).default;
-      if (existing === undefined) {
-        if (nodeDefault !== undefined) out[k] = nodeDefault;
-        else out[k] = applied === undefined ? applied : applied;
-      } else {
-        out[k] = applied;
-      }
-    }
-    return out;
-  }
-
-  if (current !== undefined) return current;
-  if (schema.default !== undefined) return schema.default;
-
-  // primitive fallback
-  if (t === 'array') return Array.isArray(current) ? current : [];
-  if (t === 'boolean') return typeof current === 'boolean' ? current : false;
-  return current;
-}
-
-// minimal client-side validation based on "required"
-function validateClient(
-  schema: JSONSchema | undefined,
-  meta: Record<string, any>,
-  setErrors: (e: Errors) => void
-): boolean {
-  if (!schema) {
-    setErrors({});
-    return true;
-  }
-  const errs: Errors = {};
-  function dfs(s: JSONSchema, val: any, path = '') {
-    const r = s.required ?? [];
-    for (const k of r) {
-      const v = val?.[k];
-      const f = s.properties?.[k] as JSONSchema | undefined;
-      const full = path ? `${path}.${k}` : k;
-      if (f?.type === 'string' && (v === undefined || v === '')) {
-        errs[full] = 'Required';
-      } else if (
-        (f?.type === 'number' || f?.type === 'integer') &&
-        (v === '' || v === undefined || v === null)
-      ) {
-        errs[full] = 'Required';
-      } else if (f?.type === 'object' && (v === undefined || v === null)) {
-        errs[full] = 'Required';
-      } else if (f?.type === 'array' && (!Array.isArray(v) || v.length === 0)) {
-        errs[full] = 'Required';
-      }
-    }
-    if (s.type === 'object' && s.properties) {
-      for (const [k, child] of Object.entries(s.properties)) {
-        dfs(child as JSONSchema, val?.[k], path ? `${path}.${k}` : k);
-      }
-    }
-  }
-  dfs(schema, meta, '');
-  setErrors(errs);
-  return Object.keys(errs).length === 0;
-}
-
-// drop null/empty strings recursively to keep payload clean
-function cleanMetaForSubmit(obj: Record<string, any>) {
-  const out: Record<string, any> = {};
-  for (const [k, v] of Object.entries(obj ?? {})) {
-    if (v === '' || v === undefined) continue;
-    if (v && typeof v === 'object' && !Array.isArray(v)) {
-      const inner = cleanMetaForSubmit(v);
-      if (Object.keys(inner).length) out[k] = inner;
-      continue;
-    }
-    out[k] = v;
-  }
-  return out;
 }

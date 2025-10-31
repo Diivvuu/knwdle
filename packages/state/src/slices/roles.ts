@@ -13,13 +13,15 @@ export interface RolePermissionLink {
   permission: Permission;
 }
 
+export type ParentRole = 'admin' | 'staff' | 'student' | 'parent';
+
 export interface Role {
   id: string;
   orgId: string;
   key: string;
   name: string;
   scope: string;
-  parentRole?: 'admin' | 'staff' | 'student' | 'parent';
+  parentRole?: ParentRole;
   createdAt?: string;
   permissions: RolePermissionLink[];
 }

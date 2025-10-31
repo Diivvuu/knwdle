@@ -1,6 +1,6 @@
 import { Label } from '@workspace/ui/components/label';
 import { useId, useMemo } from 'react';
-import ScrollCombo from './scrollable-combobox';
+import ScrollCombo from '@workspace/ui/components/app/scrollable-combobox';
 import { getCountries } from 'react-phone-number-input';
 
 function flagEmoji(cc: string) {

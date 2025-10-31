@@ -21,9 +21,11 @@ export const UISchemaResponse = z.object({
   groups: z.array(UISchemaGroup),
 });
 
-export const BasicError = z.object({
-  error: z.string(),
-  details: z.any().optional(),
+export const OrgTypePathParam = z.object({
+  type: z.nativeEnum(OrgType).openapi?.({
+    description: 'Organisation type',
+    example: 'SCHOOL',
+  }),
 });
 
 export type OrgTypeParamDTO = z.infer<typeof OrgTypeParam>;

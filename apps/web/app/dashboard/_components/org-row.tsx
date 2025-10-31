@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useMemo, useCallback } from 'react';
+import { useMemo, useCallback, useEffect } from 'react';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/store/store';
 import { deleteOrg } from '@workspace/state';
@@ -29,7 +29,7 @@ import {
   DropdownMenuTrigger,
 } from '@workspace/ui/components/dropdown-menu';
 import { cn } from '@workspace/ui/lib/utils';
-import { ADMIN_BASE } from '@/lib/env';
+import { ADMIN_BASE, CONNECT_BASE } from '@/lib/env';
 import { useEditOrgModal } from '@/features/org/use-org-atom';
 import { useTypeToConfirm } from '@/features/type-to-confirm-modal';
 
@@ -53,7 +53,8 @@ export default function OrgRow({ org, className }: OrgRowProps) {
       title: 'Delete organisation',
       description: (
         <>
-          This action <b>cannot be undone</b>. This will permanently delete <b>{org.name}</b> and remove all associated data.
+          This action <b>cannot be undone</b>. This will permanently delete{' '}
+          <b>{org.name}</b> and remove all associated data.
         </>
       ),
       label: 'Please type the organisation name to confirm',
@@ -81,11 +82,14 @@ export default function OrgRow({ org, className }: OrgRowProps) {
     (Array.isArray(org?.members) ? org.members.length : undefined);
   const invoicesDue = meta?.stats?.invoicesDue ?? org?.invoicesDue;
 
+  const permissions = Array.isArray(org.permissions) ? org.permissions : [];
   const canEdit =
-    org.permissions?.includes('org.update') || org.permissions?.includes('*');
+    permissions.includes('org.update') || permissions.includes('*');
   const canDelete =
-    org.permissions?.includes('org.delete') || org.permissions?.includes('*');
-
+    permissions.includes('org.delete') || permissions.includes('*');
+  useEffect(() => {
+    console.log(canEdit, canDelete);
+  }, [canEdit, canDelete]);
   const initials = useMemo(() => {
     const i = (org.name || '')
       .split(' ')
@@ -108,15 +112,29 @@ export default function OrgRow({ org, className }: OrgRowProps) {
     }
   }, [org.createdAt]);
 
+  function handleRedirect(userRole: string, orgId: string) {
+    if (userRole === 'admin' || userRole === 'staff') {
+      window.location.href = `${ADMIN_BASE}/org/${orgId}`;
+    } else if (userRole === 'student' || userRole === 'parent') {
+      window.location.href = `${CONNECT_BASE}/org/${orgId}`;
+    } else {
+      console.warn('Unknown role, staying on current app');
+    }
+  }
+
   return (
     <div
+      role="row"
+      tabIndex={-1}
       className={cn(
-        // 4 responsive columns: identity | meta | stats | actions
         'group grid gap-4 rounded-xl border bg-card px-3 py-2.5 hover:bg-muted/40 hover:border-border transition-colors',
         'grid-cols-1 sm:grid-cols-[minmax(220px,0.9fr),1.2fr,0.9fr,auto]',
         className
       )}
       data-org-id={org.id}
+      onClick={(e) => e.stopPropagation()} // stop any unwanted bubbling
+      onMouseDown={(e) => e.stopPropagation()}
+      onFocus={(e) => e.stopPropagation()}
     >
       {/* identity */}
       <div className="flex items-center gap-3 min-w-0">
@@ -140,7 +158,11 @@ export default function OrgRow({ org, className }: OrgRowProps) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <Link
-              href={`${ADMIN_BASE}/org/${org.id}`}
+              href={
+                org.myRole === 'student' || org.myRole === 'parent'
+                  ? `${CONNECT_BASE}/org/${org.id}`
+                  : `${ADMIN_BASE}/org/${org.id}`
+              }
               className="truncate font-medium hover:underline"
               title={org.name}
             >
@@ -249,7 +271,11 @@ export default function OrgRow({ org, className }: OrgRowProps) {
       {/* actions */}
       <div className="flex items-center gap-2">
         <Link
-          href={`${ADMIN_BASE}/org/${org.id}`}
+          href={
+            org.myRole === 'student' || org.myRole === 'parent'
+              ? `${CONNECT_BASE}/org/${org.id}`
+              : `${ADMIN_BASE}/org/${org.id}`
+          }
           onClick={(e) => e.stopPropagation()}
         >
           <Button size="sm" variant="ghost" className="gap-1">
@@ -257,48 +283,58 @@ export default function OrgRow({ org, className }: OrgRowProps) {
           </Button>
         </Link>
 
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button
-              size="icon"
-              variant="ghost"
-              className="h-8 w-8 rounded-full"
-              onClick={(e) => e.stopPropagation()}
-              aria-label="Organisation actions"
-            >
-              <MoreHorizontal className="h-4 w-4" />
-            </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent
-            align="end"
-            className="w-44"
-            onClick={(e) => e.stopPropagation()}
-          >
-            {canEdit && (
-              <DropdownMenuItem
-                onClick={() => setOpen({ open: true, org: org })}
+        {permissions.length > 0 && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button
+                size="icon"
+                variant="ghost"
+                className="h-8 w-8 rounded-full"
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                }}
+                onMouseDown={(e) => {
+                  e.stopPropagation();
+                }}
+                aria-label="Organisation actions"
               >
-                <Pencil className="mr-2 h-4 w-4" />
-                Quick edit
-              </DropdownMenuItem>
-            )}
-            {canDelete && (
-              <>
-                <DropdownMenuSeparator />
+                <MoreHorizontal className="h-4 w-4" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent
+              align="end"
+              sideOffset={4}
+              className="w-44 z-[9999]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {canEdit && (
                 <DropdownMenuItem
-                  className="text-destructive focus:text-destructive"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    handleDelete();
-                  }}
+                  onClick={() => setOpen({ open: true, org: org })}
                 >
-                  <Trash2 className="mr-2 h-4 w-4" />
-                  Delete
+                  <Pencil className="mr-2 h-4 w-4" />
+                  Quick edit
                 </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
+              )}
+              {canDelete && (
+                <>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    className="text-destructive focus:text-destructive"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      handleDelete();
+                    }}
+                  >
+                    <Trash2 className="mr-2 h-4 w-4" />
+                    Delete
+                  </DropdownMenuItem>
+                </>
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
     </div>
   );

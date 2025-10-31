@@ -1,5 +1,3 @@
-// seed-permissions.ts
-import { PrismaClient } from '../generated/prisma';
 import { prisma } from '../lib/prisma';
 
 const CODES = [
@@ -9,6 +7,7 @@ const CODES = [
   { code: 'org.units.forceDelete', name: 'Force-delete non-empty unit' }, // ⬅️ NEW
   { code: 'people.invite', name: 'Send invites' },
   { code: 'people.manage', name: 'Manage members and roles' },
+  { code: 'people.view', name: 'View members list' },
   { code: 'roles.manage', name: 'Manage custom roles & permissions' },
   { code: 'teaching.content.manage', name: 'Manage content' },
   { code: 'teaching.attendance.manage', name: 'Manage attendance' },

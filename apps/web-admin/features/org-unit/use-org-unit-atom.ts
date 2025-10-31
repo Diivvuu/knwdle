@@ -19,7 +19,7 @@ export type OpenCreateUnitPayload = {
   presetType?: string;
 };
 
-const createUnitAtom = atom<OpenCreateUnitPayload | null>(null);
+const createUnitAtom = atom<boolean | false>(false);
 
 const editUnitAtom = atom<{ open: boolean; unit?: OrgUnitRow | null }>({
   open: false,

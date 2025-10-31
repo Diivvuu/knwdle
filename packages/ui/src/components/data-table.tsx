@@ -297,7 +297,7 @@ export default function DataTableClean<T>({
   return (
     <div
       className={cn(
-        'w-full bg-background shadow-sm overflow-hidden',
+        'w-full bg-popover text-popover-foreground shadow-sm overflow-hidden',
         rounded !== 'none' && 'rounded-xl',
         border && 'border border-border/40',
         className
@@ -307,7 +307,8 @@ export default function DataTableClean<T>({
       <div
         className={cn(
           'flex flex-col gap-3 p-4 md:flex-row md:items-center md:justify-between',
-          'border-b border-border/30 backdrop-blur-sm bg-gradient-to-r from-muted/20 via-background to-muted/30'
+          'border-b border-border/30 backdrop-blur-sm',
+          'bg-popover/95 bg-gradient-to-r from-primary/10 via-popover to-accent/10'
         )}
       >
         <div className="flex items-center gap-2">

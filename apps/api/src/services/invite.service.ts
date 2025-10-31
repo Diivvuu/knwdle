@@ -3,10 +3,11 @@ import crypto from 'crypto';
 import { ParentRole } from '../generated/prisma';
 import { InviteRepo } from '../repositories/invite.repo';
 import { MembershipRepo } from '../repositories/membership.repo';
-import { prisma } from '../lib/prisma';
 import { sendMail, wrapHtml } from '../lib/mailer';
 import { MailTemplates } from '../lib/mail-templates';
 import { badRequest, forbidden, notFound, HttpError } from '../lib/https';
+import { RoleRepo } from '../repositories/role.repo';
+import { UserRepo } from '../repositories/user.repo';
 
 // If this is missing, fail fast at boot (infra/config issue).
 const AUTH_ORIGIN = process.env.AUTH_ORIGIN!;
@@ -42,10 +43,7 @@ export const InvitesService = {
     let roleId: string | null = null;
     let parentRoleFromCustom: ParentRole | null = null;
     if (params.roleId) {
-      const custom = await prisma.role.findFirst({
-        where: { id: params.roleId, orgId: params.orgId },
-        select: { id: true, parentRole: true },
-      });
+      const custom = await RoleRepo.findroleById(params.orgId, params.roleId);
       if (!custom) throw badRequest('Custom role not found in org');
       roleId = custom.id;
       parentRoleFromCustom = custom.parentRole;
@@ -64,15 +62,13 @@ export const InvitesService = {
     }
 
     // already a member?
-    const existingUser = await prisma.user.findUnique({
-      where: { email },
-      select: { id: true },
-    });
+    const existingUser = await UserRepo.findUserWithMembership(
+      email,
+      params.orgId
+    );
     if (existingUser) {
-      const already = await prisma.orgMembership.findFirst({
-        where: { orgId: params.orgId, userId: existingUser.id },
-        select: { id: true },
-      });
+      const already =
+        existingUser.memberships && existingUser.memberships.length > 0;
       if (already) {
         // 409 conflict is more correct here; still uses your HttpError.
         throw new HttpError(
@@ -213,5 +209,28 @@ export const InvitesService = {
     }
     if (!invite.acceptedBy) await InviteRepo.markAccepted(invite.id, user.id);
     return { ok: true, orgId: invite.orgId, unitId: invite.unitId } as const;
+  },
+
+  async getInvitePreview(token: string, requestedEmail : string) {
+    const inv = await InviteRepo.findPreviewByToken(token);
+    if (!inv) throw notFound('Invite not found');
+
+    if (inv.expiresAt && inv.expiresAt < new Date()) {
+      throw new HttpError(410, 'Invite expired');
+    }
+
+    if (inv.email.toLowerCase() !== requestedEmail.toLowerCase()) { 
+      throw forbidden('This invite is for another email')
+    }
+
+    return {
+      orgId: inv.org.id,
+      orgName: inv.org.name,
+      unitName: inv.unit?.name ?? null,
+      invitedEmail: inv.email,
+      parentRole: inv.role,
+      roleName: inv.roleRef?.name ?? null,
+      expiresAt: inv.expiresAt?.toISOString(),
+    };
   },
 };
