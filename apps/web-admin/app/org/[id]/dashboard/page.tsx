@@ -4,6 +4,7 @@ import React, { useEffect, useMemo } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
+import { motion } from 'framer-motion';
 import type { AppDispatch, RootState } from '@/store/store';
 
 import {
@@ -21,28 +22,24 @@ import {
 import BrandingHeader from '@workspace/ui/components/app/branding-header';
 import { Button } from '@workspace/ui/components/button';
 import { Separator } from '@workspace/ui/components/separator';
-import { Label } from '@workspace/ui/components/label';
+import { DashboardSection } from '@workspace/ui/components/app/dashboard/dashboard-section';
+import { DashboardSnapshotCard } from '@workspace/ui/components/app/dashboard/dashboard-snapshot-card';
+import { DashboardPeekList } from '@workspace/ui/components/app/dashboard/dashboard-peek-list';
+import { DashboardErrorBanner } from '@workspace/ui/components/app/dashboard/dashboard-error-banner';
+import { DashboardSkeletonGrid } from '@workspace/ui/components/app/dashboard/dashboard-skeleton-grid';
+import { DashboardStatPill } from '@workspace/ui/components/app/dashboard/dashboard-stat-pill';
 import {
   UserPlus,
   Building2,
   Megaphone,
   Settings,
-  PlusCircle,
   ChevronRight,
 } from 'lucide-react';
 
-// -----------------------------------------------------------------------------
-// Helpers
-// -----------------------------------------------------------------------------
-const noop = () => {};
 const fmt = (v?: number | string) => v ?? '—';
 
-// -----------------------------------------------------------------------------
-// Page
-// -----------------------------------------------------------------------------
-export default function OrgDashboardPage() {
-  const params = useParams<{ id: string }>();
-  const orgId = params?.id;
+export default function OrgAdminDashboardPage() {
+  const { id: orgId } = useParams<{ id: string }>();
   const dispatch = useDispatch<AppDispatch>();
 
   const basic = useSelector((s: RootState) =>
@@ -71,15 +68,14 @@ export default function OrgDashboardPage() {
     orgId ? s.orgAdmin.feesSnapshotById[orgId]?.data : null
   );
 
-  // Base fetches
+  // ─────────────────────────── FETCH LOGIC ───────────────────────────
   useEffect(() => {
     if (!orgId) return;
     dispatch(fetchOrgBasic(orgId));
     dispatch(fetchOrgSummary(orgId));
     dispatch(fetchDashboardConfig(orgId));
   }, [dispatch, orgId]);
- 
-  // Conditional peek/snapshot fetches once config arrives
+
   useEffect(() => {
     if (!orgId || !config?.data) return;
     const widgets = config.data.widgets || [];
@@ -93,7 +89,7 @@ export default function OrgDashboardPage() {
     if (widgets.includes('fees_snapshot')) dispatch(fetchFeesSnapshot(orgId));
   }, [dispatch, orgId, config?.data]);
 
-  // Derived state
+  // ─────────────────────────── STATE ───────────────────────────
   const loading =
     !orgId ||
     basic?.status === 'loading' ||
@@ -102,410 +98,274 @@ export default function OrgDashboardPage() {
 
   const error = basic?.error || summary?.error || config?.error;
   const org = basic?.data;
-  const brandColor = org?.brand_color || undefined;
-  const logoUrl = org?.logoUrl || undefined;
-  const coverUrl = org?.coverUrl || undefined;
-
+  const widgets = useMemo(() => config?.data?.widgets ?? [], [config]);
+  const tables = useMemo(() => config?.data?.tables ?? [], [config]);
   const roleCounts = summary?.data?.roleCounts;
   const unitsCount = summary?.data?.unitsCount ?? 0;
   const pendingInvites = summary?.data?.pendingInvites ?? 0;
 
-  const widgets = useMemo(
-    () => config?.data?.widgets ?? [],
-    [config?.data?.widgets]
-  );
-  const tables = useMemo(
-    () => config?.data?.tables ?? [],
-    [config?.data?.tables]
-  );
-  const userRole = config?.data?.role ?? 'guest';
+  // ─────────────────────────── UI ───────────────────────────
+  if (loading) return <DashboardSkeletonGrid count={6} />;
+  if (error)
+    return (
+      <DashboardErrorBanner
+        message={error}
+        onRetry={() => {
+          if (!orgId) return;
+          dispatch(clearOrgCache({ orgId }));
+          dispatch(fetchOrgBasic(orgId));
+          dispatch(fetchOrgSummary(orgId));
+          dispatch(fetchDashboardConfig(orgId));
+        }}
+      />
+    );
 
   return (
-    <div className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-6">
-      {/* Header */}
+    <motion.div
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8"
+    >
+      {/* ─────────────── HEADER + BRANDING ─────────────── */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-semibold">
+          <h1 className="text-2xl font-bold text-gradient-candy">
             {org?.name ?? 'Organisation'}
           </h1>
           <p className="text-sm text-muted-foreground">
             {org?.type ? `Type: ${org.type}` : '—'}
           </p>
         </div>
-
-        <div className="flex items-center gap-2">
-          {orgId && (
-            <Button
-              variant="outline"
-              onClick={() => {
-                dispatch(clearOrgCache({ orgId }));
-                dispatch(fetchOrgBasic(orgId));
-                dispatch(fetchOrgSummary(orgId));
-                dispatch(fetchDashboardConfig(orgId));
-              }}
-            >
-              Refresh
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* Branding header */}
-      <div className="relative">
-        <BrandingHeader
-          coverUrl={coverUrl}
-          logoUrl={logoUrl}
-          brandColor={brandColor}
-          onPickCover={noop}
-          onPickLogo={noop}
-          onBrandColorChange={noop}
-          uploadingCover={false}
-          uploadingLogo={false}
-          coverProgress={0}
-          logoProgress={0}
-        />
-        {!loading && !error && (
-          <div className="-mt-6 px-2 sm:px-4">
-            <div className="mx-auto max-w-5xl glass elev-2 rounded-xl px-4 py-2.5 flex flex-wrap items-center gap-2 sm:gap-3">
-              <StatPill
-                icon={<Building2 size={16} />}
-                label="Units"
-                value={fmt(unitsCount)}
-              />
-              <StatPill
-                icon={<UserPlus size={16} />}
-                label="Admins"
-                value={fmt(roleCounts?.admin)}
-              />
-              <StatPill
-                icon={<UserPlus size={16} />}
-                label="Staff"
-                value={fmt(roleCounts?.staff)}
-              />
-              <StatPill
-                icon={<UserPlus size={16} />}
-                label="Students"
-                value={fmt(roleCounts?.students)}
-              />
-              <StatPill
-                icon={<UserPlus size={16} />}
-                label="Parents"
-                value={fmt(roleCounts?.parent)}
-              />
-              <StatPill
-                icon={<Megaphone size={16} />}
-                label="Invites"
-                value={fmt(pendingInvites)}
-              />
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* Loading / error */}
-      {loading && <SkeletonGrid />}
-      {!loading && error && (
-        <ErrorBanner
-          error={error}
-          onRetry={() => {
-            if (!orgId) return;
-            dispatch(clearOrgCache({ orgId }));
-            dispatch(fetchOrgBasic(orgId));
-            dispatch(fetchOrgSummary(orgId));
-            dispatch(fetchDashboardConfig(orgId));
-          }}
-        />
-      )}
-
-      {/* Main layout */}
-      {!loading && !error && (
-        <>
-          {/* Quick Actions */}
-          <div className="grid grid-cols-1 gap-4">
-            <div className="lg:col-span-1">
-              <CardSection title="Quick Actions">
-                <QuickActions orgId={orgId!} />
-              </CardSection>
-            </div>
-          </div>
-
-          <Separator className="my-2" />
-
-          {/* Dynamic Widgets */}
-          {widgets.includes('attendance_snapshot') && (
-            <CardSection title="Attendance Snapshot">
-              <SnapshotCard
-                data={attendanceSnapshot}
-                label="Average Attendance"
-                unit="%"
-              />
-            </CardSection>
-          )}
-
-          {widgets.includes('fees_snapshot') && (
-            <CardSection title="Finance Snapshot">
-              <SnapshotCard data={feesSnapshot} label="Total Paid" unit="₹" />
-            </CardSection>
-          )}
-
-          {widgets.includes('announcements_peek') && (
-            <CardSection
-              title="Announcements"
-              actionHref={`/org/${orgId}/announcements`}
-            >
-              <AnnouncementsPeek data={announcementsPeek} />
-            </CardSection>
-          )}
-
-          {widgets.includes('members_peek') && (
-            <CardSection
-              title="Recent Members"
-              actionHref={`/org/${orgId}/members`}
-            >
-              <MembersPeek data={membersPeek} />
-            </CardSection>
-          )}
-
-          {widgets.includes('units_glance') && (
-            <CardSection
-              title="Units at a glance"
-              actionHref={`/org/${orgId}/units`}
-            >
-              <UnitsAtGlance orgId={orgId!} data={unitsGlance} />
-            </CardSection>
-          )}
-
-          <Separator className="my-2" />
-
-          {/* Tables */}
-          {tables.length > 0 ? (
-            <div className="space-y-3">
-              <Label variant="muted" className="text-sm font-medium">
-                Tables
-              </Label>
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-                {tables.includes('members') && (
-                  <PeekTable title="Members" href={`/org/${orgId}/members`} />
-                )}
-                {tables.includes('invites') && (
-                  <PeekTable title="Invites" href={`/org/${orgId}/invites`} />
-                )}
-              </div>
-            </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              No tables configured for this role.
-            </p>
-          )}
-        </>
-      )}
-    </div>
-  );
-}
-
-// -----------------------------------------------------------------------------
-// Shared UI
-// -----------------------------------------------------------------------------
-function CardSection({
-  title,
-  actionHref,
-  actionLabel = 'View all',
-  children,
-}: any) {
-  return (
-    <div className="rounded-xl border bg-card p-4 elev-1 hover:bg-muted/30 transition-colors">
-      <div className="mb-3 flex items-center justify-between">
-        <Label className="font-medium" variant="default">
-          {title}
-        </Label>
-        {actionHref && (
-          <Link
-            href={actionHref}
-            className="inline-flex items-center gap-1 text-xs rounded-md border bg-background px-2.5 py-1 hover:bg-muted"
+        {orgId && (
+          <Button
+            variant="outline"
+            onClick={() => {
+              dispatch(clearOrgCache({ orgId }));
+              dispatch(fetchOrgBasic(orgId));
+              dispatch(fetchOrgSummary(orgId));
+              dispatch(fetchDashboardConfig(orgId));
+            }}
           >
-            {actionLabel}
-            <ChevronRight size={14} />
-          </Link>
+            Refresh
+          </Button>
         )}
       </div>
-      {children}
-    </div>
-  );
-}
 
-function StatPill({ icon, label, value }: any) {
-  return (
-    <div className="flex items-center gap-2 rounded-full border bg-background/80 px-3 py-1.5 elev-1 hover:bg-muted/50">
-      {icon}
-      <div className="text-xs">
-        <p className="text-muted-foreground">{label}</p>
-        <p className="font-semibold leading-none">{value}</p>
-      </div>
-    </div>
-  );
-}
+      <BrandingHeader
+        coverUrl={org?.coverUrl}
+        logoUrl={org?.logoUrl}
+        brandColor={org?.brand_color}
+        onPickCover={() => {}}
+        onPickLogo={() => {}}
+        onBrandColorChange={() => {}}
+        uploadingCover={false}
+        uploadingLogo={false}
+        coverProgress={0}
+        logoProgress={0}
+      />
 
-function SkeletonGrid() {
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-      {Array.from({ length: 6 }).map((_, i) => (
-        <div key={i} className="rounded-xl border bg-card p-4">
-          <div className="h-2.5 w-24 rounded bg-muted animate-pulse" />
-          <div className="mt-3 h-7 w-20 rounded bg-muted animate-pulse" />
-          <div className="mt-5 h-2 w-28 rounded bg-muted/70 animate-pulse" />
+      {/* ─────────────── SUMMARY STATS ─────────────── */}
+      <div className="-mt-6 px-2 sm:px-4">
+        <div className="mx-auto max-w-5xl glass elev-2 rounded-xl px-4 py-3 flex flex-wrap gap-3 justify-center">
+          <DashboardStatPill
+            icon={<Building2 size={16} />}
+            label="Units"
+            value={fmt(unitsCount)}
+            tone="mint"
+          />
+          <DashboardStatPill
+            icon={<UserPlus size={16} />}
+            label="Admins"
+            value={fmt(roleCounts?.admin)}
+            tone="purple"
+          />
+          <DashboardStatPill
+            icon={<UserPlus size={16} />}
+            label="Staff"
+            value={fmt(roleCounts?.staff)}
+            tone="blue"
+          />
+          <DashboardStatPill
+            icon={<UserPlus size={16} />}
+            label="Students"
+            value={fmt(roleCounts?.students)}
+            tone="orange"
+          />
+          <DashboardStatPill
+            icon={<UserPlus size={16} />}
+            label="Parents"
+            value={fmt(roleCounts?.parent)}
+            tone="pink"
+          />
+          <DashboardStatPill
+            icon={<Megaphone size={16} />}
+            label="Invites"
+            value={fmt(pendingInvites)}
+            tone="accent"
+          />
         </div>
-      ))}
-    </div>
-  );
-}
-
-function ErrorBanner({ error, onRetry }: any) {
-  return (
-    <div className="rounded-lg border border-destructive/40 bg-destructive/5 p-4 text-sm">
-      <p className="text-destructive font-medium">Failed to load dashboard</p>
-      <p className="text-muted-foreground mt-1">{error}</p>
-      <div className="mt-3">
-        <button
-          className="inline-flex items-center justify-center rounded-md border px-3 py-1.5 text-sm bg-background hover:bg-accent"
-          onClick={onRetry}
-        >
-          Try again
-        </button>
       </div>
-    </div>
-  );
-}
 
-function QuickActions({ orgId }: any) {
-  const items = [
-    {
-      label: 'Invite member',
-      icon: <UserPlus size={16} />,
-      href: `/org/${orgId}/members/invite`,
-    },
-    {
-      label: 'Create unit',
-      icon: <Building2 size={16} />,
-      href: `/org/${orgId}/units/new`,
-    },
-    {
-      label: 'Send announcement',
-      icon: <Megaphone size={16} />,
-      href: `/org/${orgId}/announcements/new`,
-    },
-    {
-      label: 'Configure settings',
-      icon: <Settings size={16} />,
-      href: `/org/${orgId}/settings`,
-    },
-  ];
-  return (
-    <div className="grid grid-cols-2 gap-2">
-      {items.map((it) => (
-        <Link
-          key={it.label}
-          href={it.href}
-          className="overlay-sheen hover-glow hover-lift rounded-lg border bg-background px-3 py-2 text-sm flex items-center gap-2"
-        >
-          {it.icon}
-          <span>{it.label}</span>
-        </Link>
-      ))}
-    </div>
-  );
-}
+      <Separator className="my-4" />
 
-// -----------------------------------------------------------------------------
-// New lightweight peek cards
-// -----------------------------------------------------------------------------
-function UnitsAtGlance({ orgId, data }: { orgId: string; data: any[] }) {
-  if (!data?.length)
-    return <p className="text-sm text-muted-foreground">No units found</p>;
-  return (
-    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-      {data.map((u: any) => (
-        <Link
-          key={u.id}
-          href={`/org/${orgId}/units/${u.id}`}
-          className="hover-lift overlay-sheen hover-glow rounded-lg border bg-background p-3"
-        >
-          <p className="font-medium">{u.name}</p>
-          <p className="text-xs text-muted-foreground mt-0.5">
-            {u.memberCount} members
-          </p>
-        </Link>
-      ))}
-    </div>
-  );
-}
-
-function MembersPeek({ data }: any) {
-  if (!data?.length)
-    return <p className="text-sm text-muted-foreground">No recent members</p>;
-  return (
-    <div className="space-y-2">
-      {data.slice(0, 5).map((m: any) => (
-        <div
-          key={m.id}
-          className="flex justify-between border rounded-md px-3 py-2 bg-background"
-        >
-          <span className="font-medium">{m.name || 'Unknown'}</span>
-          <span className="text-xs text-muted-foreground">{m.role}</span>
+      {/* ─────────────── QUICK ACTIONS ─────────────── */}
+      <DashboardSection title="Quick Actions" accent="candy">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+          {[
+            {
+              label: 'Invite member',
+              icon: <UserPlus size={16} />,
+              href: `/org/${orgId}/members/invite`,
+            },
+            {
+              label: 'Create unit',
+              icon: <Building2 size={16} />,
+              href: `/org/${orgId}/units/new`,
+            },
+            {
+              label: 'Send announcement',
+              icon: <Megaphone size={16} />,
+              href: `/org/${orgId}/announcements/new`,
+            },
+            {
+              label: 'Settings',
+              icon: <Settings size={16} />,
+              href: `/org/${orgId}/settings`,
+            },
+          ].map((a) => (
+            <Link
+              key={a.label}
+              href={a.href}
+              className="flex items-center gap-2 text-sm rounded-lg border bg-background/80 px-3 py-2 overlay-sheen hover-glow hover-lift"
+            >
+              {a.icon}
+              <span>{a.label}</span>
+            </Link>
+          ))}
         </div>
-      ))}
-    </div>
-  );
-}
+      </DashboardSection>
 
-function AnnouncementsPeek({ data }: any) {
-  if (!data?.length)
-    return <p className="text-sm text-muted-foreground">No announcements</p>;
-  return (
-    <div className="space-y-2">
-      {data.slice(0, 4).map((a: any) => (
-        <div
-          key={a.id}
-          className="border rounded-md px-3 py-2 bg-background flex justify-between"
-        >
-          <span className="font-medium truncate">{a.title}</span>
-          {a.pin && <span className="text-xs text-primary">📌</span>}
-        </div>
-      ))}
-    </div>
-  );
-}
-
-function SnapshotCard({ data, label, unit }: any) {
-  if (!data) return <p className="text-sm text-muted-foreground">No data</p>;
-  const val = Object.values(data)[1] ?? 0;
-  return (
-    <div className="flex items-center justify-between border rounded-md px-3 py-2 bg-background">
-      <span className="font-medium">{label}</span>
-      <span className="text-sm text-muted-foreground">
-        {unit}
-        {val}
-      </span>
-    </div>
-  );
-}
-
-function PeekTable({ title, href }: any) {
-  return (
-    <div className="rounded-xl border bg-card p-4">
-      <div className="flex items-center justify-between mb-2">
-        <Label className="font-medium" variant="default">
-          {title}
-        </Label>
-        <Link
-          href={href}
-          className="text-xs inline-flex items-center gap-1 underline underline-offset-4 hover:no-underline"
-        >
-          View all <ChevronRight size={14} />
-        </Link>
+      {/* ─────────────── SNAPSHOT WIDGETS ─────────────── */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+        {widgets.includes('attendance_snapshot') && (
+          <DashboardSection title="Attendance Snapshot" accent="mint">
+            <DashboardSnapshotCard
+              label="Average Attendance"
+              value={Object.values(attendanceSnapshot ?? {})[1] ?? 0}
+              unit="%"
+              tone="primary"
+            />
+          </DashboardSection>
+        )}
+        {widgets.includes('fees_snapshot') && (
+          <DashboardSection title="Finance Snapshot" accent="orange">
+            <DashboardSnapshotCard
+              label="Total Paid"
+              value={Object.values(feesSnapshot ?? {})[1] ?? 0}
+              unit="₹"
+              tone="secondary"
+            />
+          </DashboardSection>
+        )}
       </div>
-      <div className="h-40 rounded-lg bg-muted/50 border flex items-center justify-center text-sm text-muted-foreground">
-        Loading table preview...
-      </div>
-    </div>
+
+      {/* ─────────────── PEEK WIDGETS ─────────────── */}
+      {widgets.includes('announcements_peek') && (
+        <DashboardSection
+          title="Recent Announcements"
+          accent="purple"
+          actionHref={`/org/${orgId}/announcements`}
+        >
+          <DashboardPeekList
+            items={announcementsPeek}
+            renderItem={(a) => (
+              <div className="flex justify-between">
+                <span className="font-medium truncate">{a.title}</span>
+                {a.pin && <span className="text-xs text-primary">📌</span>}
+              </div>
+            )}
+          />
+        </DashboardSection>
+      )}
+
+      {widgets.includes('members_peek') && (
+        <DashboardSection
+          title="Recent Members"
+          accent="blue"
+          actionHref={`/org/${orgId}/members`}
+        >
+          <DashboardPeekList
+            items={membersPeek}
+            renderItem={(m) => (
+              <div className="flex justify-between">
+                <span className="font-medium">{m.name || 'Unknown'}</span>
+                <span className="text-xs text-muted-foreground">{m.role}</span>
+              </div>
+            )}
+          />
+        </DashboardSection>
+      )}
+
+      {widgets.includes('units_glance') && (
+        <DashboardSection
+          title="Units at a glance"
+          accent="mint"
+          actionHref={`/org/${orgId}/units`}
+        >
+          <DashboardPeekList
+            items={unitsGlance}
+            renderItem={(u) => (
+              <div className="flex justify-between">
+                <span className="font-medium">{u.name}</span>
+                <span className="text-xs text-muted-foreground">
+                  {u.memberCount} members
+                </span>
+              </div>
+            )}
+          />
+        </DashboardSection>
+      )}
+
+      {/* ─────────────── TABLE PLACEHOLDERS ─────────────── */}
+      <Separator className="my-4" />
+      {tables.length > 0 ? (
+        <DashboardSection title="Tables" accent="candy">
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            {tables.includes('members') && (
+              <Link
+                href={`/org/${orgId}/members`}
+                className="rounded-xl border bg-card p-4 hover-lift hover-glow"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Members</span>
+                  <ChevronRight size={14} />
+                </div>
+                <div className="h-36 bg-muted/40 border rounded-lg flex items-center justify-center text-sm text-muted-foreground">
+                  Members table preview...
+                </div>
+              </Link>
+            )}
+            {tables.includes('invites') && (
+              <Link
+                href={`/org/${orgId}/invites`}
+                className="rounded-xl border bg-card p-4 hover-lift hover-glow"
+              >
+                <div className="flex items-center justify-between mb-2">
+                  <span className="font-medium">Invites</span>
+                  <ChevronRight size={14} />
+                </div>
+                <div className="h-36 bg-muted/40 border rounded-lg flex items-center justify-center text-sm text-muted-foreground">
+                  Invites table preview...
+                </div>
+              </Link>
+            )}
+          </div>
+        </DashboardSection>
+      ) : (
+        <p className="text-sm text-muted-foreground">
+          No tables configured for this role.
+        </p>
+      )}
+    </motion.div>
   );
 }

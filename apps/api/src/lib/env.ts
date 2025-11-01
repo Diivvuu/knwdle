@@ -37,7 +37,9 @@ const EnvSchema = z.object({
   MAX_UPLOAD_MB: z.coerce.number().default(5),
   // Optional: if you later put a CDN in front
   S3_PUBLIC_BASE_URL: z.string().url().optional(),
-  CORS_ORIGINS: csv.default('http://localhost:3000,http://localhost:4000'),
+  CORS_ORIGINS: csv.default(
+    'http://localhost:3000,http://localhost:3001,http://localhost:4000'
+  ),
 });
 
 export const env = EnvSchema.parse(process.env);

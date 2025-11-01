@@ -35,7 +35,6 @@ export default function RootLayout({
         suppressHydrationWarning
         suppressContentEditableWarning
       >
-
         {children}
       </body>
     </html>

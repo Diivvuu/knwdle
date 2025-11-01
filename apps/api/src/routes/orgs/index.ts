@@ -2,7 +2,9 @@ import { Router } from 'express';
 import dashboard from './org.admin-dashboard.routes';
 import orgUnitTypes from './org.unit-types.routes';
 import orgUnit from './org-unit';
-import orgMembers from './org.members.routes'
+import orgMembers from './org.members.routes';
+import orgConnectDashboard from './org.connect-dashboard.routes';
+
 const r = Router();
 
 // Each sub-router is mounted at /orgs, but defines its own deeper paths.
@@ -11,5 +13,6 @@ r.use('/orgs', dashboard);
 r.use('/orgs', orgUnitTypes);
 r.use('/orgs', orgUnit);
 r.use('/orgs', orgMembers);
+r.use('/orgs', orgConnectDashboard);
 
 export default r;

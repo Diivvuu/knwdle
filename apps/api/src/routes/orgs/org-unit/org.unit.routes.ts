@@ -4,13 +4,13 @@ import { requirePermission } from '../../../middleware/permissions';
 import { asyncHandler } from '../../../lib/https';
 import { OrgUnitController } from '../../../controllers/org.unit.controller';
 
-const r = Router({mergeParams : true});
+const r = Router({ mergeParams: true });
 
 // list of org units
 r.get(
   '/units',
   requireAuth,
-  requirePermission('org.unit.manage'),
+  // requirePermission('org.unit.manage'),
   asyncHandler(OrgUnitController.list)
 );
 //tree

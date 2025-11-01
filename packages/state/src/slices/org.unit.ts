@@ -202,9 +202,9 @@ const orgUnitsSlice = createSlice({
 export const { resetOrgUnitsState } = orgUnitsSlice.actions;
 export default orgUnitsSlice.reducer;
 
-/* -------------------------------- Selectors -------------------------------- */
-
-const slice = (s: any) => s.orgUnit ?? s.orgUnits ?? {};
+// packages/state/src/slices/orgUnits.ts
+const slice = (s: any) =>
+  s.orgUnits || s.orgUnit || s.state?.orgUnits || s.state?.orgUnit || {};
 
 export const selectOrgUnits = (s: any): OrgUnit[] => slice(s).list ?? [];
 export const selectOrgTree = (s: any): OrgUnit[] => slice(s).tree ?? [];

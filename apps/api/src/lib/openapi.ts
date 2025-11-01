@@ -16,6 +16,8 @@ import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { getOrgUnitTypesPaths } from '../docs/org.unit-types.docs';
 import { getOrgUnitsPaths } from '../docs/org.unit.docs';
 import { getOrgMembersPaths } from '../docs/org.members.docs';
+import { getOrgUnitDashboardPaths } from '../docs/org.unit.dashboard.docs';
+import { getOrgConnectDashboardPaths } from '../docs/org.connect-dashboard.docs';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
@@ -81,6 +83,8 @@ export function buildOpenApiDocument(): OpenAPIObject {
     getOrgUnitTypesPaths(),
     getOrgUnitsPaths(),
     getOrgMembersPaths(),
+    getOrgUnitDashboardPaths(),
+    getOrgConnectDashboardPaths(),
   ];
 
   return mergeDocs(docs);

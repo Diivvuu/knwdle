@@ -9,6 +9,9 @@ import {
   ParentRole,
   createInvite,
   resetCreateInviteStatus,
+  fetchOrgUnits,
+  selectOrgUnits,
+  selectOrgUnitsStatus,
 } from '@workspace/state';
 import { toast } from 'sonner';
 import {
@@ -42,10 +45,15 @@ export default function AddInviteModal() {
 
   const createStatus = useSelector((s: RootState) => s.invites.createStatus);
   const createError = useSelector((s: RootState) => s.invites.createError);
+
   const rolesEntry = useSelector((s: RootState) =>
     orgId ? s.roles.rolesByOrg[orgId] : undefined
   );
   const customRoles = useMemo(() => rolesEntry?.items ?? [], [rolesEntry]);
+
+  // NEW: Units data
+  const units = useSelector(selectOrgUnits);
+  const unitsStatus = useSelector(selectOrgUnitsStatus);
 
   const [mode, setMode] = useState<Mode>('base');
   const [form, setForm] = useState<{
@@ -55,6 +63,12 @@ export default function AddInviteModal() {
     unitId?: string;
   }>({ email: '', role: 'staff', roleId: undefined, unitId: '' });
 
+  // Fetch units when modal opens
+  useEffect(() => {
+    if (open && orgId) dispatch(fetchOrgUnits(orgId));
+  }, [open, orgId, dispatch]);
+
+  // Handle create invite status
   const prevStatus = useRef(createStatus);
   useEffect(() => {
     if (
@@ -126,6 +140,7 @@ export default function AddInviteModal() {
         <ModalBody>
           <form id="add-invite-form" onSubmit={submit} className="space-y-4">
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              {/* Email */}
               <div className="space-y-1">
                 <Label>Email</Label>
                 <Input
@@ -138,19 +153,28 @@ export default function AddInviteModal() {
                 />
               </div>
 
+              {/* Role toggle */}
               <div className="md:col-span-2">
                 <Label>Assign using</Label>
                 <div className="mt-2 inline-flex rounded-md border p-1 bg-background gap-2">
                   <button
                     type="button"
-                    className={`px-3 py-1.5 text-sm rounded-md ${mode === 'base' ? 'bg-primary text-primary-foreground' : ''}`}
+                    className={`px-3 py-1.5 text-sm rounded-md ${
+                      mode === 'base'
+                        ? 'bg-primary text-primary-foreground'
+                        : ''
+                    }`}
                     onClick={() => setMode('base')}
                   >
                     Base Role
                   </button>
                   <button
                     type="button"
-                    className={`px-3 py-1.5 text-sm rounded-md ${mode === 'custom' ? 'bg-primary text-primary-foreground' : ''}`}
+                    className={`px-3 py-1.5 text-sm rounded-md ${
+                      mode === 'custom'
+                        ? 'bg-primary text-primary-foreground'
+                        : ''
+                    }`}
                     onClick={() => setMode('custom')}
                   >
                     Custom Role
@@ -161,9 +185,10 @@ export default function AddInviteModal() {
                 </p>
               </div>
 
+              {/* Base roles */}
               {mode === 'base' && (
                 <div>
-                  <Label className="mb-1">Base role</Label>
+                  <Label className="mb-2">Base role</Label>
                   <Select
                     value={form.role}
                     onValueChange={(v) =>
@@ -184,9 +209,10 @@ export default function AddInviteModal() {
                 </div>
               )}
 
+              {/* Custom roles */}
               {mode === 'custom' && (
                 <div>
-                  <Label className="mb-1">Custom role</Label>
+                  <Label className="mb-2">Custom role</Label>
                   <Select
                     value={form.roleId ?? ''}
                     onValueChange={(v) => setForm((f) => ({ ...f, roleId: v }))}
@@ -210,15 +236,36 @@ export default function AddInviteModal() {
                 </div>
               )}
 
+              {/* Unit dropdown (NEW) */}
               <div className="md:col-span-2">
-                <Label className="mb-1">Unit (optional)</Label>
-                <Input
-                  placeholder="unit-id (e.g., class/department id)"
-                  value={form.unitId}
-                  onChange={(e) =>
-                    setForm((f) => ({ ...f, unitId: e.target.value }))
+                <Label className="mb-2">Assign to Unit (optional)</Label>
+                <Select
+                  value={form.unitId ?? ''}
+                  onValueChange={(v) =>
+                    setForm((f) => ({ ...f, unitId: v || undefined }))
                   }
-                />
+                >
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Select a unit" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {unitsStatus === 'loading' && (
+                      <SelectItem value="none" disabled>
+                        <Loader2 className="size-3 mr-2 animate-spin" /> Loading…
+                      </SelectItem>
+                    )}
+                    {units.length === 0 && (
+                      <SelectItem value="none" disabled>
+                        No units found
+                      </SelectItem>
+                    )}
+                    {units.map((u) => (
+                      <SelectItem key={u.id} value={u.id}>
+                        {u.name} <span className="text-xs">({u.type})</span>
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
             </div>
           </form>

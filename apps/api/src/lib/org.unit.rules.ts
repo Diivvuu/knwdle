@@ -453,6 +453,7 @@ export function computeUnitFeatures(
   ) {
     flags.timetable = true;
   }
+  
 
   //  Results: for academic evaluation contexts
   if (
