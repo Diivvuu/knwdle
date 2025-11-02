@@ -11,7 +11,8 @@ export type UIHint = {
     | 'pillset'
     | 'switch'
     | 'text'
-    | 'number';
+    | 'number'
+    | 'date';
 
   /** Grouping & order */
   group?: string; // e.g., "Basics", "Academics"
@@ -25,7 +26,7 @@ export type UIHint = {
   examples?: string[];
   suggestions?: string[]; // chips/autocomplete
   transform?: 'uppercase' | 'titlecase' | 'trim';
-  format?: 'academicYear' | 'phone' | 'email' | 'url';
+  format?: 'academicYear' | 'phone' | 'email' | 'url' | 'date';
 
   /** Conditional visibility */
   visibleIf?: { field: string; equals: any };

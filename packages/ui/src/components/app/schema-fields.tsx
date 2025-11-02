@@ -18,6 +18,10 @@ import {
 import { Textarea as AutoTextarea } from '../textarea';
 import CountrySelect from './country-select';
 import TimezoneSelect from './timezone-select';
+// --- Date/Time/Datetime Pickers ---
+import { Popover, PopoverContent, PopoverTrigger } from '../popover';
+import { Calendar } from '../calendar';
+import { format as formatDate, parseISO } from 'date-fns';
 
 type JsonSchema = any;
 type FlattenedField = {
@@ -31,8 +35,9 @@ type FlattenedField = {
 };
 
 type Props = {
-  def: JsonSchema | undefined; // active definition
-  details: Record<string, any>; // meta draft
+  def: JsonSchema | undefined;
+  groups?: Array<{ name: string; fields: string[] }>;
+  details: Record<string, any>;
   onChange: (key: string, value: any) => void;
   attemptedSubmit?: boolean;
 };
@@ -172,10 +177,14 @@ type ControlType =
   | 'chips'
   | 'multi-enum'
   | 'switch'
+  | 'date'
+  | 'time'
+  | 'datetime'
   | 'unknown';
 
 function resolveControl(prop: string, schema: any): ControlType {
   const widget = schema?.['x-ui']?.widget;
+  const format = schema?.['x-ui']?.format || schema?.format;
 
   if (widget === 'chips') return 'chips';
   if (widget === 'textarea') return 'textarea';
@@ -186,37 +195,45 @@ function resolveControl(prop: string, schema: any): ControlType {
     schema?.type === 'integer'
   )
     return 'number';
-  if (widget === 'select') {
-    // select can be enum OR special formats like academicYear
-    return 'enum';
-  }
+  if (widget === 'select') return 'enum';
 
-  // defaulting logic
-  if (schema?.type === 'boolean') return 'switch';
-  if (schema?.type === 'number' || schema?.type === 'integer') return 'number';
+  // ✅ check for format *before* string fallback
   if (schema?.type === 'string') {
+    if (format === 'date') return 'date';
+    if (format === 'time') return 'time';
+    if (format === 'date-time') return 'datetime';
     if (schema?.enum) return 'enum';
     const maxLen = schema?.maxLength ?? 0;
     if (maxLen >= 200 || prop === 'description') return 'textarea';
     return 'text';
   }
+
   if (schema?.type === 'array') {
     const items = schema?.items;
     if (items?.enum && Array.isArray(items.enum)) return 'multi-enum';
     if (items?.type === 'string') return 'chips';
   }
   if (schema?.enum && Array.isArray(schema.enum)) return 'enum';
+
   return 'unknown';
 }
 
 const isCountryField = (key: string) => key.toLowerCase().includes('country');
 const isTimezoneField = (key: string) => key.toLowerCase().includes('timezone');
 
+function parseYMD(dateStr: string): Date | null {
+  if (!dateStr || typeof dateStr !== 'string') return null;
+  const [y, m, d] = dateStr.split('-').map(Number);
+  if (!y || !m || !d) return null;
+  return new Date(y, m - 1, d);
+}
+
 function validationMessageFor(
   prop: string,
   schema: any,
   value: any,
-  required: boolean
+  required: boolean,
+  details: Record<string, any>
 ): string | null {
   // empty
   if ((value === '' || value == null) && required)
@@ -244,9 +261,13 @@ function validationMessageFor(
     if (schema?.maxLength && v.length > schema.maxLength)
       return `Maximum ${schema.maxLength} characters`;
     const pat = getPattern(schema);
-    if (pat && !pat.test(v)) {
-      if (prop === 'academicYear') return 'Format must be 2024-25';
-      return 'Invalid format';
+    const fmt = schema?.['x-ui']?.format || schema?.format;
+    if (fmt === 'date' && (prop === 'endDate' || prop === 'startDate')) {
+      const start = details?.startDate ? parseYMD(details.startDate) : null;
+      const end = details?.endDate ? parseYMD(details.endDate) : null;
+      if (start && end && end < start) {
+        return 'End date cannot be before start date';
+      }
     }
     return null;
   }
@@ -485,7 +506,11 @@ export default function SchemaFields({
     let all = flattenFields(def, details);
     all = all.filter(({ key }) => !HIDE.has(key.split('.').pop()!));
     // Move "name" up
-    all.sort((a, b) => (a.key === 'name' ? -1 : b.key === 'name' ? 1 : 0));
+    all.sort((a, b) => {
+      const oa = a.schema?.['x-ui']?.order ?? 999;
+      const ob = b.schema?.['x-ui']?.order ?? 999;
+      return oa - ob;
+    });
     return all;
   }, [def, details]);
 
@@ -573,9 +598,16 @@ export default function SchemaFields({
               const placeholder = ui.placeholder || schema?.placeholder;
               const control = resolveControl(key, schema);
               const rawVal = getValue(path);
-              const error = attemptedSubmit
-                ? validationMessageFor(key, schema, rawVal, required)
-                : null;
+              let error: string | null = null;
+              if (attemptedSubmit || key === 'startDate' || key === 'endDate') {
+                error = validationMessageFor(
+                  key,
+                  schema,
+                  rawVal,
+                  required,
+                  details
+                );
+              }
 
               // Responsive: textareas/arrays full width, others 2-col
               const fieldClass =
@@ -783,7 +815,13 @@ export default function SchemaFields({
                       required={required}
                       error={
                         attemptedSubmit
-                          ? validationMessageFor(key, schema, arr, required)
+                          ? validationMessageFor(
+                              key,
+                              schema,
+                              arr,
+                              required,
+                              details
+                            )
                           : null
                       }
                     />
@@ -804,7 +842,13 @@ export default function SchemaFields({
                       required={required}
                       error={
                         attemptedSubmit
-                          ? validationMessageFor(key, schema, arr, required)
+                          ? validationMessageFor(
+                              key,
+                              schema,
+                              arr,
+                              required,
+                              details
+                            )
                           : null
                       }
                     />
@@ -835,6 +879,150 @@ export default function SchemaFields({
                       checked={checked}
                       onCheckedChange={(v) => setValue(path, v)}
                     />
+                  </div>
+                );
+              }
+
+              // ---- Date, Time, Datetime controls ----
+              if (
+                control === 'date' ||
+                control === 'datetime' ||
+                control === 'time'
+              ) {
+                // Import Popover, Calendar, Input, Button, etc.
+                // For date/datetime, use calendar picker; for time/datetime, use time input
+                // Value is always stored as ISO string
+                // Show user-friendly formatted value
+                const valueStr = typeof rawVal === 'string' ? rawVal : '';
+                let dateValue: Date | null = null;
+                let timeValue: string = '';
+                if (control === 'date' || control === 'datetime') {
+                  if (valueStr) {
+                    // Try parsing as ISO
+                    try {
+                      dateValue = parseISO(valueStr);
+                    } catch {
+                      dateValue = null;
+                    }
+                  }
+                }
+                if (control === 'time' || control === 'datetime') {
+                  if (valueStr) {
+                    const strVal = String(valueStr);
+                    if (control === 'datetime' && strVal.includes('T')) {
+                      timeValue = strVal.split('T')[1]?.slice(0, 5) || '';
+                    } else {
+                      timeValue = valueStr;
+                    }
+                  }
+                }
+                // Handler for date change
+                function handleDateChange(d: Date | undefined) {
+                  if (!d) {
+                    setValue(path, '');
+                  } else if (control === 'date') {
+                    // Only date (YYYY-MM-DD)
+                    setValue(path, formatDate(d, 'yyyy-MM-dd'));
+                  } else if (control === 'datetime') {
+                    // Combine with time if available
+                    let t = timeValue || '00:00';
+                    const isoDate = formatDate(d, 'yyyy-MM-dd');
+                    setValue(path, `${isoDate}T${t}`);
+                  }
+                }
+                // Handler for time change
+                function handleTimeChange(
+                  e: React.ChangeEvent<HTMLInputElement>
+                ) {
+                  const t = e.target.value;
+                  if (control === 'time') {
+                    // Store as "HH:mm"
+                    setValue(path, t);
+                  } else if (control === 'datetime') {
+                    // Combine with date if available
+                    if (dateValue) {
+                      const isoDate = dateValue.toISOString().slice(0, 10);
+                      setValue(path, `${isoDate}T${t}`);
+                    } else {
+                      setValue(path, `T${t}`);
+                    }
+                  }
+                }
+                // Display value
+                let displayValue = '';
+                if (control === 'date' && dateValue) {
+                  displayValue = formatDate(dateValue, 'yyyy-MM-dd');
+                } else if (control === 'time' && timeValue) {
+                  displayValue = timeValue;
+                } else if (control === 'datetime' && dateValue && timeValue) {
+                  displayValue =
+                    formatDate(dateValue, 'yyyy-MM-dd') + ' ' + timeValue;
+                }
+                return (
+                  <div key={key} className={cn('space-y-1.5', fieldClass)}>
+                    <Label className="flex items-center gap-1">
+                      {label}
+                      {required && <span className="text-destructive">*</span>}
+                    </Label>
+                    <div className="flex gap-2 items-center">
+                      {(control === 'date' || control === 'datetime') && (
+                        <Popover>
+                          <PopoverTrigger asChild>
+                            <Button
+                              variant="outline"
+                              className={cn(
+                                'w-[160px] justify-start text-left font-normal',
+                                !dateValue && 'text-muted-foreground',
+                                error ? 'border-destructive' : undefined
+                              )}
+                            >
+                              {dateValue
+                                ? formatDate(dateValue, 'yyyy-MM-dd')
+                                : placeholder || 'Pick a date'}
+                            </Button>
+                          </PopoverTrigger>
+                          <PopoverContent className="w-auto p-0" align="start">
+                            <Calendar
+                              mode="single"
+                              selected={dateValue ?? undefined}
+                              onSelect={handleDateChange}
+                              disabled={(date) => {
+                                if (key === 'endDate' && details.startDate) {
+                                  const start = parseYMD(details.startDate);
+                                  if (
+                                    start instanceof Date &&
+                                    !isNaN(start.getTime())
+                                  ) {
+                                    return date < start;
+                                  }
+                                }
+                                return false;
+                              }}
+                            />
+                          </PopoverContent>
+                        </Popover>
+                      )}
+                      {(control === 'time' || control === 'datetime') && (
+                        <Input
+                          type="time"
+                          value={timeValue}
+                          onChange={handleTimeChange}
+                          className={cn(
+                            'w-[110px]',
+                            error ? 'border-destructive' : undefined
+                          )}
+                          placeholder={placeholder || 'HH:mm'}
+                        />
+                      )}
+                    </div>
+                    {description && (
+                      <p className="text-[11px] text-muted-foreground">
+                        {description}
+                      </p>
+                    )}
+                    {error && (
+                      <p className="text-xs text-destructive">{error}</p>
+                    )}
                   </div>
                 );
               }

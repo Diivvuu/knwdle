@@ -7,11 +7,7 @@ import type { AppDispatch, RootState } from '@/store/store';
 import { useParams } from 'next/navigation';
 
 // state (slices)
-import {
-  fetchOrgUnits,
-  createOrgUnit,
-  fetchOrgTree,
-} from '@workspace/state'; // orgUnits thunks
+import { fetchOrgUnits, createOrgUnit, fetchOrgTree } from '@workspace/state'; // orgUnits thunks
 import {
   fetchOrgUnitSchema,
   fetchOrgUnitFeatures,
@@ -105,17 +101,23 @@ export default function CreateOrgUnitModal() {
   const allowedTypes = useSelector(selectAllowedChildTypes(parentType));
 
   // schema/features state
-  const schemaStatus = useSelector((s: RootState) => s.orgUnitTypes.schemaStatus);
+  const schemaStatus = useSelector(
+    (s: RootState) => s.orgUnitTypes.schemaStatus
+  );
   const featuresByType = useSelector(
     (s: RootState) => s.orgUnitTypes.featuresByType
   ) as Partial<Record<OrgUnitType, FeatureFlags>>;
   const loadingSchema = schemaStatus === 'loading';
   const loadingTypes = allowedStatus === 'loading';
 
-  // active schema definition for selected type
+  const schemaForType = useSelector((s: RootState) =>
+    type ? s.orgUnitTypes.schemaByType?.[type] : undefined
+  );
   const def: JSONSchema | undefined = useSelector((s: RootState) =>
     type ? s.orgUnitTypes.schemaByType?.[type]?.definition : undefined
   ) as any;
+
+  const groups = schemaForType?.groups;
 
   // feature preview for selected type
   const featurePreview: FeatureFlags | null = type
@@ -196,7 +198,11 @@ export default function CreateOrgUnitModal() {
       variant={on ? 'default' : 'secondary'}
       className={on ? 'bg-emerald-600 text-white' : 'bg-muted'}
     >
-      {on ? <Check className="mr-1 h-3.5 w-3.5" /> : <Minus className="mr-1 h-3.5 w-3.5" />}
+      {on ? (
+        <Check className="mr-1 h-3.5 w-3.5" />
+      ) : (
+        <Minus className="mr-1 h-3.5 w-3.5" />
+      )}
       {label}
     </Badge>
   );
@@ -204,12 +210,15 @@ export default function CreateOrgUnitModal() {
   /* --------------------------------- UI --------------------------------- */
   return (
     <Modal open={open} onOpenChange={() => setOpen(false)}>
-      <ModalContent size="xl">
+      <ModalContent size="3xl">
         <ModalHeader>
           <ModalTitle>Create organisation unit</ModalTitle>
         </ModalHeader>
-        <ModalBody>
-          <form className="grid grid-cols-1 md:grid-cols-2 gap-4" onSubmit={onSubmit}>
+        <ModalBody className='min-h-full'>
+          <form
+            className="grid grid-cols-1 md:grid-cols-2 gap-4"
+            onSubmit={onSubmit}
+          >
             {/* Name */}
             <div className="space-y-2">
               <Label>
@@ -238,7 +247,9 @@ export default function CreateOrgUnitModal() {
                     <SelectItem key={u.id} value={u.id}>
                       <div className="flex items-center justify-between w-full">
                         <span>{u.name}</span>
-                        <span className="ml-2 text-[11px] text-muted-foreground">• {u.type}</span>
+                        <span className="ml-2 text-[11px] text-muted-foreground">
+                          • {u.type}
+                        </span>
                       </div>
                     </SelectItem>
                   ))}
@@ -257,7 +268,11 @@ export default function CreateOrgUnitModal() {
                 disabled={loadingTypes}
               >
                 <SelectTrigger>
-                  <SelectValue placeholder={loadingTypes ? 'Loading types…' : 'Select type'} />
+                  <SelectValue
+                    placeholder={
+                      loadingTypes ? 'Loading types…' : 'Select type'
+                    }
+                  />
                 </SelectTrigger>
                 <SelectContent>
                   {(allowedTypes || []).map((t) => (
@@ -268,7 +283,9 @@ export default function CreateOrgUnitModal() {
                 </SelectContent>
               </Select>
               <p className="text-[11px] text-muted-foreground">
-                {parentId ? `Allowed under ${parentType}` : 'Creating at organisation root'}
+                {parentId
+                  ? `Allowed under ${parentType}`
+                  : 'Creating at organisation root'}
               </p>
             </div>
 
@@ -278,23 +295,44 @@ export default function CreateOrgUnitModal() {
               {type ? (
                 featurePreview ? (
                   <div className="flex flex-wrap gap-1.5">
-                    <FeatureBadge on={!!featurePreview.attendance} label="Attendance" />
-                    <FeatureBadge on={!!featurePreview.assignments} label="Assignments" />
+                    <FeatureBadge
+                      on={!!featurePreview.attendance}
+                      label="Attendance"
+                    />
+                    <FeatureBadge
+                      on={!!featurePreview.assignments}
+                      label="Assignments"
+                    />
                     <FeatureBadge on={!!featurePreview.tests} label="Tests" />
                     <FeatureBadge on={!!featurePreview.notes} label="Notes" />
                     <FeatureBadge on={!!featurePreview.fees} label="Fees" />
-                    <FeatureBadge on={!!featurePreview.announcements} label="Announcements" />
-                    <FeatureBadge on={!!featurePreview.content} label="Content" />
-                    <FeatureBadge on={!!featurePreview.liveClass} label="Live class" />
-                    <FeatureBadge on={!!featurePreview.interactions} label="Interactions" />
+                    <FeatureBadge
+                      on={!!featurePreview.announcements}
+                      label="Announcements"
+                    />
+                    <FeatureBadge
+                      on={!!featurePreview.content}
+                      label="Content"
+                    />
+                    <FeatureBadge
+                      on={!!featurePreview.liveClass}
+                      label="Live class"
+                    />
+                    <FeatureBadge
+                      on={!!featurePreview.interactions}
+                      label="Interactions"
+                    />
                   </div>
                 ) : (
                   <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                    <Loader2 className="h-4 w-4 animate-spin" /> Loading features…
+                    <Loader2 className="h-4 w-4 animate-spin" /> Loading
+                    features…
                   </div>
                 )
               ) : (
-                <p className="text-xs text-muted-foreground">Select a type to preview enabled features.</p>
+                <p className="text-xs text-muted-foreground">
+                  Select a type to preview enabled features.
+                </p>
               )}
             </div>
 
@@ -312,11 +350,14 @@ export default function CreateOrgUnitModal() {
               ) : type && def ? (
                 <SchemaFields
                   def={def as any}
+                  groups={groups}
                   details={meta}
                   onChange={(k, v) => setMeta((prev) => ({ ...prev, [k]: v }))}
                 />
               ) : (
-                <div className="text-xs text-muted-foreground">Select a type to configure additional settings.</div>
+                <div className="text-xs text-muted-foreground">
+                  Select a type to configure additional settings.
+                </div>
               )}
             </div>
           </form>

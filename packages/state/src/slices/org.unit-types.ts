@@ -18,7 +18,8 @@ type OrgUnitTypesListPayload = {
 type OrgUnitTypeSchemaPayload = {
   orgType: string;
   unitType: OrgUnitType;
-  schema: {
+  uiVersion: number;
+  definition: {
     type: 'object';
     title: string;
     properties: Record<
@@ -33,6 +34,7 @@ type OrgUnitTypeSchemaPayload = {
       }
     >;
   };
+  groups?: Array<{ name: string; fields: string[] }>;
 };
 
 type OrgUnitTypeFeaturesPayload = {
@@ -61,7 +63,7 @@ interface OrgUnitTypesState {
     Record<
       OrgUnitType,
       {
-        definition: OrgUnitTypeSchemaPayload['schema'];
+        definition: OrgUnitTypeSchemaPayload['definition'];
         groups?: Array<{ name: string; fields: string[] }>;
       }
     >
@@ -188,7 +190,8 @@ const orgUnitTypesSlice = createSlice({
       s.schemaStatus = 'succeeded';
       const unitType = a.payload.unitType;
       s.schemaByType[unitType] = {
-        definition: a.payload.schema,
+        definition: a.payload.definition,
+        groups: a.payload.groups ?? [],
       };
     });
     b.addCase(fetchOrgUnitSchema.rejected, (s, a) => {

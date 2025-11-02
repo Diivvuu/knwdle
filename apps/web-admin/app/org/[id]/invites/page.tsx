@@ -21,12 +21,11 @@ import DataTable, {
   Column,
   FilterDef,
 } from '@workspace/ui/components/data-table';
+import { RowActions } from '@workspace/ui/components/row-actions';
 import {
   Plus,
   RefreshCw,
   Upload,
-  Trash2,
-  Pencil,
   Shield,
   UserRoundCog,
   GraduationCap,
@@ -425,26 +424,11 @@ export default function InvitesPage() {
           </Button>
         }
         rightActionsFor={(r) => (
-          <div className="flex justify-end gap-1.5">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-md hover:bg-muted"
-              onClick={() => toast.info(`Edit ${r.email}`)}
-              aria-label="Edit invite"
-            >
-              <Pencil className="h-4 w-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="rounded-md text-destructive hover:bg-destructive/10"
-              onClick={() => handleDelete(r)}
-              aria-label="Delete invite"
-            >
-              <Trash2 className="h-4 w-4" />
-            </Button>
-          </div>
+          <RowActions
+            // onView={() => toast.info(`View ${r.email}`)}
+            // onEdit={() => toast.info(`Edit ${r.email}`)}
+            onDelete={() => handleDelete(r)}
+          />
         )}
         ui={{
           hideSearch: false, // <-- only this search is visible

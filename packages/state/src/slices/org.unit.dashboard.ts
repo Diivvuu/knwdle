@@ -241,3 +241,5 @@ export const selectUnitDashboardStatus = (s: any): Status =>
   slice(s).status ?? 'idle';
 export const selectUnitDashboardError = (s: any): string | null =>
   slice(s).error ?? null;
+export const selectUnitDashboardLoading = (s: any): boolean =>
+  slice(s).status === 'loading';

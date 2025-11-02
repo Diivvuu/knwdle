@@ -88,8 +88,9 @@ export function ModalContent({
             // base
             'p-0 flex flex-col overflow-hidden',
             // visual
-            blur ? 'backdrop-blur-xl bg-background/80' : 'bg-background',
-            'border border-border/40 shadow-2xl',
+            blur
+              ? 'backdrop-blur-xl bg-[color-mix(in_oklab,var(--background),white_10%)] shadow-[0_8px_30px_rgba(0,0,0,0.12)] border border-border/50'
+              : 'bg-card border border-border/50',
             stickyFooter && 'bg-background backdrop-blur-sm',
             // motion + positioning from your dialog.tsx base
             'data-[state=open]:animate-in data-[state=closed]:animate-out',
@@ -118,7 +119,8 @@ export function ModalHeader({
       className={cn(
         'relative p-6 pb-4',
         separators && 'border-b border-border/40',
-        gradientHeader && 'bg-gradient-to-r from-primary/10 to-secondary/10 dark:from-primary/15 dark:to-secondary/15',
+        gradientHeader &&
+          'bg-gradient-to-r from-primary/15 to-secondary/15 dark:from-primary/15 dark:to-secondary/15 shadow-inner shadow-border/20',
         className
       )}
     >
@@ -179,7 +181,7 @@ export function ModalFooter({
         'flex flex-col-reverse sm:flex-row sm:justify-end',
         separators && 'border-t border-border/40',
         // subtle two-tone lift using secondary tint
-        'bg-gradient-to-t from-background to-secondary/5 dark:to-secondary/10',
+        'bg-gradient-to-t from-[color-mix(in_oklab,var(--background),white_6%)] to-secondary/10 dark:to-secondary/10 backdrop-blur-sm',
         className
       )}
     >

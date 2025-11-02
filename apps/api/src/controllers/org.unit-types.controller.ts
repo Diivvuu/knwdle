@@ -3,7 +3,7 @@ import {
   AllowedChildrenResponse,
   AllowedQuery,
   OrgIdParam,
-  orgUnitTypeParam,
+  OrgUnitTypeParam,
   OrgUnitTypesListResponse,
   OrgUnitUISchemaResponse,
 } from '../domain/org.unit-types.schema';
@@ -28,14 +28,14 @@ export const OrgUnitTypesController = {
   },
 
   async schema(req: Request, res: Response) {
-    const p = orgUnitTypeParam.safeParse(req.params);
+    const p = OrgUnitTypeParam.safeParse(req.params);
     if (!p.success) {
       const e = badRequest('Invalid parameters');
       (e as HttpError & { details?: any }).details = p.error.flatten();
       throw e;
     }
 
-    const result = await OrgUnitTypesService.getSchema(
+    const result = await OrgUnitTypesService.getUiSchema(
       p.data.orgId,
       p.data.type
     );
@@ -46,7 +46,7 @@ export const OrgUnitTypesController = {
   },
 
   async features(req: Request, res: Response) {
-    const p = orgUnitTypeParam.safeParse(req.params);
+    const p = OrgUnitTypeParam.safeParse(req.params);
     if (!p.success) {
       const e = badRequest('Invalid parameters');
       (e as HttpError & { details?: any }).details = p.error.flatten();

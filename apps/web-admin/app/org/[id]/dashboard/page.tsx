@@ -124,7 +124,7 @@ export default function OrgAdminDashboardPage() {
     <motion.div
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="max-w-6xl mx-auto px-4 sm:px-6 py-6 space-y-8"
+      className="py-6 space-y-8"
     >
       {/* ─────────────── HEADER + BRANDING ─────────────── */}
       <div className="flex items-center justify-between">
