@@ -83,7 +83,7 @@ export default function UnitDashboardPage() {
           <DashboardSnapshotCard
             label="Attendance"
             value={`${summary?.attendance?.avgRate ?? 0}%`}
-            tone="primary"
+            // tone="primary"
           />
         );
 
@@ -92,7 +92,7 @@ export default function UnitDashboardPage() {
           <DashboardSnapshotCard
             label="Results"
             value={summary?.results?.count ?? 0}
-            tone="accent"
+            // tone="accent"
           />
         );
 
@@ -100,12 +100,12 @@ export default function UnitDashboardPage() {
         return (
           <DashboardSection
             title="Assignments Due"
-            accent="purple"
+            // accent="purple"
             actionHref={`/org/${orgId}/unit/${unitId}/assignments`}
           >
             <DashboardPeekList
               items={assignments}
-              renderItem={(a) => (
+              renderItem={(a : any) => (
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <FileCheck className="w-3.5 h-3.5 text-purple-500" />
@@ -130,7 +130,7 @@ export default function UnitDashboardPage() {
           >
             <DashboardPeekList
               items={tests}
-              renderItem={(t) => (
+              renderItem={(t : any) => (
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <FlaskConical className="w-3.5 h-3.5 text-green-500" />
@@ -148,22 +148,24 @@ export default function UnitDashboardPage() {
 
       case 'fees_summary':
         return (
-          <DashboardSection title="Fees Summary" accent="orange">
+          <DashboardSection title="Fees Summary"
+            // accent="orange"
+          >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
               <DashboardSnapshotCard
                 label="Paid"
                 value={`₹${fees?.totalPaid ?? 0}`}
-                tone="secondary"
+                // tone="secondary"
               />
               <DashboardSnapshotCard
                 label="Due"
                 value={`₹${fees?.totalDue ?? 0}`}
-                tone="purple"
+                // tone="purple"
               />
               <DashboardSnapshotCard
                 label="Overdue"
                 value={fees?.overdueCount ?? 0}
-                tone="candy"
+                // tone="candy"
               />
             </div>
           </DashboardSection>
@@ -174,7 +176,7 @@ export default function UnitDashboardPage() {
           <DashboardSection title="Today's Timetable" accent="mint">
             <DashboardPeekList
               items={timetable}
-              renderItem={(t) => (
+              renderItem={(t : any) => (
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <CalendarDays className="w-3.5 h-3.5 text-blue-500" />
@@ -194,12 +196,12 @@ export default function UnitDashboardPage() {
         return (
           <DashboardSection
             title="Announcements"
-            accent="candy"
+            // accent="candy"
             actionHref={`/org/${orgId}/unit/${unitId}/announcements`}
           >
             <DashboardPeekList
               items={announcements}
-              renderItem={(a) => (
+              renderItem={(a: any) => (
                 <div className="flex justify-between">
                   <span className="font-medium flex items-center gap-1">
                     <Bell className="w-3.5 h-3.5 text-orange-500" />
@@ -242,7 +244,7 @@ export default function UnitDashboardPage() {
 
       {/* DYNAMIC WIDGETS */}
       <div className="space-y-6">
-        {widgets.map((key) => (
+        {widgets.map((key: any) => (
           <div key={key}>{renderWidget(key)}</div>
         ))}
       </div>

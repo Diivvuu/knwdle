@@ -73,7 +73,7 @@ export default function OrgConnectDashboardPage() {
           <DashboardSnapshotCard
             label="Attendance"
             value={`${summary?.attendance?.avgRate ?? 0}%`}
-            tone="primary"
+            // tone="primary"
           />
         );
 
@@ -82,7 +82,7 @@ export default function OrgConnectDashboardPage() {
           <DashboardSnapshotCard
             label="Fees Paid"
             value={`₹${summary?.fees?.totalPaid ?? 0}`}
-            tone="secondary"
+            // tone="secondary"
           />
         );
 
@@ -91,7 +91,7 @@ export default function OrgConnectDashboardPage() {
           <DashboardSnapshotCard
             label="Results"
             value={`${summary?.results?.avgScore ?? '--'}%`}
-            tone="accent"
+            // tone="accent"
           />
         );
 
@@ -105,7 +105,7 @@ export default function OrgConnectDashboardPage() {
             ) : (
               <DashboardPeekList
                 items={timetable}
-                renderItem={(t) => (
+                renderItem={(t : any) => (
                   <div className="flex justify-between text-sm">
                     <span>{t.subject || '—'}</span>
                     <span className="text-muted-foreground">
@@ -122,13 +122,13 @@ export default function OrgConnectDashboardPage() {
         return (
           <DashboardSection
             title="Achievements"
-            accent="orange"
+            // accent="orange"
             actionHref={`/org/${orgId}/achievements`}
           >
             {summary?.achievements?.length ? (
               <DashboardPeekList
                 items={summary.achievements}
-                renderItem={(a) => (
+                renderItem={(a : any) => (
                   <div className="flex justify-between text-sm">
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -152,12 +152,12 @@ export default function OrgConnectDashboardPage() {
         return (
           <DashboardSection
             title="Announcements"
-            accent="candy"
+            // accent="candy"
             actionHref={`/org/${orgId}/announcements`}
           >
             <DashboardPeekList
               items={announcements}
-              renderItem={(a) => (
+              renderItem={(a : any) => (
                 <div className="flex justify-between">
                   <span className="font-medium">{a.title}</span>
                   <span className="text-xs text-muted-foreground">
@@ -188,7 +188,7 @@ export default function OrgConnectDashboardPage() {
     return (
       <DashboardSection title="Units in this Organisation" accent="blue">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {units.map((u) => (
+          {units.map((u : any) => (
             <Link
               key={u.id}
               href={`http://localhost:3001/org/${orgId}/unit/${u.id}`}
@@ -239,7 +239,7 @@ export default function OrgConnectDashboardPage() {
 
       {/* WIDGETS */}
       <div className="space-y-6">
-        {widgets.map((key) => (
+        {widgets.map((key : any) => (
           <div key={key}>{renderWidget(key)}</div>
         ))}
       </div>

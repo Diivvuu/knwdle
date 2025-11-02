@@ -339,6 +339,7 @@ export default function CreateOrgPage() {
   const featureChips = useMemo(() => {
     // Prefer features from rulebook in Redux store if your state keeps it; fallback empty
     const rb =
+      //@ts-ignore
       schemas?.[orgType as string]?.rulebook ??
       (typeof window !== 'undefined' ? (window as any).__RB__ : null);
     return rb?.features?.enabledByDefault ?? [];
@@ -634,7 +635,7 @@ export default function CreateOrgPage() {
                         Features you’ll get
                       </div>
                       <div className="mt-2 flex flex-wrap gap-1.5">
-                        {featureChips.map((feat) => (
+                        {featureChips.map((feat : any) => (
                           <Badge
                             key={feat}
                             className="badge-feature"
@@ -742,7 +743,7 @@ export default function CreateOrgPage() {
                       Features
                     </div>
                     <div className="flex flex-wrap gap-1.5 text-sm">
-                      {featureChips.map((feat) => (
+                      {featureChips.map((feat : any) => (
                         <Badge
                           key={feat}
                           className="badge-feature"

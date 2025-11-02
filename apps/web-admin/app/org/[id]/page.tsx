@@ -1,5 +1,9 @@
 // app/org/[id]/page.tsx
-import { redirect } from 'next/navigation';
-export default function OrgIndex({ params }: { params: { id: string } }) {
-  redirect(`/org/${params.id}/dashboard`);
+'use client'
+import { redirect } from 'next/navigation'
+
+// ✅ Make function async and await params (Next.js 15 requires this)
+export default async function OrgIndex({ params }: { params: Promise<{ id: string }> }) {
+  const { id } = await params
+  redirect(`/org/${id}/dashboard`)
 }

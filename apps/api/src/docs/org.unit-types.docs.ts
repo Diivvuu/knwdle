@@ -7,7 +7,7 @@ import {
   AllowedQuery,
   OrgIdParam,
   OrgUnitFeaturesResponse,
-  orgUnitTypeParam,
+  OrgUnitTypeParam,
   OrgUnitTypesListResponse,
   OrgUnitUISchemaResponse,
 } from '../domain/org.unit-types.schema';
@@ -51,7 +51,7 @@ export const getOrgUnitTypesPaths = () => {
     summary: 'Get UI metadata schema for an OrgUnitType',
     tags: ['org-unit-types'],
     security: [{ bearerAuth: [] }],
-    request: { params: orgUnitTypeParam },
+    request: { params: OrgUnitTypeParam },
     responses: {
       200: {
         description: 'UI schema for the requested OrgUnit type',
@@ -82,7 +82,7 @@ export const getOrgUnitTypesPaths = () => {
     summary: 'Get enabled features for an OrgUnitType',
     tags: ['org-unit-types'],
     security: [{ bearerAuth: [] }],
-    request: { params: orgUnitTypeParam },
+    request: { params: OrgUnitTypeParam },
     responses: {
       200: {
         description: 'Feature flags for the requested OrgUnit type',

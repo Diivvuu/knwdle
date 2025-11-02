@@ -45,7 +45,7 @@ export function UnitSidebar() {
       path: 'dashboard',
       locked: false,
     },
-    ...featureKeys.map((key) => ({
+    ...featureKeys.map((key : any) => ({
       ...MAP[key],
       locked: !tables.includes(key),
     })),

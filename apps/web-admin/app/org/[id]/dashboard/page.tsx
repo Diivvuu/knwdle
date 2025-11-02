@@ -171,37 +171,37 @@ export default function OrgAdminDashboardPage() {
             icon={<Building2 size={16} />}
             label="Units"
             value={fmt(unitsCount)}
-            tone="mint"
+            // tone=="mint"
           />
           <DashboardStatPill
             icon={<UserPlus size={16} />}
             label="Admins"
             value={fmt(roleCounts?.admin)}
-            tone="purple"
+            // tone=="purple"
           />
           <DashboardStatPill
             icon={<UserPlus size={16} />}
             label="Staff"
             value={fmt(roleCounts?.staff)}
-            tone="blue"
+            // tone=="blue"
           />
           <DashboardStatPill
             icon={<UserPlus size={16} />}
             label="Students"
             value={fmt(roleCounts?.students)}
-            tone="orange"
+            // tone=="orange"
           />
           <DashboardStatPill
             icon={<UserPlus size={16} />}
             label="Parents"
             value={fmt(roleCounts?.parent)}
-            tone="pink"
+            // tone=="pink"
           />
           <DashboardStatPill
             icon={<Megaphone size={16} />}
             label="Invites"
             value={fmt(pendingInvites)}
-            tone="accent"
+            // tone=="accent"
           />
         </div>
       </div>
@@ -209,7 +209,9 @@ export default function OrgAdminDashboardPage() {
       <Separator className="my-4" />
 
       {/* ─────────────── QUICK ACTIONS ─────────────── */}
-      <DashboardSection title="Quick Actions" accent="candy">
+      <DashboardSection title="Quick Actions"
+        // accent="candy"
+      >
         <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
           {[
             {
@@ -253,17 +255,19 @@ export default function OrgAdminDashboardPage() {
               label="Average Attendance"
               value={Object.values(attendanceSnapshot ?? {})[1] ?? 0}
               unit="%"
-              tone="primary"
+              // tone=="primary"
             />
           </DashboardSection>
         )}
         {widgets.includes('fees_snapshot') && (
-          <DashboardSection title="Finance Snapshot" accent="orange">
+          <DashboardSection title="Finance Snapshot"
+            // accent="orange"
+          >
             <DashboardSnapshotCard
               label="Total Paid"
               value={Object.values(feesSnapshot ?? {})[1] ?? 0}
               unit="₹"
-              tone="secondary"
+              // tone=="secondary"
             />
           </DashboardSection>
         )}
@@ -273,7 +277,7 @@ export default function OrgAdminDashboardPage() {
       {widgets.includes('announcements_peek') && (
         <DashboardSection
           title="Recent Announcements"
-          accent="purple"
+          // accent="purple"
           actionHref={`/org/${orgId}/announcements`}
         >
           <DashboardPeekList
@@ -329,7 +333,9 @@ export default function OrgAdminDashboardPage() {
       {/* ─────────────── TABLE PLACEHOLDERS ─────────────── */}
       <Separator className="my-4" />
       {tables.length > 0 ? (
-        <DashboardSection title="Tables" accent="candy">
+        <DashboardSection title="Tables"
+          // accent="candy"
+        >
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
             {tables.includes('members') && (
               <Link

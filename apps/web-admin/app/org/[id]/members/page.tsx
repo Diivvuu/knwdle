@@ -99,7 +99,7 @@ export default function OrgMembersPage() {
     );
   }, [dispatch, orgId, search, role, roleId, unitId, limit]);
 
-  const handleDelete = () => {};
+  const handleDelete = (r:  any) => {};
 
   // Columns
   const columns: Column<any>[] = useMemo(

@@ -11,9 +11,9 @@ export type OrgBasic = {
   teamSize?: string | null;
   country?: string | null;
   timezone?: string | null;
-  logoUrl?: string | null;
-  coverUrl?: string | null;
-  brand_color?: string | null;
+  logoUrl?: string | undefined;
+  coverUrl?: string | undefined;
+  brand_color?: string | undefined;
   address?: string | null;
   contactPhone?: string | null;
   createdAt: string;

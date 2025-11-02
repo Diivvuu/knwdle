@@ -4,8 +4,8 @@ import {
   createSlice,
   PayloadAction,
 } from '@reduxjs/toolkit';
-import { ParentRole } from './org.dashboard';
 import { api } from '../api';
+import { ParentRole } from './roles';
 
 export interface Invite {
   id: string;
