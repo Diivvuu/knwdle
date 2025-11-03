@@ -31,6 +31,10 @@ export type AuthState = {
     email?: string;
   };
   invite: InviteUI;
+  verify: {
+    status: 'idle' | 'loading' | 'succeeded' | 'failed';
+    error?: string;
+  };
 };
 
 export interface InvitePreview {
@@ -69,6 +73,9 @@ const initialState: AuthState = {
     previewStatus: 'idle',
     acceptStatus: 'idle',
     acceptResult: null,
+  },
+  verify: {
+    status: 'idle',
   },
 };
 
@@ -183,6 +190,14 @@ export const getMe = createAsyncThunk('auth/getMe', async () => {
   const res = await api.get('/auth/me');
   return res.data as User;
 });
+
+export const verifyAccount = createAsyncThunk(
+  'auth/verifyAccount',
+  async ({ token }: { token: string }) => {
+    const res = await api.get('/auth/verify?token=' + token);
+    return res.data;
+  }
+);
 
 const authSlice = createSlice({
   name: 'auth',
@@ -304,9 +319,23 @@ const authSlice = createSlice({
       ((s.invite.acceptStatus = 'failed'),
         (s.invite.acceptError = a.error.message || 'Failed to accept invite'));
     });
+
+    // verifyAccount reducers
+    b.addCase(verifyAccount.pending, (s) => {
+      s.verify.status = 'loading';
+      s.verify.error = undefined;
+    });
+    b.addCase(verifyAccount.fulfilled, (s) => {
+      s.verify.status = 'succeeded';
+    });
+    b.addCase(verifyAccount.rejected, (s, a) => {
+      s.verify.status = 'failed';
+      s.verify.error = a.error.message;
+    });
   },
 });
 
 export const { resetInviteUi, clearAuthError, clearOtpError } =
   authSlice.actions;
 export default authSlice.reducer;
+
