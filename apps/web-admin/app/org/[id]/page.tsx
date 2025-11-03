@@ -1,9 +1,15 @@
-// app/org/[id]/page.tsx
-'use client'
-import { redirect } from 'next/navigation'
+'use client';
 
-// ✅ Make function async and await params (Next.js 15 requires this)
-export default async function OrgIndex({ params }: { params: Promise<{ id: string }> }) {
-  const { id } = await params
-  redirect(`/org/${id}/dashboard`)
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
+
+export default function OrgIndex({ params }: { params: { id: string } }) {
+  const router = useRouter();
+  useEffect(() => {
+    if (params?.id) {
+      router.replace(`/org/${params.id}/dashboard`);
+    }
+  }, [params, router]);
+
+  return null; // or a spinner
 }
