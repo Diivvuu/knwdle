@@ -20,30 +20,49 @@ app.use(cookieParser());
 app.use(
   cors({
     origin: (origin, cb) => {
-      const allow = (process.env.CORS_ORIGINS || '')
-        .split(',')
-        .map((s) => s.trim().replace(/\/+$/, '')) // remove trailing slash
-        .filter(Boolean);
-
-      // Allow requests with no Origin (e.g., curl, server-to-server)
+      // Allow requests with no Origin (e.g., curl, Postman)
       if (!origin) return cb(null, true);
 
       const normalized = origin.replace(/\/+$/, '');
+
+      // ✅ Allowed static list
+      const allowedOrigins = [
+        'http://localhost:3000',
+        'http://127.0.0.1:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3001',
+        'http://localhost:3002',
+        'http://127.0.0.1:3002',
+        'http://localhost:4000',
+        'http://127.0.0.1:4000',
+        'https://knwdle.com',
+        'https://api.knwdle.com',
+        'https://connect.knwdle.com',
+        'https://admin.knwdle.com',
+      ];
+
       const isAllowed =
-        allow.includes(normalized) ||
-        /\.knwdle\.com$/i.test(normalized); // ✅ allow *.knwdle.com
+        allowedOrigins.includes(normalized) ||
+        /\.knwdle\.com$/i.test(normalized); // ✅ allow any subdomain of knwdle.com
 
       if (isAllowed) return cb(null, true);
+
       console.warn(`[CORS BLOCKED] ${origin}`);
       return cb(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
-    allowedHeaders: ['Content-Type', 'Authorization'],
+    allowedHeaders: [
+      'Content-Type',
+      'Authorization',
+      'Accept',
+      'Origin',
+      'X-Requested-With',
+      'X-CSRF-Token',
+    ],
     exposedHeaders: ['Set-Cookie'],
   })
 );
-
 
 const openapiDoc = buildOpenApiDocument();
 app.get('/health', (_req, res) => res.json({ ok: true }));
