@@ -79,8 +79,8 @@ export default function AuthScreen() {
   const [cooldown, setCooldown] = useState(0);
 
   useEffect(() => {
-    if (otp.status === 'sent') setCooldown(30);
-  }, [otp.status]);
+  if (otp?.status === 'sent') setCooldown(30);
+}, [otp?.status]);
 
   useEffect(() => {
     if (cooldown <= 0) return;
@@ -162,22 +162,21 @@ export default function AuthScreen() {
   }, [dispatch, otpEmail, otpCode]);
 
   useEffect(() => {
-    if (otp.status === 'sent') {
-      setTimeout(() => otpCodeRef.current?.focus?.(), 0);
-    }
-  }, [otp.status]);
+  if (otp?.status === 'sent') {
+    setTimeout(() => otpCodeRef.current?.focus?.(), 0);
+  }
+}, [otp?.status]);
 
   useEffect(() => {
-    const handler = (e: KeyboardEvent) => {
-      if (otp.status === 'sent' && e.key === 'Enter' && otpCode.length >= 4) {
-        e.preventDefault();
-        confirmOtp();
-      }
-    };
-
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [otp.status, otpCode, confirmOtp]);
+  const handler = (e: KeyboardEvent) => {
+    if (otp?.status === 'sent' && e.key === 'Enter' && otpCode.length >= 4) {
+      e.preventDefault();
+      confirmOtp();
+    }
+  };
+  window.addEventListener('keydown', handler);
+  return () => window.removeEventListener('keydown', handler);
+}, [otp?.status, otpCode, confirmOtp]);
 
   useEffect(() => {
     if (user && accessToken) router.replace(redirectTo);
