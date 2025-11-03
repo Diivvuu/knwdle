@@ -69,7 +69,7 @@ export const AuthService = {
       t.subject,
       wrapHtml({ title: t.subject, bodyHtml: t.html })
     );
-    return { message: 'Signup successfull. Check email to verify account' };
+    return { message: 'Signup successfull hogya. Check email to verify account' };
   },
 
   async verifyEmail(token: string) {

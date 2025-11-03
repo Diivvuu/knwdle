@@ -22,15 +22,19 @@ app.use(
     origin: (origin, cb) => {
       const allow = (process.env.CORS_ORIGINS || '')
         .split(',')
-        .map((s) => s.trim().replace(/\/+$/, '')) // strip trailing slash
+        .map((s) => s.trim().replace(/\/+$/, '')) // remove trailing slash
         .filter(Boolean);
 
-      // Allow server-to-server or curl (no Origin header)
+      // Allow requests with no Origin (e.g., curl, server-to-server)
       if (!origin) return cb(null, true);
 
       const normalized = origin.replace(/\/+$/, '');
-      if (allow.includes(normalized)) return cb(null, true);
+      const isAllowed =
+        allow.includes(normalized) ||
+        /\.knwdle\.com$/i.test(normalized); // ✅ allow *.knwdle.com
 
+      if (isAllowed) return cb(null, true);
+      console.warn(`[CORS BLOCKED] ${origin}`);
       return cb(new Error(`Not allowed by CORS: ${origin}`));
     },
     credentials: true,
@@ -39,6 +43,7 @@ app.use(
     exposedHeaders: ['Set-Cookie'],
   })
 );
+
 
 const openapiDoc = buildOpenApiDocument();
 app.get('/health', (_req, res) => res.json({ ok: true }));
