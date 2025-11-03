@@ -21,7 +21,7 @@ import { getOrgConnectDashboardPaths } from '../docs/org.connect-dashboard.docs'
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
-  process.env.API_PUBLIC_URL ||
+  process.env.API_URL ||
   `http://localhost:${process.env.API_PORT || 4000}`;
 
 function mergeDocs(docs: OpenAPIObject[]): OpenAPIObject {
