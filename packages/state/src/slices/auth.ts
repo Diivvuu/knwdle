@@ -322,15 +322,18 @@ const authSlice = createSlice({
 
     // verifyAccount reducers
     b.addCase(verifyAccount.pending, (s) => {
+      s.verify = s.verify || { status: 'idle' }; // ensure exists
       s.verify.status = 'loading';
       s.verify.error = undefined;
     });
     b.addCase(verifyAccount.fulfilled, (s) => {
+      s.verify = s.verify || { status: 'idle' };
       s.verify.status = 'succeeded';
     });
     b.addCase(verifyAccount.rejected, (s, a) => {
+      s.verify = s.verify || { status: 'idle' };
       s.verify.status = 'failed';
-      s.verify.error = a.error.message;
+      s.verify.error = a.error.message || 'Verification failed';
     });
   },
 });
@@ -338,4 +341,3 @@ const authSlice = createSlice({
 export const { resetInviteUi, clearAuthError, clearOtpError } =
   authSlice.actions;
 export default authSlice.reducer;
-
