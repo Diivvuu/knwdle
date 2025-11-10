@@ -1,7 +1,7 @@
 import { Router } from 'express';
 import { requireAuth } from '../../../middleware/auth';
 import { requirePermission } from '../../../middleware/permissions';
-import { OrgUnitDashboardController } from '../../../controllers/org.unit.dashboard.controller';
+import { OrgUnitDashboardController } from '../../../controllers/org-unit/org.unit.dashboard.controller';
 import { asyncHandler } from '../../../lib/https';
 
 const r = Router({ mergeParams: true });

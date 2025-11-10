@@ -8,7 +8,7 @@ import { notFound } from '../lib/https';
 import { ssePush } from '../lib/sse';
 import { BulkInviteItem } from '../domain/bulk-invite.schema';
 import { InviteRepo } from '../repositories/invite.repo';
-import { RoleRepo } from '../repositories/role.repo';
+import { RoleRepo } from '../repositories/org/role.repo';
 
 const AUTH_ORIGIN = process.env.AUTH_ORIGIN!;
 if (!AUTH_ORIGIN) throw new Error('AUTH_ORIGIN not configured');

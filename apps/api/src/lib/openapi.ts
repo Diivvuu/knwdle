@@ -7,22 +7,23 @@ import {
 
 import { getAuthOpenApiPaths } from '../docs/auth.docs';
 import { getInviteOpenApiPaths } from '../docs/invite.docs';
-import { getOrgMegaDashboardPaths } from '../docs/org.mega-dashboard.docs';
-import { getOrgTypePaths } from '../docs/org-types.docs';
-import { getRolesPaths } from '../docs/roles.docs';
+import { getOrgMegaDashboardPaths } from '../docs/org/org.mega-dashboard.docs';
+import { getOrgTypePaths } from '../docs/org/org-types.docs';
+import { getRolesPaths } from '../docs/org/roles.docs';
 import { getUploadsPaths } from '../docs/uploads.docs';
-import { getOrgAdminDashboardPaths } from '../docs/org.admin-dashboard.docs';
+import { getOrgAdminDashboardPaths } from '../docs/org/org.admin-dashboard.docs';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { getOrgUnitTypesPaths } from '../docs/org.unit-types.docs';
-import { getOrgUnitsPaths } from '../docs/org.unit.docs';
-import { getOrgMembersPaths } from '../docs/org.members.docs';
-import { getOrgUnitDashboardPaths } from '../docs/org.unit.dashboard.docs';
-import { getOrgConnectDashboardPaths } from '../docs/org.connect-dashboard.docs';
+import { getOrgUnitTypesPaths } from '../docs/org-unit/org.unit-types.docs';
+import { getOrgUnitsPaths } from '../docs/org-unit/org.unit.docs';
+import { getOrgMembersPaths } from '../docs/org/org.members.docs';
+import { getOrgUnitDashboardPaths } from '../docs/org-unit/org.unit.dashboard.docs';
+import { getOrgConnectDashboardPaths } from '../docs/org/org.connect-dashboard.docs';
+import { getNotificationsPaths } from '../docs/notification.docs';
+import { getOrgUnitAttendancePaths } from '../docs/org-unit/org.unit.attendance.docs';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
-  process.env.API_URL ||
-  `http://localhost:${process.env.API_PORT || 4000}`;
+  process.env.API_URL || `http://localhost:${process.env.API_PORT || 4000}`;
 
 function mergeDocs(docs: OpenAPIObject[]): OpenAPIObject {
   const mergedPaths: PathsObject = {};
@@ -85,6 +86,8 @@ export function buildOpenApiDocument(): OpenAPIObject {
     getOrgMembersPaths(),
     getOrgUnitDashboardPaths(),
     getOrgConnectDashboardPaths(),
+    getNotificationsPaths(),
+    getOrgUnitAttendancePaths(),
   ];
 
   return mergeDocs(docs);

@@ -47,6 +47,23 @@ model User {
 
   verificationTokens VerificationToken[]
   otpTokens          OtpToken[]
+  notifications      Notification[]
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  orgId     String?
+  userId    String
+  type      String
+  title     String
+  body      String
+  meta      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
 model TimeTableEntry {
@@ -63,9 +80,10 @@ model TimeTableEntry {
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
-  unit    OrgUnit  @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  subject OrgUnit? @relation("TimeTableSubject", fields: [subjectId], references: [id])
-  teacher User?    @relation("TeacherSessions", fields: [teacherId], references: [id])
+  unit              OrgUnit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  subject           OrgUnit?            @relation("TimeTableSubject", fields: [subjectId], references: [id])
+  teacher           User?               @relation("TeacherSessions", fields: [teacherId], references: [id])
+  attendanceSession AttendanceSession[]
 
   @@index([orgId, unitId, dayOfWeek])
 }
@@ -367,6 +385,10 @@ model AttendanceSession {
   takenById String?
   notes     String?
   createdAt DateTime @default(now())
+
+  // NEW: sync with timetable
+  timeTableEntryId String?
+  timeTableEntry   TimeTableEntry? @relation(fields: [timeTableEntryId], references: [id])
 
   unit    OrgUnit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
   records AttendanceRecord[]

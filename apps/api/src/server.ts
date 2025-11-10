@@ -11,6 +11,8 @@ import orgRoutes from './routes/orgs';
 import inviteRoutes from './routes/invite.routes';
 import roleRoutes from './routes/roles.routes';
 import uploadRoutes from './routes/uploads.routes';
+import notificationRoutes from './routes/notification.routes';
+
 import { buildOpenApiDocument } from './lib/openapi';
 
 const app = express();
@@ -81,6 +83,7 @@ app.use('/api', orgRoutes);
 app.use('/api', inviteRoutes);
 app.use('/api', roleRoutes);
 app.use('/api', uploadRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {
   if (res.headersSent) return next(err);

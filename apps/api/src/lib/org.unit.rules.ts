@@ -1,4 +1,3 @@
-// apps/api/src/lib/org-unit.rules.ts
 import { OrgType, OrgUnitType } from '../generated/prisma';
 
 export type FeatureKey =
@@ -453,7 +452,6 @@ export function computeUnitFeatures(
   ) {
     flags.timetable = true;
   }
-  
 
   //  Results: for academic evaluation contexts
   if (

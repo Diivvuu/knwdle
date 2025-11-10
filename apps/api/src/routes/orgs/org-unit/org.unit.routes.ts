@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../../../middleware/auth';
 import { requirePermission } from '../../../middleware/permissions';
 import { asyncHandler } from '../../../lib/https';
-import { OrgUnitController } from '../../../controllers/org.unit.controller';
+import { OrgUnitController } from '../../../controllers/org-unit/org.unit.controller';
 
 const r = Router({ mergeParams: true });
 

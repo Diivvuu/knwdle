@@ -3,7 +3,6 @@ import { Request, Response, Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { asyncHandler } from '../lib/https';
 import { AuthController } from '../controllers/auth.controller';
-import { OpenAPIRegistry } from '@asteasolutions/zod-to-openapi';
 
 const r = Router();
 

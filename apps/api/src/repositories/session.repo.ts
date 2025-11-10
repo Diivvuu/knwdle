@@ -6,8 +6,6 @@ export const SessionRepo = {
     prisma.session.create({ data: { userId, refreshToken: '' } }),
   setToken: (id: string, token: string) =>
     prisma.session.update({ where: { id }, data: { refreshToken: token } }),
-  get: (id: string) =>
-    prisma.session.findUnique({ where: { id } }),
-  delete: (id: string) =>
-    prisma.session.delete({ where: { id } }),
+  get: (id: string) => prisma.session.findUnique({ where: { id } }),
+  delete: (id: string) => prisma.session.delete({ where: { id } }),
 };

@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
 import { asyncHandler } from '../lib/https';
-import { RolesController } from '../controllers/roles.controller';
+import { RolesController } from '../controllers/org/roles.controller';
 
 const r = Router();
 

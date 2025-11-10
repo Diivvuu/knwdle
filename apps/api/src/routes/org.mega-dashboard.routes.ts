@@ -2,7 +2,7 @@ import { Router } from 'express';
 import { requireAuth } from '../middleware/auth';
 import { requirePermission } from '../middleware/permissions';
 import { asyncHandler } from '../lib/https';
-import { OrgMegaDashboardController } from '../controllers/org.mega-dashboard.controller';
+import { OrgMegaDashboardController } from '../controllers/org/org.mega-dashboard.controller';
 
 const r = Router();
 

@@ -65,17 +65,9 @@ export default function AuthScreen() {
   const forceLogout = params.get('forceLogout') === '1';
 
   const dispatch = useDispatch<AppDispatch>();
-  const authState = useSelector(
-    (state: RootState) => state.auth
-  ) || {};
+  const authState = useSelector((state: RootState) => state.auth) || {};
 
-  const {
-    user,
-    status,
-    error,
-    accessToken,
-    otp,
-  } = authState;
+  const { user, status, error, accessToken, otp } = authState;
 
   const safeOtp = otp ?? { status: 'idle', error: undefined };
 
@@ -183,7 +175,11 @@ export default function AuthScreen() {
 
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
-      if (safeOtp.status === 'sent' && e.key === 'Enter' && otpCode.length >= 4) {
+      if (
+        safeOtp.status === 'sent' &&
+        e.key === 'Enter' &&
+        otpCode.length >= 4
+      ) {
         e.preventDefault();
         confirmOtp();
       }
@@ -234,11 +230,18 @@ export default function AuthScreen() {
             Welcome to
           </CardTitle>
           <Image
-            src="/knwdle.svg"
+            src="/knwdle-light.svg"
             width={100}
             height={100}
             alt="logo"
-            className="opacity-90 mx-auto"
+            className="opacity-90 mx-auto dark:hidden"
+          />
+          <Image
+            src="/knwdle-dark.svg"
+            width={100}
+            height={100}
+            alt="logo"
+            className="opacity-90 mx-auto hidden dark:block"
           />
         </div>
       </CardHeader>

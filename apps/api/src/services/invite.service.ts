@@ -2,11 +2,11 @@
 import crypto from 'crypto';
 import { ParentRole } from '../generated/prisma';
 import { InviteRepo } from '../repositories/invite.repo';
-import { MembershipRepo } from '../repositories/membership.repo';
+import { MembershipRepo } from '../repositories/org/membership.repo';
 import { sendMail, wrapHtml } from '../lib/mailer';
 import { MailTemplates } from '../lib/mail-templates';
 import { badRequest, forbidden, notFound, HttpError } from '../lib/https';
-import { RoleRepo } from '../repositories/role.repo';
+import { RoleRepo } from '../repositories/org/role.repo';
 import { UserRepo } from '../repositories/user.repo';
 
 // If this is missing, fail fast at boot (infra/config issue).

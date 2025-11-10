@@ -1,15 +1,16 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useParams, useRouter } from 'next/navigation';
 import { useEffect } from 'react';
 
-export default function OrgIndex({ params }: { params: { id: string } }) {
+export default function OrgIndex() {
+  const {id} =  useParams()
   const router = useRouter();
   useEffect(() => {
-    if (params?.id) {
-      router.replace(`/org/${params.id}/dashboard`);
+    if (id) {
+      router.replace(`/org/${id}/dashboard`);
     }
-  }, [params, router]);
+  }, [ router]);
 
   return null; // or a spinner
 }

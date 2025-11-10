@@ -2,7 +2,7 @@ import { randomUUID } from 'crypto';
 import { createUploadPost, createGetObjectUrl } from '../lib/s3';
 import { env } from '../lib/env';
 import { badRequest, forbidden } from '../lib/https';
-import { OrgRepo } from '../repositories/org.repo';
+import { OrgRepo } from '../repositories/org/org.repo';
 
 function sanitizeFileName(name: string) {
   return name

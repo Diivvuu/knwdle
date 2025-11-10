@@ -1,7 +1,7 @@
 import { Router } from 'express';
 
 import { requireAuth } from '../../middleware/auth';
-import { OrgConnectDashboardController } from '../../controllers/org.connect-dashboard.controller';
+import { OrgConnectDashboardController } from '../../controllers/org/org.connect-dashboard.controller';
 import { asyncHandler } from '../../lib/https';
 
 const r = Router();

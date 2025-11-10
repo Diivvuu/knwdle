@@ -4,7 +4,7 @@
     requireOrgFeature,
     requirePermission,
   } from '../../middleware/permissions';
-  import { AdminDashboardController } from '../../controllers/org.admin-dashboard.controller';
+  import { AdminDashboardController } from '../../controllers/org/org.admin-dashboard.controller';
 
   const r = Router();
 
