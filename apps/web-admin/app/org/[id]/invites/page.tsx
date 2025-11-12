@@ -62,12 +62,12 @@ const roleBadgeClass: Record<ParentRole, string> = {
   student: 'bg-emerald-600 text-white',
   parent: 'bg-indigo-600 text-white',
 };
-const emailInitials = (email: string) =>
-  (email || '')
-    .split('@')[0]
-    .replace(/[^a-zA-Z0-9]/g, '')
-    .slice(0, 2)
-    .toUpperCase() || 'U';
+const emailInitials = (email: string) => {
+  const local = String(email ?? '');
+  const namePart = local.split('@')[0] || '';
+  const cleaned = namePart.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase();
+  return cleaned || 'U';
+};
 
 function ExpiryChip({ date }: { date: string }) {
   if (!date) return <span className="text-xs text-muted-foreground">—</span>;
