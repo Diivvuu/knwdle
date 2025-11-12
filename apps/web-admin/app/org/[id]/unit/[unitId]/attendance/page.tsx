@@ -73,7 +73,7 @@ export default function OrgUnitAttendancePage() {
       <AttendanceCreateDialog
         open={open}
         onOpenChange={setOpen}
-        onCreate={(body) => {
+        onCreate={(body : any)  => {
           dispatch(createAttendanceSession({ orgId, unitId, body }));
           setOpen(false);
         }}

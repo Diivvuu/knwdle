@@ -45,7 +45,7 @@ export function AttendanceSummary({
             </CardTitle>
           </CardHeader>
           <CardContent className="text-2xl font-semibold">
-            {value ?? '—'}
+            <>{value ?? '—'}</>
           </CardContent>
         </Card>
       ))}
