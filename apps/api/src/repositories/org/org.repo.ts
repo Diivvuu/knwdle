@@ -214,7 +214,17 @@ export const OrgRepo = {
         id: true,
         role: true,
         createdAt: true,
-        user: { select: { name: true } },
+        user: {
+          select: {
+            id: true,
+            name: true,
+            email: true,
+            mobile: true,
+            profilePhoto: true,
+            gender: true,
+            createdAt: true,
+          },
+        },
       },
     });
   },

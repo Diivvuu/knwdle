@@ -85,7 +85,7 @@ export const OrgAdminDashboardService = {
     opts: { limit: number; cursor?: string; unitId?: string }
   ) {
     const cur = decodeCursor(opts.cursor ?? null);
-    const cursorArg = cur ?? undefined
+    const cursorArg = cur ?? undefined;
     const rows = await OrgRepo.getAuditLogs(
       orgId,
       opts.unitId,
@@ -220,10 +220,31 @@ export const OrgAdminDashboardService = {
 
   async membersPeek(orgId: string) {
     const rows = await OrgRepo.getRecentMembers(orgId);
+
+    if (!rows?.length) return { items: [], count: 0 };
+
+    const items = rows.map((m) => ({
+      id: m.id,
+      role: m.role,
+      joinedAt: m.createdAt,
+      user: m.user,
+    }));
+
+    return { items, count: items.length };
   },
 
   async announcementsPeek(orgId: string) {
     const rows = await OrgRepo.getRecentAnnouncements(orgId);
+    if (!rows?.length) return { items: [], count: 0 };
+
+    const items = rows.map((a) => ({
+      id: a.id,
+      title: a.title,
+      pinned: a.pin,
+      createdAt: a.createdAt,
+    }));
+
+    return { items, count: items.length };
   },
 
   async attendanceSnapshot(orgId: string) {

@@ -18,97 +18,97 @@
    ========================= */
 :root {
   /* ---------- Foundations (Light, Crayon Pastel) ---------- */
-  --background: #FFF9EF; /* warmer paper-like tone */
-  --foreground: #2D2D2D; /* dark graphite for cozy contrast */
+  --background: #fff9ef; /* warmer paper-like tone */
+  --foreground: #2d2d2d; /* dark graphite for cozy contrast */
 
-  --card: #FFF9F1;
-  --card-foreground: #2D2D2D;
+  --card: #fff9f1;
+  --card-foreground: #2d2d2d;
 
-  --popover: #FFF9F1;
-  --popover-foreground: #2D2D2D;
+  --popover: #fff9f1;
+  --popover-foreground: #2d2d2d;
 
-  --border: #D9D4C5; /* stronger separation, warm sand */
-  --input: #FAF4E7;  /* improved creamy surface */
-  --ring: #90CAF9;   /* pastel blue focus (unchanged) */
+  --border: #d9d4c5; /* stronger separation, warm sand */
+  --input: #faf4e7; /* improved creamy surface */
+  --ring: #90caf9; /* pastel blue focus (unchanged) */
 
   /* ---------- Brand Colors (Crayon Pastel) ---------- */
-  --primary: #6FB6E9;              /* deeper sky blue */
-  --primary-foreground: #2D2D2D;
+  --primary: #6fb6e9; /* deeper sky blue */
+  --primary-foreground: #2d2d2d;
 
-  --secondary: #FFB961;            /* deeper peachy-orange */
-  --secondary-foreground: #2D2D2D;
+  --secondary: #ffb961; /* deeper peachy-orange */
+  --secondary-foreground: #2d2d2d;
 
-  --accent: #93D2A2;               /* deeper minty green */
-  --accent-foreground: #2D2D2D;
+  --accent: #93d2a2; /* deeper minty green */
+  --accent-foreground: #2d2d2d;
 
   /* Support tints for playful UI (crayon pastels) */
-  --pink: #F8BBD0;     /* gentle pastel pink */
-  --lime: #D4E157;     /* grassy crayon lime */
-  --purple: #CE93D8;   /* lilac pastel */
-  --yellow: #FFF59D;   /* creamy yellow */
-  --teal: #80DEEA;     /* soft pastel teal */
+  --pink: #f8bbd0; /* gentle pastel pink */
+  --lime: #d4e157; /* grassy crayon lime */
+  --purple: #ce93d8; /* lilac pastel */
+  --yellow: #fff59d; /* creamy yellow */
+  --teal: #80deea; /* soft pastel teal */
 
   /* ---------- Gradients (Livelier Pastel Blends) ---------- */
-  --grad-primary: linear-gradient(135deg, #6FB6E9 0%, #A6D3F2 100%);
-  --grad-secondary: linear-gradient(135deg, #FFB961 0%, #FFE39C 100%);
-  --grad-accent: linear-gradient(135deg, #93D2A2 0%, #7CD8C0 100%);
-  --grad-candy: linear-gradient(135deg, #F8BBD0 0%, #93D2A2 50%, #6FB6E9 100%);
+  --grad-primary: linear-gradient(135deg, #6fb6e9 0%, #a6d3f2 100%);
+  --grad-secondary: linear-gradient(135deg, #ffb961 0%, #ffe39c 100%);
+  --grad-accent: linear-gradient(135deg, #93d2a2 0%, #7cd8c0 100%);
+  --grad-candy: linear-gradient(135deg, #f8bbd0 0%, #93d2a2 50%, #6fb6e9 100%);
 
   /* ---------- Neutrals ---------- */
-  --muted: #F5EFE3; /* softer, higher contrast muted surface */
-  --muted-foreground: #8A8A8A; /* soft graphite */
+  --muted: #f5efe3; /* softer, higher contrast muted surface */
+  --muted-foreground: #8a8a8a; /* soft graphite */
 
-  --destructive: #EF9A9A; /* gentle crayon red */
-  --destructive-foreground: #2D2D2D;
+  --destructive: #ef9a9a; /* gentle crayon red */
+  --destructive-foreground: #2d2d2d;
 
   /* ---------- Status Colors ---------- */
-  --success: #93D2A2;
-  --success-foreground: #2D2D2D;
+  --success: #93d2a2;
+  --success-foreground: #2d2d2d;
 
-  --warning: #FFE082;
-  --warning-foreground: #2D2D2D;
+  --warning: #ffe082;
+  --warning-foreground: #2d2d2d;
 
-  --info: #81D4FA;
-  --info-foreground: #2D2D2D;
+  --info: #81d4fa;
+  --info-foreground: #2d2d2d;
 
   /* ---------- Educational Context Colors ---------- */
-  --attendance-present: #93D2A2;
-  --attendance-absent: #EF9A9A;
-  --attendance-late: #FFE082;
+  --attendance-present: #93d2a2;
+  --attendance-absent: #ef9a9a;
+  --attendance-late: #ffe082;
 
-  --fee-paid: #93D2A2;
-  --fee-pending: #FFE082;
-  --fee-overdue: #EF9A9A;
+  --fee-paid: #93d2a2;
+  --fee-pending: #ffe082;
+  --fee-overdue: #ef9a9a;
 
-  --performance-excellent: #93D2A2;
-  --performance-good: #6FB6E9;
-  --performance-needs-improvement: #FFE082;
-  --performance-poor: #EF9A9A;
+  --performance-excellent: #93d2a2;
+  --performance-good: #6fb6e9;
+  --performance-needs-improvement: #ffe082;
+  --performance-poor: #ef9a9a;
 
   /* ---------- Charts ---------- */
-  --chart-1: #6FB6E9;  /* sky blue */
-  --chart-2: #FFB961;  /* peachy orange */
-  --chart-3: #93D2A2;  /* minty green */
-  --chart-4: #CE93D8;  /* lilac */
-  --chart-5: #F8BBD0;  /* pink */
+  --chart-1: #6fb6e9; /* sky blue */
+  --chart-2: #ffb961; /* peachy orange */
+  --chart-3: #93d2a2; /* minty green */
+  --chart-4: #ce93d8; /* lilac */
+  --chart-5: #f8bbd0; /* pink */
 
   --radius: 12px;
 
   /* ---------- Sidebar ---------- */
-  --sidebar: #FFF9F1;
-  --sidebar-foreground: #2D2D2D;
-  --sidebar-primary: #6FB6E9;
-  --sidebar-primary-foreground: #2D2D2D;
-  --sidebar-accent: #F5EFE3;
-  --sidebar-accent-foreground: #2D2D2D;
-  --sidebar-border: #D9D4C5;
-  --sidebar-ring: #6FB6E9;
+  --sidebar: #fff9f1;
+  --sidebar-foreground: #2d2d2d;
+  --sidebar-primary: #6fb6e9;
+  --sidebar-primary-foreground: #2d2d2d;
+  --sidebar-accent: #f5efe3;
+  --sidebar-accent-foreground: #2d2d2d;
+  --sidebar-border: #d9d4c5;
+  --sidebar-ring: #6fb6e9;
 
   /* ---------- AI Assistant (Pastel Glow) ---------- */
-  --ai-primary: #6FB6E9;
-  --ai-secondary: #CE93D8;
-  --ai-accent: #93D2A2;
-  --ai-background: #F5EFE3;
+  --ai-primary: #6fb6e9;
+  --ai-secondary: #ce93d8;
+  --ai-accent: #93d2a2;
+  --ai-background: #f5efe3;
   --ai-glow: rgba(144, 202, 249, 0.13);
 }
 
@@ -118,94 +118,94 @@
    ========================= */
 .dark {
   /* ---------- Foundations (Dark, Chalkboard Pastel) ---------- */
-  --background: #1B1B1B;    /* deeper, true blackboard */
-  --foreground: #F5F5F5;    /* chalk white */
+  --background: #1b1b1b; /* deeper, true blackboard */
+  --foreground: #f5f5f5; /* chalk white */
 
-  --card: #242424;          /* slightly lighter blackboard */
-  --card-foreground: #F5F5F5;
+  --card: #242424; /* slightly lighter blackboard */
+  --card-foreground: #f5f5f5;
 
   --popover: #242424;
-  --popover-foreground: #F5F5F5;
+  --popover-foreground: #f5f5f5;
 
-  --border: #353535;        /* chalky gray */
-  --input: #242424;         /* match card */
-  --ring: #81D4FA;          /* pastel blue ring (unchanged for glow) */
+  --border: #353535; /* chalky gray */
+  --input: #242424; /* match card */
+  --ring: #81d4fa; /* pastel blue ring (unchanged for glow) */
 
   /* ---------- Brand Colors (Chalk Pastel) ---------- */
-  --primary: #81D4FA;        /* soft chalky blue */
-  --primary-foreground: #1B1B1B;
+  --primary: #81d4fa; /* soft chalky blue */
+  --primary-foreground: #1b1b1b;
 
-  --secondary: #FFB74D;      /* pastel orange chalk */
-  --secondary-foreground: #1B1B1B;
+  --secondary: #ffb74d; /* pastel orange chalk */
+  --secondary-foreground: #1b1b1b;
 
-  --accent: #81C784;         /* minty green chalk */
-  --accent-foreground: #1B1B1B;
+  --accent: #81c784; /* minty green chalk */
+  --accent-foreground: #1b1b1b;
 
   /* Playful extras (chalk pastels) */
-  --pink: #F48FB1;
-  --lime: #DCE775;
-  --purple: #B39DDB;
-  --yellow: #FFF176;
-  --teal: #4DD0E1;
+  --pink: #f48fb1;
+  --lime: #dce775;
+  --purple: #b39ddb;
+  --yellow: #fff176;
+  --teal: #4dd0e1;
 
   /* ---------- Gradients (Soft Chalk Blends) ---------- */
-  --grad-primary: linear-gradient(135deg, #81D4FA 0%, #B39DDB 100%);
-  --grad-secondary: linear-gradient(135deg, #FFB74D 0%, #FFF176 100%);
-  --grad-accent: linear-gradient(135deg, #81C784 0%, #4DD0E1 100%);
-  --grad-candy: linear-gradient(135deg, #F48FB1 0%, #81C784 50%, #81D4FA 100%);
+  --grad-primary: linear-gradient(135deg, #81d4fa 0%, #b39ddb 100%);
+  --grad-secondary: linear-gradient(135deg, #ffb74d 0%, #fff176 100%);
+  --grad-accent: linear-gradient(135deg, #81c784 0%, #4dd0e1 100%);
+  --grad-candy: linear-gradient(135deg, #f48fb1 0%, #81c784 50%, #81d4fa 100%);
 
   /* ---------- Neutrals ---------- */
-  --muted: #2B2B2B;              /* more contrast muted panel */
-  --muted-foreground: #B0B0B0;   /* chalk gray */
+  --muted: #2b2b2b; /* more contrast muted panel */
+  --muted-foreground: #b0b0b0; /* chalk gray */
 
-  --destructive: #E57373;
-  --destructive-foreground: #1B1B1B;
+  --destructive: #e57373;
+  --destructive-foreground: #1b1b1b;
 
   /* ---------- Status Colors ---------- */
-  --success: #81C784;
-  --success-foreground: #1B1B1B;
+  --success: #81c784;
+  --success-foreground: #1b1b1b;
 
-  --warning: #FFF176;
-  --warning-foreground: #1B1B1B;
+  --warning: #fff176;
+  --warning-foreground: #1b1b1b;
 
-  --info: #81D4FA;
-  --info-foreground: #1B1B1B;
+  --info: #81d4fa;
+  --info-foreground: #1b1b1b;
 
   /* ---------- Educational Context Colors ---------- */
-  --attendance-present: #81C784;
-  --attendance-absent: #E57373;
-  --attendance-late: #FFF176;
+  --attendance-present: #81c784;
+  --attendance-absent: #e57373;
+  --attendance-late: #fff176;
 
-  --fee-paid: #81C784;
-  --fee-pending: #FFF176;
-  --fee-overdue: #E57373;
+  --fee-paid: #81c784;
+  --fee-pending: #fff176;
+  --fee-overdue: #e57373;
 
-  --performance-excellent: #81C784;
-  --performance-good: #81D4FA;
-  --performance-needs-improvement: #FFF176;
-  --performance-poor: #E57373;
+  --performance-excellent: #81c784;
+  --performance-good: #81d4fa;
+  --performance-needs-improvement: #fff176;
+  --performance-poor: #e57373;
 
   /* ---------- Charts ---------- */
-  --chart-1: #81D4FA;  /* blue */
-  --chart-2: #FFB74D;  /* orange */
-  --chart-3: #81C784;  /* green */
-  --chart-4: #B39DDB;  /* lilac */
-  --chart-5: #F48FB1;  /* pink */
+  --chart-1: #81d4fa; /* blue */
+  --chart-2: #ffb74d; /* orange */
+  --chart-3: #81c784; /* green */
+  --chart-4: #b39ddb; /* lilac */
+  --chart-5: #f48fb1; /* pink */
 
   /* ---------- Sidebar ---------- */
-  --sidebar: #1B1B1B;
-  --sidebar-foreground: #F5F5F5;
-  --sidebar-primary: #81D4FA;
-  --sidebar-primary-foreground: #1B1B1B;
+  --sidebar: #1b1b1b;
+  --sidebar-foreground: #f5f5f5;
+  --sidebar-primary: #81d4fa;
+  --sidebar-primary-foreground: #1b1b1b;
   --sidebar-accent: #242424;
-  --sidebar-accent-foreground: #F5F5F5;
+  --sidebar-accent-foreground: #f5f5f5;
   --sidebar-border: #353535;
-  --sidebar-ring: #81D4FA;
+  --sidebar-ring: #81d4fa;
 
   /* ---------- AI Assistant (Chalk Glow) ---------- */
-  --ai-primary: #81D4FA;
-  --ai-secondary: #B39DDB;
-  --ai-accent: #81C784;
+  --ai-primary: #81d4fa;
+  --ai-secondary: #b39ddb;
+  --ai-accent: #81c784;
   --ai-background: #242424;
   --ai-glow: rgba(129, 212, 250, 0.22);
 }
@@ -438,10 +438,18 @@
   }
 
   /* Background gradient helpers */
-  .bg-grad-primary { background: var(--grad-primary); }
-  .bg-grad-secondary { background: var(--grad-secondary); }
-  .bg-grad-accent { background: var(--grad-accent); }
-  .bg-grad-candy { background: var(--grad-candy); }
+  .bg-grad-primary {
+    background: var(--grad-primary);
+  }
+  .bg-grad-secondary {
+    background: var(--grad-secondary);
+  }
+  .bg-grad-accent {
+    background: var(--grad-accent);
+  }
+  .bg-grad-candy {
+    background: var(--grad-candy);
+  }
 
   /* Playful conic-ring border used by fancy buttons/badges */
   .ring-orbit {
@@ -453,11 +461,23 @@
     inset: 0;
     border-radius: inherit;
     pointer-events: none;
-    background: conic-gradient(from var(--_angle, 0deg), var(--primary) 0 12%, transparent 12% 100%);
-    -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
-    mask: radial-gradient(farthest-side, transparent calc(100% - 2px), #000 calc(100% - 2px));
+    background: conic-gradient(
+      from var(--_angle, 0deg),
+      var(--primary) 0 12%,
+      transparent 12% 100%
+    );
+    -webkit-mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 2px),
+      #000 calc(100% - 2px)
+    );
+    mask: radial-gradient(
+      farthest-side,
+      transparent calc(100% - 2px),
+      #000 calc(100% - 2px)
+    );
     animation: kn-orbit 4s linear infinite;
-    opacity: .9;
+    opacity: 0.9;
   }
 
   /* Soft candy sheen overlay */
@@ -472,10 +492,17 @@
     left: -35%;
     width: 35%;
     border-radius: inherit;
-    background: linear-gradient(90deg, transparent, rgba(255,255,255,.25), transparent);
+    background: linear-gradient(
+      90deg,
+      transparent,
+      rgba(255, 255, 255, 0.25),
+      transparent
+    );
     filter: blur(0.5px);
     opacity: 0;
-    transition: transform .7s ease-out, opacity .2s ease-out;
+    transition:
+      transform 0.7s ease-out,
+      opacity 0.2s ease-out;
     transform: translateX(0);
   }
   .overlay-sheen:hover::before {
@@ -486,20 +513,51 @@
   /* Confetti dots (subtle, for playful sections) */
   .bg-confetti {
     background-image:
-      radial-gradient(circle at 20% 20%, color-mix(in oklab, var(--pink), white 10%) 0 2px, transparent 3px),
-      radial-gradient(circle at 80% 30%, color-mix(in oklab, var(--lime), white 10%) 0 2px, transparent 3px),
-      radial-gradient(circle at 40% 70%, color-mix(in oklab, var(--accent), white 10%) 0 2px, transparent 3px),
-      radial-gradient(circle at 70% 80%, color-mix(in oklab, var(--purple), white 10%) 0 2px, transparent 3px);
+      radial-gradient(
+        circle at 20% 20%,
+        color-mix(in oklab, var(--pink), white 10%) 0 2px,
+        transparent 3px
+      ),
+      radial-gradient(
+        circle at 80% 30%,
+        color-mix(in oklab, var(--lime), white 10%) 0 2px,
+        transparent 3px
+      ),
+      radial-gradient(
+        circle at 40% 70%,
+        color-mix(in oklab, var(--accent), white 10%) 0 2px,
+        transparent 3px
+      ),
+      radial-gradient(
+        circle at 70% 80%,
+        color-mix(in oklab, var(--purple), white 10%) 0 2px,
+        transparent 3px
+      );
     background-size: 24px 24px;
     background-color: color-mix(in oklab, var(--background), white 3%);
   }
 
   /* Playful badge palette */
-  .badge-pink    { background: color-mix(in oklab, var(--pink), white 88%); color: var(--pink); }
-  .badge-lime    { background: color-mix(in oklab, var(--lime), white 88%); color: var(--lime); }
-  .badge-purple  { background: color-mix(in oklab, var(--purple), white 88%); color: var(--purple); }
-  .badge-yellow  { background: color-mix(in oklab, var(--yellow), white 88%); color: #8a6f00; }
-  .badge-teal    { background: color-mix(in oklab, var(--teal), white 88%); color: var(--teal); }
+  .badge-pink {
+    background: color-mix(in oklab, var(--pink), white 88%);
+    color: var(--pink);
+  }
+  .badge-lime {
+    background: color-mix(in oklab, var(--lime), white 88%);
+    color: var(--lime);
+  }
+  .badge-purple {
+    background: color-mix(in oklab, var(--purple), white 88%);
+    color: var(--purple);
+  }
+  .badge-yellow {
+    background: color-mix(in oklab, var(--yellow), white 88%);
+    color: #8a6f00;
+  }
+  .badge-teal {
+    background: color-mix(in oklab, var(--teal), white 88%);
+    color: var(--teal);
+  }
 }
 
 /* Hide scrollbars but keep scrolling */
@@ -537,6 +595,157 @@ body {
 }
 
 @keyframes kn-orbit {
-  to { --_angle: 360deg; }
+  to {
+    --_angle: 360deg;
+  }
+}
+/* =========================
+   KNWDLE CRAYON DASHBOARD (Final Theme-Linked)
+   ========================= */
+
+/* ---------- Shared card base ---------- */
+.crayon-card {
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border), white 25%);
+  background: linear-gradient(
+    155deg,
+    color-mix(in oklab, var(--muted) 92%, var(--background) 8%),
+    color-mix(in oklab, var(--muted) 70%, var(--background) 30%)
+  );
+  box-shadow:
+    0 2px 4px rgba(0, 0, 0, 0.04),
+    0 4px 8px rgba(0, 0, 0, 0.06);
+  padding: 1rem;
+  overflow: hidden;
+  transition:
+    transform 0.2s ease,
+    box-shadow 0.2s ease;
+}
+.crayon-card:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 4px 10px rgba(0, 0, 0, 0.08),
+    0 8px 16px rgba(0, 0, 0, 0.06);
 }
 
+/* ---------- Widget variants ---------- */
+.widget-attendance {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--accent) 65%, var(--background) 35%),
+    color-mix(in oklab, var(--accent) 30%, var(--muted) 70%)
+  );
+  border: 1px solid color-mix(in oklab, var(--accent), white 45%);
+  color: var(--foreground);
+}
+
+.widget-finance {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--secondary) 60%, var(--background) 40%),
+    color-mix(in oklab, var(--secondary) 25%, var(--muted) 75%)
+  );
+  border: 1px solid color-mix(in oklab, var(--secondary), white 45%);
+  color: var(--foreground);
+}
+
+.widget-members {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--primary) 65%, var(--background) 35%),
+    color-mix(in oklab, var(--primary) 25%, var(--muted) 75%)
+  );
+  border: 1px solid color-mix(in oklab, var(--primary), white 45%);
+  color: var(--foreground);
+}
+
+.widget-units {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--teal) 60%, var(--background) 40%),
+    color-mix(in oklab, var(--teal) 25%, var(--muted) 75%)
+  );
+  border: 1px solid color-mix(in oklab, var(--teal), white 45%);
+  color: var(--foreground);
+}
+
+.widget-announcements {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--purple) 60%, var(--background) 40%),
+    color-mix(in oklab, var(--purple) 25%, var(--muted) 75%)
+  );
+  border: 1px solid color-mix(in oklab, var(--purple), white 45%);
+  color: var(--foreground);
+}
+
+.widget-generic,
+.widget-summary,
+.widget-table {
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--muted) 85%, var(--background) 15%),
+    color-mix(in oklab, var(--muted) 70%, var(--background) 30%)
+  );
+  border: 1px solid color-mix(in oklab, var(--border), white 20%);
+  color: var(--foreground);
+}
+
+/* ---------- Summary cards ---------- */
+.summary-card {
+  position: relative;
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border), white 30%);
+  background: linear-gradient(
+    155deg,
+    color-mix(in oklab, var(--muted) 88%, var(--background) 12%),
+    color-mix(in oklab, var(--muted) 75%, var(--background) 25%)
+  );
+  text-align: center;
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground), black 80%);
+  transition: all 0.25s ease;
+}
+
+.summary-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 4px 10px color-mix(in oklab, var(--foreground), black 80%);
+}
+
+/* ---------- Tables ---------- */
+.crayon-table {
+  border-radius: 14px;
+  border: 1px solid color-mix(in oklab, var(--border), white 30%);
+  background: linear-gradient(
+    150deg,
+    color-mix(in oklab, var(--muted) 85%, var(--background) 15%),
+    color-mix(in oklab, var(--muted) 70%, var(--background) 30%)
+  );
+  color: var(--foreground);
+  box-shadow: 0 2px 6px color-mix(in oklab, var(--foreground), black 80%);
+  overflow: hidden;
+}
+
+.crayon-table th {
+  background: color-mix(in oklab, var(--muted), var(--background) 30%);
+  font-weight: 600;
+  color: var(--foreground);
+}
+
+.crayon-table tr:nth-child(even) td {
+  background: color-mix(in oklab, var(--background), var(--muted) 10%);
+}
+
+.crayon-table tr:hover td {
+  background: color-mix(in oklab, var(--accent), var(--background) 80%);
+  transition: background 0.25s ease;
+}
+
+.table {
+  border-radius: 12px;
+  overflow: hidden;
+  box-shadow: 0 1px 4px color-mix(in oklab, var(--foreground), black 80%);
+}
+
+.table-row:hover td {
+  background: color-mix(in oklab, var(--accent), var(--background) 90%);
+}

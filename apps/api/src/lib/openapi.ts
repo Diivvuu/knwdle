@@ -20,6 +20,7 @@ import { getOrgUnitDashboardPaths } from '../docs/org-unit/org.unit.dashboard.do
 import { getOrgConnectDashboardPaths } from '../docs/org/org.connect-dashboard.docs';
 import { getNotificationsPaths } from '../docs/notification.docs';
 import { getOrgUnitAttendancePaths } from '../docs/org-unit/org.unit.attendance.docs';
+import { getOrgUnitAssignmentsPaths } from '../docs/org-unit/org.unit.assignment.docs';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
@@ -88,6 +89,7 @@ export function buildOpenApiDocument(): OpenAPIObject {
     getOrgConnectDashboardPaths(),
     getNotificationsPaths(),
     getOrgUnitAttendancePaths(),
+    getOrgUnitAssignmentsPaths(),
   ];
 
   return mergeDocs(docs);

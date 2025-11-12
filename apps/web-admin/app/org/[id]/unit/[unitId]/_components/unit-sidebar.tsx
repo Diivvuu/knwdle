@@ -23,7 +23,7 @@ import { selectUnitDashboardStatus } from '@workspace/state';
 import { useEffect } from 'react';
 
 export function UnitSidebar() {
-  const { id : orgId, unitId } = useParams() as { id: string; unitId: string };
+  const { id: orgId, unitId } = useParams() as { id: string; unitId: string };
   const pathname = usePathname();
   const { config, loading, error } = useUnitDashboardConfig();
   const features = config?.features || [];
@@ -45,7 +45,7 @@ export function UnitSidebar() {
       path: 'dashboard',
       locked: false,
     },
-    ...featureKeys.map((key : any) => ({
+    ...featureKeys.map((key: any) => ({
       ...MAP[key],
       locked: !tables.includes(key),
     })),
@@ -54,30 +54,29 @@ export function UnitSidebar() {
   const isActive = (path: string) =>
     pathname?.endsWith(path) || pathname?.includes(`/${path}`);
 
-const status = useSelector(selectUnitDashboardStatus);
+  const status = useSelector(selectUnitDashboardStatus);
   useEffect(() => {
-  console.log('org unit hook', config, status)
+    console.log('org unit hook', config, status);
+  }, [config, status]);
+  if (status === 'loading' || !config)
+    return (
+      <Sidebar className="border-r bg-card/80 backdrop-blur-sm">
+        <SidebarContent>
+          <div className="p-4 text-sm text-muted-foreground">Loading...</div>
+        </SidebarContent>
+      </Sidebar>
+    );
 
-}, [config, status])
-if (status === 'loading' || !config)
-  return (
-    <Sidebar className="border-r bg-card/80 backdrop-blur-sm">
-      <SidebarContent>
-        <div className="p-4 text-sm text-muted-foreground">Loading...</div>
-      </SidebarContent>
-    </Sidebar>
-  );
-
-if (status === 'failed' || error)
-  return (
-    <Sidebar className="border-r bg-card/80 backdrop-blur-sm">
-      <SidebarContent>
-        <div className="p-4 text-sm text-destructive">
-          Failed to load config
-        </div>
-      </SidebarContent>
-    </Sidebar>
-  );
+  if (status === 'failed' || error)
+    return (
+      <Sidebar className="border-r bg-card/80 backdrop-blur-sm">
+        <SidebarContent>
+          <div className="p-4 text-sm text-destructive">
+            Failed to load config
+          </div>
+        </SidebarContent>
+      </Sidebar>
+    );
 
   return (
     <Sidebar className="border-r bg-card/80 backdrop-blur-sm">
@@ -94,7 +93,7 @@ if (status === 'failed' || error)
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
-              const href = `/org/${orgId}/units/${unitId}/${item.path}`;
+              const href = `/org/${orgId}/unit/${unitId}/${item.path}`;
 
               return (
                 <SidebarMenuItem key={item.path}>

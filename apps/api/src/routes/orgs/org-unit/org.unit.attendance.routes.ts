@@ -12,6 +12,9 @@ r.get(
   requirePermission('attendance.read'),
   asyncHandler(OrgUnitAttendanceController.listSessions)
 );
+r.get('/units/:unitId/attendance/test', (req, res) => {
+  res.json({ ok: true, msg: 'attendance router mounted successfully' });
+});
 r.post(
   '/units/:unitId/attendance/sessions',
   requireAuth,

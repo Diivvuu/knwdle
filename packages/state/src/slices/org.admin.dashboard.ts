@@ -3,6 +3,7 @@ import { api } from '../api';
 
 export type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
 
+/* --------------------------- Types --------------------------- */
 export type OrgBasic = {
   id: string;
   name: string;
@@ -50,9 +51,15 @@ export type UnitGlance = {
 
 export type MemberPeek = {
   id: string;
-  name: string | null;
   role: string;
   joinedAt: string;
+  user?: {
+    id: string;
+    name: string | null;
+    email: string | null;
+    mobile?: string | null;
+    profilePhoto?: string | null;
+  };
 };
 
 export type AnnouncementPeek = {
@@ -87,6 +94,7 @@ type OrgState = {
   feesSnapshotById: Record<string, Loadable<FeesSnapshot>>;
 };
 
+/* --------------------------- Initial State --------------------------- */
 const initialState: OrgState = {
   basicById: {},
   summaryById: {},
@@ -98,8 +106,9 @@ const initialState: OrgState = {
   feesSnapshotById: {},
 };
 
+/* --------------------------- Thunks --------------------------- */
 export const fetchOrgBasic = createAsyncThunk(
-  'admingOrg/fetchOrgBasic',
+  'adminOrg/fetchOrgBasic',
   async (orgId: string) => {
     const { data } = await api.get(`/api/orgs/${orgId}`);
     return data as OrgBasic;
@@ -107,7 +116,7 @@ export const fetchOrgBasic = createAsyncThunk(
 );
 
 export const fetchOrgSummary = createAsyncThunk(
-  'admingOrg/fetchOrgSummary',
+  'adminOrg/fetchOrgSummary',
   async (orgId: string) => {
     const { data } = await api.get(`/api/orgs/${orgId}/summary`);
     const normalized: OrgSummary = {
@@ -119,7 +128,7 @@ export const fetchOrgSummary = createAsyncThunk(
 );
 
 export const fetchDashboardConfig = createAsyncThunk(
-  'admingOrg/fetchDashboardConfig',
+  'adminOrg/fetchDashboardConfig',
   async (orgId: string) => {
     const { data } = await api.get(`/api/orgs/${orgId}/dashboard-config`);
     return { orgId, data: data as DashboardConfig };
@@ -138,7 +147,9 @@ export const fetchMembersPeek = createAsyncThunk(
   'adminDashboard/fetchMembersPeek',
   async (orgId: string) => {
     const { data } = await api.get(`/api/orgs/${orgId}/members/peek`);
-    return { orgId, data: data as MemberPeek[] };
+    // ✅ Normalize shape for both `{ items, count }` or array
+    const normalized = Array.isArray(data) ? data : (data?.items ?? []);
+    return { orgId, data: normalized as MemberPeek[] };
   }
 );
 
@@ -166,8 +177,9 @@ export const fetchFeesSnapshot = createAsyncThunk(
   }
 );
 
+/* --------------------------- Slice --------------------------- */
 const slice = createSlice({
-  name: 'admingOrg',
+  name: 'adminOrg',
   initialState,
   reducers: {
     clearOrgCache(state, action: PayloadAction<{ orgId: string }>) {
@@ -182,133 +194,138 @@ const slice = createSlice({
       delete state.feesSnapshotById[orgId];
     },
     clearAll(state) {
-      state.basicById = {};
-      state.summaryById = {};
-      state.dashboardById = {};
-
-      state.unitsGlanceById = {};
-      state.membersPeekById = {};
-      state.announcementsPeekById = {};
-      state.attendanceSnapshotById = {};
-      state.feesSnapshotById = {};
+      Object.keys(state).forEach((k) => {
+        // @ts-expect-error dynamic clear
+        state[k] = {};
+      });
     },
   },
   extraReducers: (b) => {
-    //basic
+    /* ------------------ Basic ------------------ */
     b.addCase(fetchOrgBasic.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.basicById[id] = { status: 'loading' };
+      s.basicById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchOrgBasic.fulfilled, (s, a) => {
       s.basicById[a.payload.id] = { status: 'succeeded', data: a.payload };
     });
     b.addCase(fetchOrgBasic.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.basicById[id] = { status: 'failed', error: a.error.message };
+      s.basicById[a.meta.arg] = { status: 'failed', error: a.error.message };
     });
 
-    // summary
+    /* ------------------ Summary ------------------ */
     b.addCase(fetchOrgSummary.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.summaryById[id] = { status: 'loading' };
+      s.summaryById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchOrgSummary.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.summaryById[orgId] = { status: 'succeeded', data };
+      s.summaryById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchOrgSummary.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.summaryById[id] = { status: 'failed', error: a.error.message };
+      s.summaryById[a.meta.arg] = { status: 'failed', error: a.error.message };
     });
 
-    // dashboard-config
+    /* ------------------ Dashboard Config ------------------ */
     b.addCase(fetchDashboardConfig.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.dashboardById[id] = { status: 'loading' };
+      s.dashboardById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchDashboardConfig.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.dashboardById[orgId] = { status: 'succeeded', data };
+      s.dashboardById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchDashboardConfig.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.dashboardById[id] = { status: 'failed', error: a.error.message };
+      s.dashboardById[a.meta.arg] = {
+        status: 'failed',
+        error: a.error.message,
+      };
     });
 
-    // units glance
+    /* ------------------ Units Glance ------------------ */
     b.addCase(fetchUnitsGlance.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.unitsGlanceById[id] = { status: 'loading' };
+      s.unitsGlanceById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchUnitsGlance.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.unitsGlanceById[orgId] = { status: 'succeeded', data };
+      s.unitsGlanceById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchUnitsGlance.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.unitsGlanceById[id] = { status: 'failed', error: a.error.message };
+      s.unitsGlanceById[a.meta.arg] = {
+        status: 'failed',
+        error: a.error.message,
+      };
     });
 
-    //members peek
+    /* ------------------ Members Peek ------------------ */
     b.addCase(fetchMembersPeek.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.membersPeekById[id] = { status: 'loading' };
+      s.membersPeekById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchMembersPeek.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.membersPeekById[orgId] = { status: 'succeeded', data };
+      s.membersPeekById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchMembersPeek.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.membersPeekById[id] = { status: 'failed', error: a.error.message };
+      s.membersPeekById[a.meta.arg] = {
+        status: 'failed',
+        error: a.error.message,
+      };
     });
 
-    // announcements peek
+    /* ------------------ Announcements Peek ------------------ */
     b.addCase(fetchAnnouncementsPeek.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.announcementsPeekById[id] = { status: 'loading' };
+      s.announcementsPeekById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchAnnouncementsPeek.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.announcementsPeekById[orgId] = { status: 'succeeded', data };
+      s.announcementsPeekById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchAnnouncementsPeek.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.announcementsPeekById[id] = {
+      s.announcementsPeekById[a.meta.arg] = {
         status: 'failed',
         error: a.error.message,
       };
     });
 
-    //attendance snapshot
+    /* ------------------ Attendance Snapshot ------------------ */
     b.addCase(fetchAttendanceSnapshot.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.attendanceSnapshotById[id] = { status: 'loading' };
+      s.attendanceSnapshotById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchAttendanceSnapshot.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.attendanceSnapshotById[orgId] = { status: 'succeeded', data };
+      s.attendanceSnapshotById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchAttendanceSnapshot.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.attendanceSnapshotById[id] = {
+      s.attendanceSnapshotById[a.meta.arg] = {
         status: 'failed',
         error: a.error.message,
       };
     });
 
-    //fees snapshot
+    /* ------------------ Fees Snapshot ------------------ */
     b.addCase(fetchFeesSnapshot.pending, (s, a) => {
-      const id = a.meta.arg as string;
-      s.feesSnapshotById[id] = { status: 'loading' };
+      s.feesSnapshotById[a.meta.arg] = { status: 'loading' };
     });
     b.addCase(fetchFeesSnapshot.fulfilled, (s, a) => {
-      const { orgId, data } = a.payload;
-      s.feesSnapshotById[orgId] = { status: 'succeeded', data };
+      s.feesSnapshotById[a.payload.orgId] = {
+        status: 'succeeded',
+        data: a.payload.data,
+      };
     });
     b.addCase(fetchFeesSnapshot.rejected, (s, a) => {
-      const id = a.meta.arg as string;
-      s.feesSnapshotById[id] = { status: 'failed', error: a.error.message };
+      s.feesSnapshotById[a.meta.arg] = {
+        status: 'failed',
+        error: a.error.message,
+      };
     });
   },
 });

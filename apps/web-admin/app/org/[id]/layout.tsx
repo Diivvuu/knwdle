@@ -1,6 +1,5 @@
 'use client';
-
-import { Geist, Geist_Mono } from 'next/font/google';
+import '@workspace/ui/globals.css';
 import { Provider as JotaiProvider } from 'jotai';
 import AppInit from '@/providers/app-init';
 import { ReduxWrapper } from '@/providers/store-provider';
@@ -8,7 +7,6 @@ import { Toaster } from '@workspace/ui/components/sonner';
 import Modals from '@/features/modals';
 import { SidebarProvider } from '@workspace/ui/components/sidebar';
 import { OrgSidebar } from './_components/org-sidebar';
-import { SidebarToggleButton } from '@workspace/ui/components/sidebar-toggle-button';
 import { useEffect, useState } from 'react';
 
 export default function OrgScopedLayout({
