@@ -1,5 +1,5 @@
 'use client';
-
+import '@workspace/ui/globals.css';
 import { Geist, Geist_Mono } from 'next/font/google';
 import { Providers } from '@workspace/ui/components/provider';
 import { Provider as JotaiProvider } from 'jotai';
