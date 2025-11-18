@@ -36,11 +36,13 @@ import { Label } from '@workspace/ui/components/label';
 import { Button } from '@workspace/ui/components/button';
 import OrDivider from './or-divider';
 import { Input } from '@workspace/ui/components/input';
+import { toast } from 'sonner';
 
 const LoginSchema = z.object({
   email: z.string().email(),
   password: z.string().min(1, 'Password is required'),
 });
+
 const weakList = ['password', 'password1', '123456', 'qwerty', 'letmein'];
 const SignUpSchema = z.object({
   name: z.string().min(2).max(64).optional(),
@@ -48,7 +50,7 @@ const SignUpSchema = z.object({
   password: z
     .string()
     .min(8, 'Use at least 8 characters')
-    .refine((v) => (weakList.includes(v.toLowerCase()), 'Too common'))
+    .refine((v) => !weakList.includes(v.toLowerCase()), 'Too common')
     .refine((v) => /[a-z]/.test(v), 'Add a lowercase letter')
     .refine((v) => /[A-Z]/.test(v), 'Add an uppercase letter')
     .refine((v) => /\d/.test(v), 'Add a number')
@@ -68,9 +70,13 @@ export default function AuthScreen() {
   const authState = useSelector((state: RootState) => state.auth) || {};
 
   const { user, status, error, accessToken, otp } = authState;
-
   const safeOtp = otp ?? { status: 'idle', error: undefined };
 
+  // Track previous states for toast transitions
+  const prevStatus = useRef(status);
+  const prevOtpStatus = useRef(safeOtp.status);
+
+  // Handle force logout
   useEffect(() => {
     if (forceLogout) dispatch(logout());
   }, [forceLogout, dispatch]);
@@ -80,6 +86,73 @@ export default function AuthScreen() {
 
   const [cooldown, setCooldown] = useState(0);
 
+  // Toast handling with state transitions
+ useEffect(() => {
+    // Handle signup success - when status goes from loading to idle without user
+    if (
+      prevStatus.current === "loading" &&
+      status === "idle" &&
+      !user &&
+      !accessToken
+    ) {
+      toast.success("Account Created", {
+        description: "Check your email for verification",
+        icon: null
+      });
+    }
+
+    // Handle auth failure
+    if (prevStatus.current === "loading" && status === "failed") {
+      toast.error("Authentication Failed", {
+        description: error || "Something went wrong",
+        icon: null
+      });
+    }
+
+    // Handle OTP verification success
+    if (
+      prevOtpStatus.current === "verifying" &&
+      safeOtp.status === "idle" &&
+      user &&
+      accessToken
+    ) {
+      toast.success("Verified Successfully", {
+        description: "You're now logged in",
+      });
+    }
+
+    // Handle OTP failure
+    if (prevOtpStatus.current === "verifying" && safeOtp.status === "failed") {
+      toast.error("Verification Failed", {
+        description: safeOtp.error || "OTP verification failed",
+      });
+    }
+
+    // Handle OTP sending success
+    if (prevOtpStatus.current === "sending" && safeOtp.status === "sent") {
+      toast.success("Code Sent", {
+        description: "Check your email for the verification code",
+      });
+    }
+
+    // Handle OTP sending failure
+    if (prevOtpStatus.current === "sending" && safeOtp.status === "failed") {
+      toast.error("Failed to Send", {
+        description: safeOtp.error || "Failed to send OTP",
+      });
+    }
+
+    prevStatus.current = status;
+    prevOtpStatus.current = safeOtp.status;
+  }, [status, safeOtp.status, error, safeOtp.error, user, accessToken]);
+
+  // Clear errors when tab changes
+  useEffect(() => {
+    dispatch(clearAuthError());
+    dispatch(clearOtpError());
+  }, [tab, dispatch]);
+
+  // OTP cooldown handling
   useEffect(() => {
     if (safeOtp.status === 'sent') setCooldown(30);
   }, [safeOtp.status]);
@@ -167,12 +240,14 @@ export default function AuthScreen() {
     }
   }, [dispatch, otpEmail, otpCode]);
 
+  // Focus OTP input when sent
   useEffect(() => {
     if (safeOtp.status === 'sent') {
       setTimeout(() => otpCodeRef.current?.focus?.(), 0);
     }
   }, [safeOtp.status]);
 
+  // Handle Enter key for OTP verification
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if (
@@ -188,6 +263,7 @@ export default function AuthScreen() {
     return () => window.removeEventListener('keydown', handler);
   }, [safeOtp.status, otpCode, confirmOtp]);
 
+  // Redirect when authenticated
   useEffect(() => {
     if (user && accessToken) router.replace(redirectTo);
   }, [user, accessToken, router, redirectTo]);
@@ -203,6 +279,7 @@ export default function AuthScreen() {
     [params, router]
   );
 
+  // Handle Cmd+Enter for form submission
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') {
@@ -247,7 +324,11 @@ export default function AuthScreen() {
       </CardHeader>
 
       <CardContent className="pt-0 rounded-xl bg-gradient-t-b from-background to-muted/30">
-        {visibleError && <ErrorBanner message={visibleError} />}
+        {visibleError && (
+          <div className='mb-4'>
+            <ErrorBanner message={visibleError} />
+          </div>
+        )}
 
         <Tabs value={tab} onValueChange={onTabChange}>
           <TabsList className="mb-4 grid w-full grid-cols-2 rounded-lg">
@@ -262,19 +343,19 @@ export default function AuthScreen() {
             >
               <EmailField
                 label="Email"
-                register={regLogin('email')}
+                register={regLogin("email")}
                 error={errorsLogin.email?.message}
               />
               <PasswordField
                 label="Password"
                 autoComplete="current-password"
-                register={regLogin('password')}
+                register={regLogin("password")}
                 error={errorsLogin.password?.message}
                 withStrength={false}
               />
               <div className="flex items-center justify-between">
                 <Label>
-                  Press <kbd className="rounded border px-1 py-0.5">⌘</kbd>+{' '}
+                  Press <kbd className="rounded border px-1 py-0.5">⌘</kbd>+{" "}
                   <kbd className="rounded-border px-1 py-0.5">Enter</kbd> to
                   submit
                 </Label>
@@ -283,7 +364,7 @@ export default function AuthScreen() {
                   type="submit"
                   disabled={isLoadingPw}
                 >
-                  {isLoadingPw ? 'Logging in...' : 'Log in'}
+                  {isLoadingPw ? "Logging in..." : "Log in"}
                 </Button>
               </div>
             </form>
@@ -324,7 +405,7 @@ export default function AuthScreen() {
                       placeholder="• • • • • •"
                       value={otpCode}
                       onChange={(e) =>
-                        setOtpCode(e.target.value.replace(/\D/g, ''))
+                        setOtpCode(e.target.value.replace(/\D/g, ""))
                       }
                       disabled={otpVerifying}
                     />
@@ -334,24 +415,24 @@ export default function AuthScreen() {
                       onClick={confirmOtp}
                       disabled={otpVerifying || otpCode.length < 4}
                     >
-                      {otpVerifying ? 'Verifying...' : 'Verify & Log in'}
+                      {otpVerifying ? "Verifying..." : "Verify & Log in"}
                     </Button>
                     <Button
-                      variant={'ghost'}
+                      variant={"ghost"}
                       onClick={() => {
-                        setOtpCode('');
-                        setOtpEmail('');
+                        setOtpCode("");
+                        setOtpEmail("");
                       }}
                       disabled={otpVerifying}
                     >
                       Use a different email
                     </Button>
                     <Button
-                      variant={'outline'}
+                      variant={"outline"}
                       onClick={sendOtp}
                       disabled={cooldown > 0 || otpVerifying}
                     >
-                      {cooldown > 0 ? `Resend in ${cooldown}s` : 'Resend code'}
+                      {cooldown > 0 ? `Resend in ${cooldown}s` : "Resend code"}
                     </Button>
                   </div>
                 </>
@@ -365,7 +446,7 @@ export default function AuthScreen() {
                       onClick={sendOtp}
                       disabled={otpSending || !otpEmail}
                     >
-                      {otpSending ? 'Sending...' : 'Send OTP'}
+                      {otpSending ? "Sending..." : "Send OTP"}
                     </Button>
                     <Label className="text-xs text-muted-foreground">
                       We'll email a code
@@ -388,7 +469,7 @@ export default function AuthScreen() {
                   className="h-9 rounded-md border bg-background px-3 text-sm"
                   placeholder="Jane Doe"
                   autoComplete="name"
-                  {...regSignup('name')}
+                  {...regSignup("name")}
                 />
                 {errorsSignup.name && (
                   <p className="text-sm text-destructive">
@@ -398,13 +479,13 @@ export default function AuthScreen() {
               </div>
               <EmailField
                 label="Email"
-                register={regSignup('email')}
+                register={regSignup("email")}
                 error={errorsSignup.email?.message}
               />
               <PasswordField
                 label="Password"
                 autoComplete="new-password"
-                register={regSignup('password')}
+                register={regSignup("password")}
                 error={errorsSignup.password?.message}
                 withStrength
               />
@@ -417,7 +498,7 @@ export default function AuthScreen() {
                   type="submit"
                   disabled={isLoadingPw}
                 >
-                  {isLoadingPw ? 'Creating...' : 'Create Account'}
+                  {isLoadingPw ? "Creating..." : "Create Account"}
                 </Button>
               </div>
             </form>

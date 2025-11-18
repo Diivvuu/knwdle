@@ -73,29 +73,31 @@ export const AuthService = {
   },
 
   async verifyEmail(token: string) {
-    const v = await VerificationTokenRepo.findByToken(token);
-    if (!v || v.expiresAt < new Date())
-      throw new HttpError(400, 'Invalid/expired token');
+  const v = await VerificationTokenRepo.findByToken(token);
+  if (!v || v.expiresAt < new Date())
+    throw new HttpError(400, 'Invalid/expired token');
 
-    await UserRepo.markVerified(v.userId);
-    const user = await UserRepo.byEmail(v.userId);
+  await UserRepo.markVerified(v.userId);
+  
+  // FIX: Use byId instead of byEmail
+  const user = await UserRepo.findByIdWithMemberships(v.userId); // ✅ CORRECT
 
-    if (!user) throw new HttpError(404, 'User not found');
+  if (!user) throw new HttpError(404, 'User not found');
 
-    await VerificationTokenRepo.delete(v.id);
+  await VerificationTokenRepo.delete(v.id);
 
-    const sess = await SessionRepo.create(user.id);
-    const access = signAccess(user.id);
-    const refresh = signRefresh(user.id, sess.id);
-    await SessionRepo.setToken(sess.id, refresh);
+  const sess = await SessionRepo.create(user.id);
+  const access = signAccess(user.id);
+  const refresh = signRefresh(user.id, sess.id);
+  await SessionRepo.setToken(sess.id, refresh);
 
-    return {
-      cookies: [
-        { name: COOKIE_NAME, value: refresh, options: sessionCookieOptions() },
-      ],
-      body: { message: 'Email verified', accessToken: access, user },
-    };
-  },
+  return {
+    cookies: [
+      { name: COOKIE_NAME, value: refresh, options: sessionCookieOptions() },
+    ],
+    body: { message: 'Email verified', accessToken: access, user },
+  };
+},
 
   async login({ email, password }: { email: string; password: string }) {
     const user = await UserRepo.byEmail(email);

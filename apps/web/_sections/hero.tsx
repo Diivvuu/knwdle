@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import RoleSwitcher from '@/hooks/role-switcher';
 import { roleCopy } from '@/hooks/role-copy';
 import { useRole } from '@/providers/role-provider';
@@ -82,7 +83,7 @@ export default function Hero() {
           width={160}
           height={160}
           priority
-          className="w-24 sm:w-32 md:w-44 lg:w-52 h-auto. object-contain object-left hidden dark:block"
+          className="w-24 sm:w-32 md:w-44 lg:w-52 h-auto object-contain object-left hidden dark:block"
         />
       </motion.div>
 
@@ -118,15 +119,20 @@ export default function Hero() {
 
       {/* CTAs (stack on mobile) */}
       <div className="mt-8 flex w-full max-w-md sm:max-w-none flex-col sm:flex-row gap-3 sm:gap-4 justify-center">
-        <Button className="px-5 py-2.5 rounded-lg bg-[var(--primary)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md w-full sm:w-auto">
-          {copy.primaryCta.label}
-        </Button>
-        <Button
-          variant={'ghost'}
-          className="px-5 py-2.5 rounded-lg border border-[color-mix(in srgb,var(--primary) 30%,transparent)] text-sm sm:text-base font-medium hover:bg-[color-mix(in srgb,var(--primary) 8%,var(--card))] transition w-full sm:w-auto"
-        >
-          {copy.secondaryCta.label}
-        </Button>
+        <Link href={copy.primaryCta.href} className="w-full sm:w-auto">
+          <Button className="px-5 py-2.5 rounded-lg bg-[var(--primary)] text-white text-sm sm:text-base font-medium hover:opacity-90 transition shadow-md w-full">
+            {copy.primaryCta.label}
+          </Button>
+        </Link>
+        
+        <Link href={copy.secondaryCta.href} className="w-full sm:w-auto">
+          <Button
+            variant={'ghost'}
+            className="px-5 py-2.5 rounded-lg border border-[color-mix(in srgb,var(--primary) 30%,transparent)] text-sm sm:text-base font-medium hover:bg-[color-mix(in srgb,var(--primary) 8%,var(--card))] transition w-full"
+          >
+            {copy.secondaryCta.label}
+          </Button>
+        </Link>
       </div>
 
       {/* Badges */}
