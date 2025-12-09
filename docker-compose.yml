@@ -1,0 +1,39 @@
+version: "3.8"
+
+services:
+  postgres:
+    image: postgres:15
+    container_name: knwdle-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: knwdle
+      POSTGRES_PASSWORD: knwdle_pass
+      POSTGRES_DB: knwdle_db
+    ports:
+      - "5432:5432"
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+
+  mailhog:
+    image: mailhog/mailhog
+    container_name: knwdle-mailhog
+    restart: unless-stopped
+    ports:
+      - "8025:8025" # UI
+      - "1025:1025" # SMTP server
+
+  localstack:
+    image: localstack/localstack:latest
+    container_name: knwdle-localstack
+    restart: unless-stopped
+    ports:
+      - "4566:4566"       # Localstack main API port
+    environment:
+      - SERVICES=s3
+      - DEFAULT_REGION=ap-south-1
+    volumes:
+      - "./localstack:/var/lib/localstack"
+
+volumes:
+  pgdata:
+   
