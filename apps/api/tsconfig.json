@@ -1,5 +1,5 @@
 {
-  "extends": null,
+  "extends": "../../tsconfig.json",
   "compilerOptions": {
     "target": "ES2020",
     "module": "CommonJS",
@@ -7,16 +7,11 @@
     "outDir": "dist",
     "esModuleInterop": true,
     "moduleResolution": "node",
-    "strict": true,
     "resolveJsonModule": true,
     "skipLibCheck": true,
+    "strict": true,
     "types": ["node"]
   },
   "include": ["src/**/*"],
-  "exclude": [
-    "dist",
-    "../../apps",
-    "../../packages",
-    "../../node_modules"
-  ]
+  "exclude": ["dist", "**/*.test.ts"]
 }
