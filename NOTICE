@@ -1,0 +1,15 @@
+Knwdle - Open Education & Org Platform
+Copyright (c) 2024–present Knwdle Authors
+
+This project is licensed under the GNU Affero General Public License v3.0 (AGPL-3.0).
+
+Informal summary (not legally binding):
+
+- If you modify Knwdle and run it as a hosted service (SaaS),
+  you must provide your modified source code to your users.
+- Commercial hosted clones without source sharing are not permitted.
+- Self-hosting for your own school/org is allowed.
+- Redistribution is allowed ONLY under AGPLv3 terms.
+
+This project uses third-party components (Next.js, React, Prisma, etc.)
+that have their own licenses. Consult their repositories for details.
