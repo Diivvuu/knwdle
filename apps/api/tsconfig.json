@@ -1,4 +1,5 @@
 {
+  "extends": null,
   "compilerOptions": {
     "target": "ES2020",
     "module": "CommonJS",
@@ -11,5 +12,11 @@
     "skipLibCheck": true,
     "types": ["node"]
   },
-  "include": ["src/**/*"]
+  "include": ["src/**/*"],
+  "exclude": [
+    "dist",
+    "../../apps",
+    "../../packages",
+    "../../node_modules"
+  ]
 }
