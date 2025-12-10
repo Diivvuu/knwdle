@@ -124,7 +124,7 @@ export default function Hero() {
             {copy.primaryCta.label}
           </Button>
         </Link>
-        
+
         <Link href={copy.secondaryCta.href} className="w-full sm:w-auto">
           <Button
             variant={'ghost'}

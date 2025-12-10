@@ -1,8 +1,8 @@
 // app/_components/landing/section-how-it-works.tsx
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { useEffect, useMemo, useRef, useState } from 'react';
+import { motion, useReducedMotion, useInView } from 'framer-motion';
 import Image from 'next/image';
 import { useRole } from '@/providers/role-provider';
 import { roleCopy } from '@/hooks/role-copy';
@@ -33,6 +33,11 @@ export default function SectionHowItWorks() {
   const steps = useMemo(() => (copy.steps as Step[]).slice(0, 4), [copy.steps]);
 
   const [active, setActive] = useState(0);
+  const containerRef = useRef<HTMLDivElement | null>(null);
+  const inView = useInView(containerRef, {
+    amount: 0.2,
+    once: true,
+  });
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -58,7 +63,20 @@ export default function SectionHowItWorks() {
       };
 
   return (
-    <section className="relative mx-auto w-full max-w-6xl px-4 sm:px-6 py-16 sm:py-20">
+    <section
+      ref={containerRef}
+      className="relative mx-auto w-full px-4 sm:px-6 py-14 sm:py-16"
+    >
+      {/* soft gradient/mesh background */}
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 -z-10 opacity-60 md:opacity-80"
+      >
+        <div className="absolute inset-0 bg-gradient-to-b from-[#e8f4ff] via-white to-white dark:from-[#0f172a] dark:via-[#0b1222] dark:to-[#0b1222]" />
+        <div className="absolute inset-0 [background:radial-gradient(circle_at_20%_20%,rgba(111,182,233,0.08),transparent_35%),radial-gradient(circle_at_80%_30%,rgba(129,212,250,0.08),transparent_30%),radial-gradient(circle_at_50%_80%,rgba(255,255,255,0.08),transparent_30%)]" />
+        <div className="absolute -left-24 -top-20 h-64 w-64 rounded-full bg-primary/10 blur-3xl" />
+      </div>
+
       <div className="mb-8 text-center">
         <p className="text-xs uppercase tracking-wider text-primary/80">
           How it works
@@ -71,7 +89,7 @@ export default function SectionHowItWorks() {
         </p>
       </div>
 
-      <div className="grid gap-8 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2 items-start">
         {/* LEFT: steps list */}
         <ol className="space-y-3">
           {steps.map((s, i) => {
@@ -79,9 +97,22 @@ export default function SectionHowItWorks() {
             const Icon = (icons[key] ?? icons.LayoutDashboard) as LucideIcon;
             const isActive = i === active;
             return (
-              <li key={s.title}>
+              <motion.li
+                key={s.title}
+                initial={{ opacity: 0, x: -12 }}
+                animate={
+                  prefersReduced
+                    ? { opacity: 1, x: 0 }
+                    : { opacity: inView ? 1 : 0, x: inView ? 0 : -12 }
+                }
+                transition={{ duration: 0.35, delay: i * 0.05 }}
+              >
                 <Card
-                  className={`transition ${isActive ? 'border-primary/40 bg-primary/5' : 'hover:bg-muted'}`}
+                  className={`group transition-all duration-300 border-transparent bg-gradient-to-r from-primary/5 to-background/60 hover:-translate-y-1 hover:shadow-xl hover:shadow-primary/10 ${
+                    isActive
+                      ? 'border-primary/40 ring-1 ring-primary/20'
+                      : 'border-transparent'
+                  }`}
                 >
                   <button
                     type="button"
@@ -90,7 +121,9 @@ export default function SectionHowItWorks() {
                   >
                     <CardHeader className="flex flex-row items-start gap-3 pb-2">
                       <div
-                        className={`mt-1 rounded-lg border bg-primary/10 p-2 ${isActive ? 'ring-1 ring-primary/30' : ''}`}
+                        className={`mt-1 rounded-lg border bg-primary/10 p-2 transition-transform duration-300 group-hover:-translate-y-1 ${
+                          isActive ? 'ring-1 ring-primary/30' : ''
+                        }`}
                       >
                         <Icon className="h-5 w-5 text-primary/90" />
                       </div>
@@ -105,22 +138,30 @@ export default function SectionHowItWorks() {
                     </CardHeader>
                   </button>
                 </Card>
-              </li>
+              </motion.li>
             );
           })}
         </ol>
 
         {/* RIGHT: sticky preview */}
         <div className="relative">
-          <div className="sticky top-[calc(var(--header-h,64px)+24px)]">
-            <Card>
+          <motion.div
+            className="sticky top-[calc(var(--header-h,64px)+24px)]"
+            initial={{ opacity: 0, x: 30 }}
+            animate={
+              prefersReduced
+                ? { opacity: 1, x: 0 }
+                : { opacity: inView ? 1 : 0, x: inView ? 0 : 30 }
+            }
+            transition={{ duration: 0.4, delay: 0.08 }}
+          >
+            <Card className="backdrop-blur-md bg-white/40 dark:bg-slate-900/50 border border-white/30 dark:border-white/10 shadow-2xl shadow-primary/10 rotate-0 md:-rotate-1">
               <CardHeader className="pb-2">
                 <CardTitle className="text-sm text-muted-foreground">
                   Step {active + 1} preview
                 </CardTitle>
               </CardHeader>
               <CardContent className="overflow-hidden">
-                {' '}
                 {/* ✅ clamps content */}
                 <motion.div
                   key={active}
@@ -128,7 +169,7 @@ export default function SectionHowItWorks() {
                   animate={mediaAnim.animate}
                   exit={mediaAnim.exit}
                   transition={{ duration: 0.28 }}
-                  className="relative w-full aspect-video overflow-hidden rounded-xl border bg-background"
+                  className="relative w-full aspect-video overflow-hidden rounded-xl border bg-gradient-to-br from-white/70 to-background/60 shadow-lg shadow-primary/10"
                 >
                   <div className="absolute left-0 right-0 top-0 z-10 flex h-8 items-center gap-1 border-b bg-background/80 px-3">
                     <span className="h-3 w-3 rounded-full bg-red-400" />
@@ -144,27 +185,28 @@ export default function SectionHowItWorks() {
                       src={steps[active].media}
                       alt={steps[active].title}
                       fill
-                      // sizes=" 100vw, 50vw"
-                      className="object-auto pt-4 pb-0 object-bottom"
+                      className="object-contain pt-6 pb-2"
                       priority
                     />
                   )}
                 </motion.div>
-                {/* dots unchanged */}
-                <div className="mt-3 flex items-center justify-center gap-2">
+                {/* animated dots */}
+                <div className="mt-4 flex items-center justify-center gap-3">
                   {steps.map((_, i) => (
-                    <button
+                    <motion.button
                       key={i}
                       aria-label={`Go to step ${i + 1}`}
                       onClick={() => setActive(i)}
+                      whileHover={{ scale: 1.1 }}
+                      whileTap={{ scale: 0.95 }}
                       className={`h-2.5 w-2.5 rounded-full transition
-            ${i === active ? 'bg-primary' : 'bg-muted hover:bg-muted-foreground/30'}`}
+            ${i === active ? 'bg-primary shadow shadow-primary/40' : 'bg-muted hover:bg-muted-foreground/30'}`}
                     />
                   ))}
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </motion.div>
         </div>
       </div>
     </section>
