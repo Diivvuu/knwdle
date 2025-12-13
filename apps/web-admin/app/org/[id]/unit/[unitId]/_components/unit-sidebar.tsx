@@ -137,7 +137,7 @@ export function UnitSidebar() {
           <SidebarMenu>
             <SidebarMenuItem>
               <Link
-                href={`/org/${orgId}`}
+                href={`/org/${orgId}/organisation`}
                 className="text-sm text-muted-foreground hover:underline"
               >
                 ← Back to Organisation

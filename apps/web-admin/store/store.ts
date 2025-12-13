@@ -9,6 +9,7 @@ import {
   orgUnitAttendance,
   orgUnitDashboard,
   orgUnitReducer,
+  orgUnitTimetable,
   orgUnitTypeReducer,
   rolesReducer,
 } from '@workspace/state';
@@ -36,6 +37,7 @@ const rootReducer = combineReducers({
   orgMembers: orgMember,
   orgUnitDashboard: orgUnitDashboard,
   orgUnitAttendance: orgUnitAttendance,
+  orgUnitTimetable: orgUnitTimetable,
 });
 
 const persistConfig = {

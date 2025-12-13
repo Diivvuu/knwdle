@@ -28,3 +28,5 @@ export { default as orgConnectDashboard } from './slices/org.connect.dashboard';
 export * from './slices/org.connect.dashboard';
 export { default as orgUnitAttendance } from './slices/org.unit.attendance';
 export * from './slices/org.unit.attendance';
+export { default as orgUnitTimetable } from './slices/org.unit.timetable';
+export * from './slices/org.unit.timetable';
