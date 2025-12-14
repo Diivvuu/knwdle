@@ -19,11 +19,11 @@ export type OrgBasic = {
   contactPhone?: string | null;
   createdAt: string;
   profile?: { id: string; orgId: string; meta: Record<string, any> } | null;
-  aggregates?: { unitsCount: number; membersCount: number };
+  aggregates?: { audiencesCount: number; membersCount: number };
 };
 
 export type OrgSummary = {
-  unitsCount: number;
+  audiencesCount: number;
   roleCounts: {
     admin: number;
     staff: number;
@@ -42,7 +42,7 @@ export type DashboardConfig = {
   tables: string[];
 };
 
-export type UnitGlance = {
+export type AudienceGlance = {
   id: string;
   name: string;
   type: string;
@@ -87,7 +87,7 @@ type OrgState = {
   basicById: Record<string, Loadable<OrgBasic>>;
   summaryById: Record<string, Loadable<OrgSummary>>;
   dashboardById: Record<string, Loadable<DashboardConfig>>;
-  unitsGlanceById: Record<string, Loadable<UnitGlance[]>>;
+  audiencesGlanceById: Record<string, Loadable<AudienceGlance[]>>;
   membersPeekById: Record<string, Loadable<MemberPeek[]>>;
   announcementsPeekById: Record<string, Loadable<AnnouncementPeek[]>>;
   attendanceSnapshotById: Record<string, Loadable<AttendanceSnapshot>>;
@@ -99,7 +99,7 @@ const initialState: OrgState = {
   basicById: {},
   summaryById: {},
   dashboardById: {},
-  unitsGlanceById: {},
+  audiencesGlanceById: {},
   membersPeekById: {},
   announcementsPeekById: {},
   attendanceSnapshotById: {},
@@ -135,11 +135,11 @@ export const fetchDashboardConfig = createAsyncThunk(
   }
 );
 
-export const fetchUnitsGlance = createAsyncThunk(
-  'adminDashboard/fetchUnitsGlance',
+export const fetchAudiencesGlance = createAsyncThunk(
+  'adminDashboard/fetchAudiencesGlance',
   async (orgId: string) => {
-    const { data } = await api.get(`/api/orgs/${orgId}/units/glance`);
-    return { orgId, data: data as UnitGlance[] };
+    const { data } = await api.get(`/api/orgs/${orgId}/audiences/glance`);
+    return { orgId, data: data as AudienceGlance[] };
   }
 );
 
@@ -187,7 +187,7 @@ const slice = createSlice({
       delete state.basicById[orgId];
       delete state.summaryById[orgId];
       delete state.dashboardById[orgId];
-      delete state.unitsGlanceById[orgId];
+      delete state.audiencesGlanceById[orgId];
       delete state.membersPeekById[orgId];
       delete state.announcementsPeekById[orgId];
       delete state.attendanceSnapshotById[orgId];
@@ -243,18 +243,18 @@ const slice = createSlice({
       };
     });
 
-    /* ------------------ Units Glance ------------------ */
-    b.addCase(fetchUnitsGlance.pending, (s, a) => {
-      s.unitsGlanceById[a.meta.arg] = { status: 'loading' };
+    /* ------------------ Audiences Glance ------------------ */
+    b.addCase(fetchAudiencesGlance.pending, (s, a) => {
+      s.audiencesGlanceById[a.meta.arg] = { status: 'loading' };
     });
-    b.addCase(fetchUnitsGlance.fulfilled, (s, a) => {
-      s.unitsGlanceById[a.payload.orgId] = {
+    b.addCase(fetchAudiencesGlance.fulfilled, (s, a) => {
+      s.audiencesGlanceById[a.payload.orgId] = {
         status: 'succeeded',
         data: a.payload.data,
       };
     });
-    b.addCase(fetchUnitsGlance.rejected, (s, a) => {
-      s.unitsGlanceById[a.meta.arg] = {
+    b.addCase(fetchAudiencesGlance.rejected, (s, a) => {
+      s.audiencesGlanceById[a.meta.arg] = {
         status: 'failed',
         error: a.error.message,
       };

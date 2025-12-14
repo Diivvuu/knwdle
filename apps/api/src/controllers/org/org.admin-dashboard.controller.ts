@@ -61,10 +61,10 @@ export const AdminDashboardController = {
     res.json(payload);
   }),
 
-  unitsGlance: asyncHandler(async (req: Request, res: Response) => {
+  audiencesGlance: asyncHandler(async (req: Request, res: Response) => {
     const p = IdParam.safeParse(req.params);
     if (!p.success) throw badRequest('Bad org id');
-    const data = await OrgAdminDashboardService.unitsGlance(p.data.id);
+    const data = await OrgAdminDashboardService.audiencesGlance(p.data.id);
     res.set('Cache-Control', 'private, max-age=60');
     res.json(data);
   }),

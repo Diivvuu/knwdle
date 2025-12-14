@@ -16,7 +16,7 @@ let cachedTransporter: Transporter | null = null;
 /** Lazily create (and reuse) a transporter */
 function getTransporter(): Transporter {
   if (cachedTransporter) return cachedTransporter;
-  
+
   cachedTransporter = nodemailer.createTransport({
     host: env.SMTP_HOST,
     port: env.SMTP_PORT,
@@ -28,6 +28,12 @@ function getTransporter(): Transporter {
     maxMessages: Number(process.env.MAIL_MAX_MESSAGES || 100),
     rateDelta: 1000,
     rateLimit: Number(process.env.MAIL_RATE_LIMIT || 0),
+  });
+
+  // verify once on first use so failures are visible in logs
+  cachedTransporter.verify().catch((err) => {
+    // eslint-disable-next-line no-console
+    console.error('[mailer] SMTP verify failed', err);
   });
 
   return cachedTransporter;
@@ -63,19 +69,25 @@ export async function sendMail(
   const html = _html;
   const text = _text ?? htmlToText(_html);
 
-  const info = await transporter.sendMail({
-    from: env.MAIL_FROM,
-    to,
-    subject,
-    html,
-    text,
-    headers: {
-      'X-Knwdle-Env': env.NODE_ENV,
-      'X-Transactional': 'true',
-    },
-  });
+  try {
+    const info = await transporter.sendMail({
+      from: env.MAIL_FROM,
+      to,
+      subject,
+      html,
+      text,
+      headers: {
+        'X-Knwdle-Env': env.NODE_ENV,
+        'X-Transactional': 'true',
+      },
+    });
 
-  return { messageId: info.messageId };
+    return { messageId: info.messageId };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error('[mailer] sendMail failed', err);
+    throw err;
+  }
 }
 
 // small helpers

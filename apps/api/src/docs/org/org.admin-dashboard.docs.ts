@@ -6,7 +6,7 @@ import {
 import {
   IdParam,
   ActivityQuery,
-  UnitsGlanceResponse,
+  AudiencesGlanceResponse,
   MembersPeekResponse,
   AnnouncementsPeekResponse,
   AttendanceSnapshotResponse,
@@ -104,16 +104,16 @@ export function getOrgAdminDashboardPaths() {
 
   registry.registerPath({
     method: 'get',
-    path: '/api/orgs/{id}/units/glance',
-    summary: 'Units at a glance (limited set with member counts)',
+    path: '/api/orgs/{id}/audiences/glance',
+    summary: 'Audiences at a glance (limited set with member counts)',
     tags: ['admin-dashboard'],
     security: [{ bearerAuth: [] }],
     request: { params: IdParam },
     responses: {
       200: {
-        description: 'List of units with member counts.',
+        description: 'List of audiences with member counts.',
         content: {
-          'application/json': { schema: z.array(UnitsGlanceResponse) },
+          'application/json': { schema: z.array(AudiencesGlanceResponse) },
         },
       },
       404: {

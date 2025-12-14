@@ -1,5 +1,5 @@
 import { prisma } from '../../lib/prisma';
-import { OrgUnitType, ParentRole, OrgType } from '../../generated/prisma';
+import { ParentRole, OrgType } from '../../generated/prisma';
 
 export const OrgRepo = {
   // ─── ORG: CRUD ────────────────────────────────────────────────
@@ -18,7 +18,7 @@ export const OrgRepo = {
     });
   },
 
-  async createOrgWithMainUnit(params: {
+  async createOrgWithMainAudience(params: {
     name: string;
     type: OrgType;
     teamSize?: string;
@@ -39,13 +39,11 @@ export const OrgRepo = {
         include: { profile: true },
       });
 
-      await tx.orgUnit.create({
+      await tx.audience.create({
         data: {
           orgId: created.id,
           name: 'Main',
           parentId: null,
-          type: OrgUnitType.ROOT,
-          meta: {},
         },
       });
 
@@ -103,7 +101,7 @@ export const OrgRepo = {
       orderBy,
       include: {
         user: { select: { id: true, name: true, email: true } },
-        unit: { select: { id: true, name: true } },
+        audience: { select: { id: true, name: true } },
         customerRole: { select: { id: true, name: true } },
       },
     });
@@ -116,7 +114,7 @@ export const OrgRepo = {
         userId: input.userId,
         role: input.role,
         roleId: input.roleId,
-        unitId: input.unitId,
+        audienceId: input.audienceId,
       },
     });
   },
@@ -127,7 +125,7 @@ export const OrgRepo = {
       data,
       include: {
         user: { select: { id: true, name: true, email: true } },
-        unit: { select: { id: true, name: true } },
+        audience: { select: { id: true, name: true } },
         customerRole: { select: { id: true, name: true, parentRole: true } },
       },
     });
@@ -180,7 +178,7 @@ export const OrgRepo = {
   getMemberships(orgId: string, userId: string) {
     return prisma.orgMembership.findMany({
       where: { orgId, userId },
-      select: { role: true, unitId: true },
+      select: { role: true, audienceId: true },
     });
   },
 
@@ -234,7 +232,7 @@ export const OrgRepo = {
       where: { id: memberId, orgId },
       include: {
         user: { select: { id: true, name: true, email: true } },
-        unit: { select: { id: true, name: true } },
+        audience: { select: { id: true, name: true } },
         customerRole: { select: { id: true, name: true, parentRole: true } },
       },
     });
@@ -280,19 +278,18 @@ export const OrgRepo = {
   },
 
   // ─── UNITS ────────────────────────────────────────────────────
-  countUnits(orgId: string) {
-    return prisma.orgUnit.count({ where: { orgId } });
+  countAudiences(orgId: string) {
+    return prisma.audience.count({ where: { orgId } });
   },
 
-  getRecentUnits(orgId: string) {
-    return prisma.orgUnit.findMany({
+  getRecentAudiences(orgId: string) {
+    return prisma.audience.findMany({
       where: { orgId },
       take: 6,
       orderBy: { createdAt: 'desc' },
       select: {
         id: true,
         name: true,
-        type: true,
         _count: { select: { members: true } },
       },
     });
@@ -326,14 +323,14 @@ export const OrgRepo = {
 
   getAuditLogs(
     orgId: string,
-    unitId?: string,
+    audienceId?: string,
     cursor?: { id: string; createdAt: Date },
     limit = 20
   ) {
     return prisma.auditLog.findMany({
       where: {
         orgId,
-        ...(unitId ? { entityId: unitId } : {}),
+        ...(audienceId ? { entityId: audienceId } : {}),
         ...(cursor
           ? {
               OR: [

@@ -22,8 +22,8 @@ export default function OrgScopedLayout({
     setMounted(true);
   }, []);
 
-  const isUnitRoute = useMemo(
-    () => pathname?.includes('/unit/'),
+  const isAudienceRoute = useMemo(
+    () => pathname?.includes('/audience/'),
     [pathname]
   );
 
@@ -35,7 +35,7 @@ export default function OrgScopedLayout({
         <Modals />
         <Toaster />
 
-        {isUnitRoute ? (
+        {isAudienceRoute ? (
           children
         ) : (
           <SidebarProvider>

@@ -19,8 +19,8 @@ import {
   selectConnectAnnouncements,
   selectConnectConfig,
   selectConnectLoading,
-  fetchOrgUnits,
-  selectOrgUnits,
+  fetchOrgAudiences,
+  selectOrgAudiences,
 } from '@workspace/state';
 
 import { DashboardSection } from '@workspace/ui/components/app/dashboard/dashboard-section';
@@ -32,7 +32,7 @@ import { Separator } from '@workspace/ui/components/separator';
 import { CheckCircle2, Bell, CalendarDays, Building2 } from 'lucide-react';
 
 export default function OrgConnectDashboardPage() {
-  const {  orgId } = useParams() as { orgId: string };
+  const { orgId } = useParams() as { orgId: string };
   const dispatch = useDispatch<AppDispatch>();
 
   const hero = useSelector(selectConnectHero);
@@ -41,7 +41,7 @@ export default function OrgConnectDashboardPage() {
   const announcements = useSelector(selectConnectAnnouncements);
   const config = useSelector(selectConnectConfig);
   const loading = useSelector(selectConnectLoading);
-  const units = useSelector(selectOrgUnits);
+  const audiences = useSelector(selectOrgAudiences);
 
   useEffect(() => {
     if (orgId) {
@@ -51,7 +51,7 @@ export default function OrgConnectDashboardPage() {
         dispatch(fetchConnectTimetable(orgId)),
         dispatch(fetchConnectAnnouncements(orgId)),
         dispatch(fetchConnectConfig(orgId)),
-        dispatch(fetchOrgUnits(orgId)),
+        dispatch(fetchOrgAudiences(orgId)),
       ]).catch(() => toast.error('Failed to load dashboard'));
     }
   }, [orgId, dispatch]);
@@ -105,7 +105,7 @@ export default function OrgConnectDashboardPage() {
             ) : (
               <DashboardPeekList
                 items={timetable}
-                renderItem={(t : any) => (
+                renderItem={(t: any) => (
                   <div className="flex justify-between text-sm">
                     <span>{t.subject || '—'}</span>
                     <span className="text-muted-foreground">
@@ -128,7 +128,7 @@ export default function OrgConnectDashboardPage() {
             {summary?.achievements?.length ? (
               <DashboardPeekList
                 items={summary.achievements}
-                renderItem={(a : any) => (
+                renderItem={(a: any) => (
                   <div className="flex justify-between text-sm">
                     <span className="flex items-center gap-1">
                       <CheckCircle2 className="h-3.5 w-3.5 text-green-500" />
@@ -157,7 +157,7 @@ export default function OrgConnectDashboardPage() {
           >
             <DashboardPeekList
               items={announcements}
-              renderItem={(a : any) => (
+              renderItem={(a: any) => (
                 <div className="flex justify-between">
                   <span className="font-medium">{a.title}</span>
                   <span className="text-xs text-muted-foreground">
@@ -175,23 +175,23 @@ export default function OrgConnectDashboardPage() {
   };
 
   // ─────────────── UNITS SECTION ───────────────
-  const renderUnitsSection = () => {
-    console.log(units);
-    if (!units || units.length === 0) {
+  const renderAudiencesSection = () => {
+    console.log(audiences);
+    if (!audiences || audiences.length === 0) {
       return (
         <p className="text-sm text-muted-foreground">
-          No organisational units found.
+          No organisational audiences found.
         </p>
       );
     }
 
     return (
-      <DashboardSection title="Units in this Organisation" accent="blue">
+      <DashboardSection title="Audiences in this Organisation" accent="blue">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
-          {units.map((u : any) => (
+          {audiences.map((u: any) => (
             <Link
               key={u.id}
-              href={`http://localhost:3001/org/${orgId}/unit/${u.id}`}
+              href={`http://localhost:3001/org/${orgId}/audience/${u.id}`}
               className="hover-lift overlay-sheen rounded-lg border bg-background/80 p-3 flex items-center justify-between hover:bg-muted/50 transition-all"
             >
               <div>
@@ -228,18 +228,19 @@ export default function OrgConnectDashboardPage() {
           {hero.org.name}
         </h1>
         <p className="text-sm text-muted-foreground mt-1">
-          Enrolled Unit: {hero.unit?.name || '—'} ({hero.unit?.type})
+          Enrolled Audience: {hero.audience?.name || '—'} ({hero.audience?.type}
+          )
         </p>
       </motion.div>
 
       {/* UNITS */}
-      {renderUnitsSection()}
+      {renderAudiencesSection()}
 
       <Separator className="my-6" />
 
       {/* WIDGETS */}
       <div className="space-y-6">
-        {widgets.map((key : any) => (
+        {widgets.map((key: any) => (
           <div key={key}>{renderWidget(key)}</div>
         ))}
       </div>

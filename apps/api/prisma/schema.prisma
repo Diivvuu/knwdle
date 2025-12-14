@@ -1,8 +1,5 @@
-// Prisma schema
-
 generator client {
   provider = "prisma-client-js"
-  // use either output or omit it; this is fine:
   output   = "../src/generated/prisma"
 }
 
@@ -12,112 +9,54 @@ datasource db {
   shadowDatabaseUrl = env("SHADOW_DATABASE_URL")
 }
 
-/**
- * -------------------- Core Auth --------------------
- */
+/* =========================================================
+   CORE AUTH
+========================================================= */
 
 model User {
-  id            String    @id @default(cuid())
-  email         String    @unique
+  id            String   @id @default(cuid())
+  email         String   @unique
   password      String
   name          String?
   profilePhoto  String?
-  mobile        String?   @db.VarChar(20)
+  mobile        String?  @db.VarChar(20)
   gender        String?
   dateOfBirth   DateTime?
   address       String?
   bio           String?
   emailVerified DateTime?
-  createdAt     DateTime  @default(now())
-  updatedAt     DateTime  @updatedAt
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   sessions       Session[]
-  memberships    OrgMembership[]
-  studentProfile StudentProfile?
-  // relation name must match the relation on GuardianLink.parent
-  guardianLinks  GuardianLink[]     @relation("ParentLinks")
-  parentLinks    GuardianLink[]     @relation("StudentLinks")
-  feeInvoices    FeeInvoice[]       @relation("UserInvoices")
-  submissions    Submission[]       @relation("UserSubmissions")
-  attendance     AttendanceRecord[] @relation("UserAttendance")
-
-  results        ResultRecord[]
-  achievements   Achievement[]
-  taughtSessions TimeTableEntry[] @relation("TeacherSessions")
-
   verificationTokens VerificationToken[]
   otpTokens          OtpToken[]
   notifications      Notification[]
+
+  memberships    OrgMembership[]
+  studentProfile StudentProfile?
+
+  guardianLinks GuardianLink[] @relation("ParentLinks")
+  parentLinks   GuardianLink[] @relation("StudentLinks")
+
+  attendance AttendanceRecord[] @relation("UserAttendance")
+  submissions Submission[]      @relation("UserSubmissions")
+  feeInvoices FeeInvoice[]      @relation("UserInvoices")
+
+  taughtSessions TimeTableEntry[] @relation("TeacherSessions")
+
+  results      ResultRecord[]
+  achievements Achievement[]
 }
 
-model Notification {
-  id        String   @id @default(cuid())
-  orgId     String?
-  userId    String
-  type      String
-  title     String
-  body      String
-  meta      Json?
-  read      Boolean  @default(false)
-  createdAt DateTime @default(now())
+model Session {
+  id           String   @id @default(cuid())
+  userId       String
+  refreshToken String   @unique
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-
-  @@index([userId, createdAt])
-}
-
-model TimeTableEntry {
-  id        String   @id @default(cuid())
-  orgId     String
-  unitId    String
-  subjectId String?
-  dayOfWeek Int
-  startTime String
-  endTime   String
-  teacherId String?
-  room      String?
-  mode      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  unit              OrgUnit             @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  subject           OrgUnit?            @relation("TimeTableSubject", fields: [subjectId], references: [id])
-  teacher           User?               @relation("TeacherSessions", fields: [teacherId], references: [id])
-  attendanceSession AttendanceSession[]
-
-  @@index([orgId, unitId, dayOfWeek])
-}
-
-model ResultRecord {
-  id        String   @id @default(cuid())
-  orgId     String
-  studentId String
-  subjectId String?
-  testId    String?
-  title     String
-  score     Float
-  total     Float
-  grade     String?
-  remarks   String?
-  date      DateTime
-  createdAt DateTime @default(now())
-
-  student User     @relation(fields: [studentId], references: [id], onDelete: Cascade)
-  subject OrgUnit? @relation(fields: [subjectId], references: [id], onDelete: Cascade)
-
-  @@index([orgId, studentId, date])
-}
-
-model Achievement {
-  id          String   @id @default(cuid())
-  orgId       String
-  studentId   String
-  title       String
-  description String
-  icon        String?
-  awardedAt   DateTime @default(now())
-
-  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 }
 
 model VerificationToken {
@@ -143,19 +82,26 @@ model OtpToken {
   @@index([userId, code])
 }
 
-model Session {
-  id           String   @id @default(cuid())
-  userId       String
-  refreshToken String   @unique
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+model Notification {
+  id        String   @id @default(cuid())
+  orgId     String?
+  userId    String
+  type      String
+  title     String
+  body      String
+  meta      Json?
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
 }
 
-/**
- * -------------------- Org & Roles --------------------
- */
+/* =========================================================
+   ORGANISATION
+========================================================= */
+
 enum OrgType {
   SCHOOL
   COACHING_CENTER
@@ -182,67 +128,56 @@ model Organisation {
   contactPhone String?
   createdAt    DateTime @default(now())
 
-  units       OrgUnit[]
-  members     OrgMembership[]
-  invites     Invite[]
-  settings    OrgSettings[]
-  profile     OrgProfile?
-  roles       Role[]
-  taxProfiles TaxProfile[]
+  audiences     Audience[]
+  members      OrgMembership[]
+  invites      Invite[]
+  roles        Role[]
+  settings     OrgSettings[]
+  taxProfiles  TaxProfile[]
+  profile      OrgProfile?
+  announcement Announcement[]
 }
 
 model OrgProfile {
   id    String @id @default(cuid())
   orgId String @unique
+  meta  Json
 
-  meta Json
-  org  Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
 }
 
-enum OrgUnitType {
-  ROOT
-  ORGANISATION
-  DEPARTMENT
-  CLASS
-  SUBJECT
-  BATCH
-  SECTION
-  GROUP
-  OTHER
-}
+/* =========================================================
+   AUDIENCES (OrgAudience = set of users, nothing more)
+========================================================= */
 
-model OrgUnit {
+model Audience {
   id        String   @id @default(cuid())
   orgId     String
+  name      String 
   parentId  String?
-  name      String
-  code      String?
-  path      String   @default("")
+  meta      Json     @default("{}")
+  isExclusive   Boolean     @default(false)
   createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  updatedAt DateTime    @default(now())
-  type      OrgUnitType @default(OTHER)
-  meta      Json        @default("{}")
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  parent   Audience?    @relation("AudienceParent", fields: [parentId], references: [id])
+  children Audience[]   @relation("AudienceParent")
 
-  org      Organisation    @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  parent   OrgUnit?        @relation("UnitParent", fields: [parentId], references: [id])
-  children OrgUnit[]       @relation("UnitParent")
-  members  OrgMembership[]
-
+  members OrgMembership[]
+  invites Invite[]
+  timetableEntries   TimeTableEntry[]
   attendanceSessions AttendanceSession[]
   contentItems       ContentItem[]
   feeInvoices        FeeInvoice[]
   announcements      Announcement[]
-  invites            Invite[]
 
-  timetableEntries  TimeTableEntry[]
-  timetableSubjects TimeTableEntry[] @relation("TimeTableSubject")
-  resultRecords     ResultRecord[]
-
+  @@index([orgId])
   @@index([orgId, parentId])
-  @@index([orgId, path])
-  @@index([orgId, type])
 }
+/* =========================================================
+   MEMBERSHIPS & ROLES
+========================================================= */
 
 enum ParentRole {
   admin
@@ -252,26 +187,24 @@ enum ParentRole {
 }
 
 model OrgMembership {
-  id        String     @id @default(cuid())
-  orgId     String
-  userId    String
-  role      ParentRole
-  unitId    String?
-  createdAt DateTime   @default(now())
+  id           String     @id @default(cuid())
+  orgId        String
+  userId       String
+  role         ParentRole
+  audienceId   String?
+  createdAt    DateTime   @default(now())
 
   roleId       String?
-  customerRole Role?        @relation("MembershipCustomRole", fields: [roleId], references: [id])
+  customerRole Role? @relation("MembershipCustomRole", fields: [roleId], references: [id])
+
   org          Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   user         User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  unit         OrgUnit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  audience     Audience?     @relation(fields: [audienceId], references: [id], onDelete: SetNull)
 
-  @@unique([orgId, userId, unitId], name: "orgId_userId_unitId")
-  @@index([orgId, userId, role])
-  @@index([userId, orgId, role, unitId])
+  @@unique([orgId, userId, audienceId])
+  @@index([orgId, userId])
   @@index([orgId, role])
-  @@index([orgId, createdAt])
-  @@index([orgId, unitId, createdAt])
-  @@index([orgId, role, createdAt])
+  @@index([orgId, audienceId])
 }
 
 model Role {
@@ -281,21 +214,21 @@ model Role {
   name       String
   scope      String
   parentRole ParentRole
-  createdAt  DateTime   @default(now())
+  createdAt  DateTime @default(now())
 
-  org         Organisation     @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  org         Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
   permissions RolePermission[]
-
   memberships OrgMembership[] @relation("MembershipCustomRole")
-  Invite      Invite[]
+  invites     Invite[]
 
   @@unique([orgId, key])
 }
 
 model Permission {
-  id    String           @id @default(cuid())
-  code  String           @unique
+  id    String @id @default(cuid())
+  code  String @unique
   name  String
+
   roles RolePermission[]
 }
 
@@ -310,52 +243,27 @@ model RolePermission {
   @@unique([roleId, permissionId])
 }
 
-/**
- * -------------------- Student / Parent links --------------------
- */
-
-model StudentProfile {
-  id     String  @id @default(cuid())
-  userId String  @unique
-  rollNo String?
-
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
-}
-
-model GuardianLink {
-  id        String  @id @default(cuid())
-  parentId  String
-  studentId String
-  relation  String? // "mother" | "father" | "guardian"
-
-  // name this relation "ParentLinks" to pair with User.guardianLinks
-  parent  User @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
-  student User @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
-
-  @@unique([parentId, studentId])
-}
-
-/**
- * -------------------- Invites --------------------
- */
+/* =========================================================
+   INVITES
+========================================================= */
 
 model Invite {
-  id         String     @id @default(cuid())
+  id         String   @id @default(cuid())
   email      String
   orgId      String
   role       ParentRole
-  unitId     String?
-  token      String     @unique
-  joinCode   String?    @unique
+  audienceId     String?
+  token      String   @unique
+  joinCode   String?  @unique
   expiresAt  DateTime
   acceptedBy String?
-  createdAt  DateTime   @default(now())
+  createdAt  DateTime @default(now())
   meta       Json?
 
   roleId  String?
-  roleRef Role?        @relation(fields: [roleId], references: [id], onDelete: SetNull)
+  roleRef Role? @relation(fields: [roleId], references: [id], onDelete: SetNull)
   org     Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
-  unit    OrgUnit?     @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  audience    Audience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
 
   @@index([orgId, createdAt])
   @@index([orgId, expiresAt])
@@ -375,26 +283,89 @@ model InviteBatch {
   @@index([orgId, createdAt])
 }
 
-// academics
-model AttendanceSession {
+/* =========================================================
+   STUDENT / PARENT
+========================================================= */
+
+model StudentProfile {
+  id     String @id @default(cuid())
+  userId String @unique
+  rollNo String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+model GuardianLink {
+  id        String @id @default(cuid())
+  parentId  String
+  studentId String
+  relation  String?
+
+  parent  User @relation("ParentLinks", fields: [parentId], references: [id], onDelete: Cascade)
+  student User @relation("StudentLinks", fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([parentId, studentId])
+}
+
+/* =========================================================
+   TIMETABLE & ATTENDANCE
+========================================================= */
+model Announcement {
   id        String   @id @default(cuid())
   orgId     String
-  unitId    String
-  date      DateTime
-  period    String?
-  takenById String?
-  notes     String?
+  audienceId    String?
+  title     String
+  body      String?
+  createdBy String
+  pin       Boolean  @default(false)
   createdAt DateTime @default(now())
 
-  // NEW: sync with timetable
+  org      Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
+  audience Audience?    @relation(fields: [audienceId], references: [id], onDelete: SetNull)
+
+  @@index([orgId, audienceId, createdAt])
+}
+
+model TimeTableEntry {
+  id        String   @id @default(cuid())
+  orgId     String
+  audienceId    String
+  dayOfWeek Int
+  startTime String
+  endTime   String
+  teacherId String?
+  room      String?
+  mode      String?
+  priority  Int      @default(0)
+  meta      Json?
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  audience  Audience @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  teacher   User?   @relation("TeacherSessions", fields: [teacherId], references: [id])
+
+  attendanceSessions AttendanceSession[]
+
+  @@index([orgId, audienceId, dayOfWeek])
+}
+
+model AttendanceSession {
+  id               String   @id @default(cuid())
+  orgId            String
+  audienceId           String
+  date             DateTime
+  period           String?
+  takenById        String?
+  notes            String?
   timeTableEntryId String?
-  timeTableEntry   TimeTableEntry? @relation(fields: [timeTableEntryId], references: [id])
+  createdAt        DateTime @default(now())
 
-  unit    OrgUnit            @relation(fields: [unitId], references: [id], onDelete: Cascade)
-  records AttendanceRecord[]
+  audience          Audience            @relation(fields: [audienceId], references: [id], onDelete: Cascade)
+  timetable         TimeTableEntry?     @relation(fields: [timeTableEntryId], references: [id])
+  records           AttendanceRecord[]
 
-  @@unique([orgId, unitId, date, period])
-  @@index([orgId, unitId, date])
+  @@unique([orgId, audienceId, date, period])
+  @@index([orgId, audienceId, date])
 }
 
 model AttendanceRecord {
@@ -409,64 +380,83 @@ model AttendanceRecord {
   student User              @relation("UserAttendance", fields: [studentId], references: [id])
 
   @@unique([sessionId, studentId])
-  @@unique([studentId, createdAt])
 }
 
+/* =========================================================
+   CONTENT / RESULTS / FINANCE
+========================================================= */
+
 model ContentItem {
-  id        String    @id @default(cuid())
+  id        String   @id @default(cuid())
   orgId     String
-  unitId    String
-  type      String // note, assignment, test
+  audienceId    String
+  type      String
   title     String
   body      String?
   dueAt     DateTime?
   createdBy String
-  createdAt DateTime  @default(now())
-  updatedAt DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
-  unit        OrgUnit      @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  audience        Audience      @relation(fields: [audienceId], references: [id], onDelete: Cascade)
   submissions Submission[]
 
-  @@index([orgId, unitId, type, dueAt])
+  @@index([orgId, audienceId, type, dueAt])
 }
 
 model Submission {
-  id          String    @id @default(cuid())
+  id          String   @id @default(cuid())
   contentId   String
   studentId   String
   submittedAt DateTime?
   grade       Float?
   feedback    String?
   meta        Json?
-  createdAt   DateTime  @default(now())
+  createdAt   DateTime @default(now())
 
   content ContentItem @relation(fields: [contentId], references: [id], onDelete: Cascade)
   student User        @relation("UserSubmissions", fields: [studentId], references: [id])
 
   @@unique([contentId, studentId])
-  @@index([studentId, submittedAt])
 }
 
-model Announcement {
+model ResultRecord {
   id        String   @id @default(cuid())
   orgId     String
-  unitId    String?
+  studentId String
   title     String
-  body      String?
-  createdBy String
-  pin       Boolean  @default(false)
+  score     Float
+  total     Float
+  grade     String?
+  remarks   String?
+  date      DateTime
   createdAt DateTime @default(now())
 
-  unit OrgUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
-  @@index([orgId, unitId, createdAt])
+  @@index([orgId, studentId, date])
 }
 
-// finance
+model Achievement {
+  id          String   @id @default(cuid())
+  orgId       String
+  studentId   String
+  title       String
+  description String
+  icon        String?
+  awardedAt   DateTime @default(now())
+
+  student User @relation(fields: [studentId], references: [id], onDelete: Cascade)
+}
+
+/* =========================================================
+   FINANCE & PLATFORM
+========================================================= */
+
 model TaxProfile {
   id        String   @id @default(cuid())
   orgId     String
-  country   String
+  country   String  
   gstNo     String?
   vatNo     String?
   meta      Json?
@@ -480,7 +470,7 @@ model TaxProfile {
 model FeeInvoice {
   id        String   @id @default(cuid())
   orgId     String
-  unitId    String?
+  audienceId    String?
   studentId String
   number    String   @unique
   title     String
@@ -492,7 +482,7 @@ model FeeInvoice {
   createdAt DateTime @default(now())
 
   student User     @relation("UserInvoices", fields: [studentId], references: [id])
-  unit    OrgUnit? @relation(fields: [unitId], references: [id], onDelete: SetNull)
+  audience    Audience? @relation(fields: [audienceId], references: [id], onDelete: SetNull)
 
   payments FeePayment[]
 
@@ -509,16 +499,12 @@ model FeePayment {
   meta      Json?
 
   invoice FeeInvoice @relation(fields: [invoiceId], references: [id], onDelete: Cascade)
-
-  @@index([invoiceId, paidAt])
 }
-
-// platform plumbing
 
 model FileAsset {
   id        String   @id @default(cuid())
   orgId     String
-  unitId    String?
+  audienceId    String?
   ownerId   String?
   name      String
   mime      String
@@ -527,7 +513,7 @@ model FileAsset {
   meta      Json?
   createdAt DateTime @default(now())
 
-  @@index([orgId, unitId, ownerId])
+  @@index([orgId, audienceId, ownerId])
 }
 
 model OrgSettings {
@@ -539,7 +525,6 @@ model OrgSettings {
   org Organisation @relation(fields: [orgId], references: [id], onDelete: Cascade)
 
   @@unique([orgId, key])
-  @@index([orgId, key])
 }
 
 model AuditLog {

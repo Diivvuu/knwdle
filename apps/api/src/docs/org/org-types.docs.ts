@@ -8,7 +8,7 @@ import {
   OrgTypesListResponse,
   UISchemaResponse,
 } from '../../domain/org-types.schema';
-  import { BasicError } from '../../domain/roles.schema';
+import { BasicError } from '../../domain/roles.schema';
 
 export function getOrgTypePaths() {
   const registry = new OpenAPIRegistry();
@@ -45,42 +45,6 @@ export function getOrgTypePaths() {
       },
       404: {
         description: 'Unknown organisation type',
-        content: { 'application/json': { schema: BasicError } },
-      },
-    },
-  });
-
-  registry.registerPath({
-    method: 'get',
-    path: '/api/org-types/{type}/structure',
-    summary:
-      'Get the org-unit hierarchy structure for a given organisation type',
-    tags: ['org-types'],
-    security: [{ bearerAuth: [] }],
-    request: {
-      params: z.object({
-        type: z.string().openapi({ example: 'SCHOOL' }),
-      }),
-    },
-    responses: {
-      200: {
-        description: 'Hierarchy structure of org units for the given org type',
-        content: {
-          'application/json': {
-            schema: z.object({
-              orgType: z.string().openapi({ example: 'SCHOOL' }),
-              hierarchy: z.record(z.string(), z.array(z.string())).openapi({
-                example: {
-                  ORGANISATION: ['DEPARTMENT', 'CLASS', 'GROUP', 'OTHER'],
-                  CLASS: ['SECTION', 'SUBJECT', 'BATCH', 'GROUP', 'OTHER'],
-                },
-              }),
-            }),
-          },
-        },
-      },
-      404: {
-        description: 'Unknown or unsupported organisation type',
         content: { 'application/json': { schema: BasicError } },
       },
     },

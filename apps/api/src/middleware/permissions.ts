@@ -2,8 +2,7 @@
 import { NextFunction, Request, Response } from 'express';
 import z from 'zod';
 import { prisma } from '../lib/prisma';
-import { OrgType, ParentRole, OrgUnitType } from '../generated/prisma';
-import { FEATURE_DEFAULTS, FeatureKey } from '../lib/org.unit.rules';
+import { ParentRole } from '../generated/prisma';
 
 /* -------------------------------------------------------------------------- */
 /*  Role → permissions map (unchanged)                                         */
@@ -13,7 +12,7 @@ export const PERMISSIONS_BY_BASE_ROLE: Record<ParentRole, string[]> = {
   admin: ['*'],
   staff: [
     'org.read',
-    'org.unit.manage', // optional broader unit mgmt
+    'org.audience.manage', // optional broader audience mgmt
     'teaching.content.manage',
     'teaching.attendance.manage',
     'comms.announce.manage',
@@ -107,98 +106,98 @@ export async function assertPermission(
 }
 
 /* -------------------------------------------------------------------------- */
-/*  ✅ NEW: Feature gating based on rulebook (OrgType × OrgUnitType)           */
+/*  ✅ NEW: Feature gating based on rulebook (OrgType × OrgAudienceType)           */
 /* -------------------------------------------------------------------------- */
 
 /**
- * Checks the feature *at Organisation level* (i.e., imagine the "unitType" = ORGANISATION).
+ * Checks the feature *at Organisation level* (i.e., imagine the "audienceType" = ORGANISATION).
  * Useful for endpoints that are org-scoped (e.g., global announcements),
- * not tied to a specific unitId.
+ * not tied to a specific audienceId.
  */
-export function requireOrgFeature(feature: FeatureKey) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const orgId = (req.params.id ?? req.params.orgId) as string | undefined;
-    if (!orgId) return res.status(400).json({ error: 'Missing orgId param' });
+// export function requireOrgFeature(feature: FeatureKey) {
+//   return async (req: Request, res: Response, next: NextFunction) => {
+//     const orgId = (req.params.id ?? req.params.orgId) as string | undefined;
+//     if (!orgId) return res.status(400).json({ error: 'Missing orgId param' });
 
-    const org = await prisma.organisation.findUnique({
-      where: { id: orgId },
-      select: { type: true },
-    });
-    if (!org) return res.status(404).json({ error: 'Organisation not found' });
+//     const org = await prisma.organisation.findUnique({
+//       where: { id: orgId },
+//       select: { type: true },
+//     });
+//     if (!org) return res.status(404).json({ error: 'Organisation not found' });
 
-    const flags = (FEATURE_DEFAULTS[org.type] ?? {})[OrgUnitType.ORGANISATION];
-    const enabled = !!flags?.[feature];
+//     const flags = (FEATURE_DEFAULTS[org.type] ?? {})[OrgAudienceType.ORGANISATION];
+//     const enabled = !!flags?.[feature];
 
-    if (!enabled)
-      return res
-        .status(403)
-        .json({
-          error: `Feature "${feature}" not enabled at organisation level`,
-        });
+//     if (!enabled)
+//       return res
+//         .status(403)
+//         .json({
+//           error: `Feature "${feature}" not enabled at organisation level`,
+//         });
 
-    next();
-  };
-}
+//     next();
+//   };
+// }
 
 /**
- * ✅ Preferred: Checks a feature for a *specific unit* using OrgType × UnitType matrix.
- * Use this on routes like /orgs/:orgId/units/:unitId/attendance, etc.
+ * ✅ Preferred: Checks a feature for a *specific audience* using OrgType × AudienceType matrix.
+ * Use this on routes like /orgs/:orgId/audiences/:audienceId/attendance, etc.
  */
-export function requireUnitFeature(feature: FeatureKey) {
-  return async (req: Request, res: Response, next: NextFunction) => {
-    const orgId = (req.params.id ?? req.params.orgId) as string | undefined;
-    const unitId = (req.params.unitId ?? req.params.id2) as string | undefined;
-    if (!orgId) return res.status(400).json({ error: 'Missing orgId param' });
-    if (!unitId) return res.status(400).json({ error: 'Missing unitId param' });
+// export function requireAudienceFeature(feature: FeatureKey) {
+//   return async (req: Request, res: Response, next: NextFunction) => {
+//     const orgId = (req.params.id ?? req.params.orgId) as string | undefined;
+//     const audienceId = (req.params.audienceId ?? req.params.id2) as string | undefined;
+//     if (!orgId) return res.status(400).json({ error: 'Missing orgId param' });
+//     if (!audienceId) return res.status(400).json({ error: 'Missing audienceId param' });
 
-    const unit = await prisma.orgUnit.findFirst({
-      where: { id: unitId, orgId },
-      select: { type: true, org: { select: { type: true } } },
-    });
-    if (!unit) return res.status(404).json({ error: 'Org unit not found' });
+//     const audience = await prisma.orgAudience.findFirst({
+//       where: { id: audienceId, orgId },
+//       select: { type: true, org: { select: { type: true } } },
+//     });
+//     if (!audience) return res.status(404).json({ error: 'Org audience not found' });
 
-    const orgType: OrgType = unit.org.type;
-    const unitType: OrgUnitType = unit.type;
+//     const orgType: OrgType = audience.org.type;
+//     const audienceType: OrgAudienceType = audience.type;
 
-    const flags = (FEATURE_DEFAULTS[orgType] ?? {})[unitType];
-    const enabled = !!flags?.[feature];
+//     const flags = (FEATURE_DEFAULTS[orgType] ?? {})[audienceType];
+//     const enabled = !!flags?.[feature];
 
-    if (!enabled)
-      return res.status(403).json({
-        error: `Feature "${feature}" is not enabled for unit type "${unitType}" in org type "${orgType}"`,
-      });
+//     if (!enabled)
+//       return res.status(403).json({
+//         error: `Feature "${feature}" is not enabled for audience type "${audienceType}" in org type "${orgType}"`,
+//       });
 
-    next();
-  };
-}
+//     next();
+//   };
+// }
 
 /* -------------------------------------------------------------------------- */
 /*  Optional: boolean helpers for handlers that can't use middleware chain     */
 /* -------------------------------------------------------------------------- */
 
-export async function hasOrgFeature(
-  orgId: string,
-  feature: FeatureKey
-): Promise<boolean> {
-  const org = await prisma.organisation.findUnique({
-    where: { id: orgId },
-    select: { type: true },
-  });
-  if (!org) return false;
-  const flags = (FEATURE_DEFAULTS[org.type] ?? {})[OrgUnitType.ORGANISATION];
-  return !!flags?.[feature];
-}
+// export async function hasOrgFeature(
+//   orgId: string,
+//   feature: FeatureKey
+// ): Promise<boolean> {
+//   const org = await prisma.organisation.findUnique({
+//     where: { id: orgId },
+//     select: { type: true },
+//   });
+//   if (!org) return false;
+//   const flags = (FEATURE_DEFAULTS[org.type] ?? {})[OrgAudienceType.ORGANISATION];
+//   return !!flags?.[feature];
+// }
 
-export async function hasUnitFeature(
-  orgId: string,
-  unitId: string,
-  feature: FeatureKey
-): Promise<boolean> {
-  const unit = await prisma.orgUnit.findFirst({
-    where: { id: unitId, orgId },
-    select: { type: true, org: { select: { type: true } } },
-  });
-  if (!unit) return false;
-  const flags = (FEATURE_DEFAULTS[unit.org.type] ?? {})[unit.type];
-  return !!flags?.[feature];
-}
+// export async function hasAudienceFeature(
+//   orgId: string,
+//   audienceId: string,
+//   feature: FeatureKey
+// ): Promise<boolean> {
+//   const audience = await prisma.orgAudience.findFirst({
+//     where: { id: audienceId, orgId },
+//     select: { type: true, org: { select: { type: true } } },
+//   });
+//   if (!audience) return false;
+//   const flags = (FEATURE_DEFAULTS[audience.org.type] ?? {})[audience.type];
+//   return !!flags?.[feature];
+// }

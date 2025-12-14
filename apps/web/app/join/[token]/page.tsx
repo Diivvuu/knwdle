@@ -271,9 +271,9 @@ export default function JoinPage() {
                       <div className="font-medium">
                         {preview?.orgName || 'Organisation'}
                       </div>
-                      {preview?.unitName && (
+                      {preview?.audienceName && (
                         <div className="text-xs text-muted-foreground">
-                          Unit: {preview.unitName}
+                          Audience: {preview.audienceName}
                         </div>
                       )}
                     </div>

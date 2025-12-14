@@ -10,14 +10,14 @@ import { OrgRepo } from '../../repositories/org/org.repo';
 
 export const OrgMemberService = {
   async listMembers(orgId: string, query: any) {
-    const { role, roleId, unitId, search, cursor } = query;
+    const { role, roleId, audienceId, search, cursor } = query;
     const limit = clampLimit(query.limit);
 
     const where = {
       orgId,
       ...(role && { role }),
       ...(roleId && { roleId }),
-      ...(unitId && { unitId }),
+      ...(audienceId && { audienceId }),
       ...(search && {
         user: {
           OR: [

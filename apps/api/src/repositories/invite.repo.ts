@@ -6,12 +6,16 @@ import type { Prisma } from '../generated/prisma';
 import { BulkInviteItem } from '../domain/bulk-invite.schema';
 
 export const InviteRepo = {
-  findDuplicatePending(orgId: string, email: string, unitId?: string | null) {
+  findDuplicatePending(
+    orgId: string,
+    email: string,
+    audienceId?: string | null
+  ) {
     return prisma.invite.findFirst({
       where: {
         orgId,
         email,
-        unitId: unitId ?? null,
+        audienceId: audienceId ?? null,
         acceptedBy: null,
         expiresAt: { gt: new Date() },
       },
@@ -24,7 +28,7 @@ export const InviteRepo = {
     email: string;
     role: ParentRole;
     roleId?: string | null;
-    unitId?: string | null;
+    audienceId?: string | null;
     token: string;
     joinCode: string;
     expiresAt: Date;
@@ -44,7 +48,7 @@ export const InviteRepo = {
         email: true,
         role: true,
         roleId: true,
-        unitId: true,
+        audienceId: true,
         token: true,
         joinCode: true,
         expiresAt: true,
@@ -100,7 +104,7 @@ export const InviteRepo = {
       email: string;
       role: ParentRole;
       roleId?: string | null;
-      unitId?: string | null;
+      audienceId?: string | null;
       token: string;
       joinCode: string;
       expiresAt: Date;
@@ -122,7 +126,7 @@ export const InviteRepo = {
       where: {
         orgId,
         email: i.email.toLowerCase(),
-        unitId: i.unitId ?? null,
+        audienceId: i.audienceId ?? null,
         acceptedBy: null,
         expiresAt: { gt: new Date() },
         role: i.role ?? undefined,
@@ -156,7 +160,7 @@ export const InviteRepo = {
         role: true,
         roleRef: { select: { name: true } },
         org: { select: { id: true, name: true } },
-        unit: { select: { id: true, name: true } },
+        audience: { select: { id: true, name: true } },
       },
     });
   },

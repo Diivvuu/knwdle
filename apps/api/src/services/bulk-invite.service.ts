@@ -35,7 +35,7 @@ export const BulkInvitesService = {
     const effectiveRole = (i: z.infer<typeof BulkInviteItem>) =>
       i.role ?? ParentRole.staff;
     const asKey = (x: z.infer<typeof BulkInviteItem>) =>
-      `${x.email.toLowerCase()}|${effectiveRole(x)}|${x.roleId ?? ''}|${x.unitId ?? ''}`;
+      `${x.email.toLowerCase()}|${effectiveRole(x)}|${x.roleId ?? ''}|${x.audienceId ?? ''}`;
 
     const unique = Array.from(new Map(body.map((i) => [asKey(i), i])).values());
     const total = unique.length;
@@ -91,7 +91,7 @@ export const BulkInvitesService = {
           email: i.email.toLowerCase(),
           role: parentRole,
           roleId,
-          unitId: i.unitId,
+          audienceId: i.audienceId,
           token: token(),
           joinCode: joinCode(),
           expiresAt,

@@ -10,7 +10,7 @@ import {
   AssignRoleBody,
   BasicError,
 } from '../../domain/roles.schema';
-import { OrgIdParam } from '../../domain/org.unit-types.schema';
+import { OrgIdParam } from '../../domain/org.params';
 
 export function getRolesPaths() {
   const registry = new OpenAPIRegistry();

@@ -4,24 +4,30 @@ import { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { useDispatch } from 'react-redux';
 import { AppDispatch } from '@/store/store';
-import { fetchUnitDashboardConfig } from '@workspace/state';
 import { SidebarProvider } from '@workspace/ui/components/sidebar';
-import { UnitSidebar } from './_components/unit-sidebar';
+import { AudienceSidebar } from './_components/audience-sidebar';
 
-export default function UnitLayout({ children }: { children: React.ReactNode }) {
-  const { orgId, unitId } = useParams() as { orgId: string; unitId: string };
+export default function AudienceLayout({
+  children,
+}: {
+  children: React.ReactNode;
+}) {
+  const { orgId, audienceId } = useParams() as {
+    orgId: string;
+    audienceId: string;
+  };
   const dispatch = useDispatch<AppDispatch>();
 
   useEffect(() => {
-    if (orgId && unitId) {
-      dispatch(fetchUnitDashboardConfig({ orgId, unitId }));
+    if (orgId && audienceId) {
+      // dispatch(fetchAudienceDashboardConfig({ orgId, audienceId }));
     }
-  }, [orgId, unitId, dispatch]);
+  }, [orgId, audienceId, dispatch]);
 
   return (
     <SidebarProvider>
       <div className="flex min-h-screen w-full">
-        <UnitSidebar />
+        <AudienceSidebar />
         <main className="flex-1 overflow-y-auto bg-background p-6">
           {children}
         </main>

@@ -15,7 +15,7 @@ if (!AUTH_ORIGIN) throw new Error('AUTH_ORIGIN not configured');
 
 // ---- Result types (only OK variants now; errors are thrown via HttpError) ----
 export type CreateInviteOk = { ok: true; invite: any };
-export type AcceptOk = { ok: true; orgId: string; unitId?: string | null };
+export type AcceptOk = { ok: true; orgId: string; audienceId?: string | null };
 
 function generateToken() {
   return crypto.randomBytes(20).toString('hex');
@@ -31,7 +31,7 @@ export const InvitesService = {
     email: string;
     role?: ParentRole;
     roleId?: string;
-    unitId?: string;
+    audienceId?: string;
     meta?: any;
   }): Promise<CreateInviteOk> {
     const email = params.email.trim().toLowerCase();
@@ -82,13 +82,13 @@ export const InvitesService = {
     const dup = await InviteRepo.findDuplicatePending(
       params.orgId,
       email,
-      params.unitId ?? null
+      params.audienceId ?? null
     );
     if (dup) {
       // 409 conflict with extra context for callers that want it
       const e = new HttpError(
         409,
-        'A pending invite already exists for this email (and unit).'
+        'A pending invite already exists for this email (and audience).'
       );
       // @ts-expect-error – tack on context (your global error formatter can expose this safely if desired)
       e.extra = {
@@ -109,7 +109,7 @@ export const InvitesService = {
       email,
       role: effectiveRole,
       roleId,
-      unitId: params.unitId ?? null,
+      audienceId: params.audienceId ?? null,
       token,
       joinCode,
       expiresAt,
@@ -158,11 +158,11 @@ export const InvitesService = {
       throw forbidden('Invite is for another email');
     }
 
-    if (invite.unitId) {
-      await MembershipRepo.upsertUnitScoped({
+    if (invite.audienceId) {
+      await MembershipRepo.upsertAudienceScoped({
         orgId: invite.orgId,
         userId: user.id,
-        unitId: invite.unitId,
+        audienceId: invite.audienceId,
         role: invite.role,
         roleId: invite.roleId ?? undefined,
       });
@@ -175,7 +175,11 @@ export const InvitesService = {
       });
     }
     if (!invite.acceptedBy) await InviteRepo.markAccepted(invite.id, user.id);
-    return { ok: true, orgId: invite.orgId, unitId: invite.unitId } as const;
+    return {
+      ok: true,
+      orgId: invite.orgId,
+      audienceId: invite.audienceId,
+    } as const;
   },
 
   async acceptByJoinCode(
@@ -191,11 +195,11 @@ export const InvitesService = {
       throw forbidden('Invite is for another email');
     }
 
-    if (invite.unitId) {
-      await MembershipRepo.upsertUnitScoped({
+    if (invite.audienceId) {
+      await MembershipRepo.upsertAudienceScoped({
         orgId: invite.orgId,
         userId: user.id,
-        unitId: invite.unitId,
+        audienceId: invite.audienceId,
         role: invite.role,
         roleId: invite.roleId ?? undefined,
       });
@@ -208,10 +212,14 @@ export const InvitesService = {
       });
     }
     if (!invite.acceptedBy) await InviteRepo.markAccepted(invite.id, user.id);
-    return { ok: true, orgId: invite.orgId, unitId: invite.unitId } as const;
+    return {
+      ok: true,
+      orgId: invite.orgId,
+      audienceId: invite.audienceId,
+    } as const;
   },
 
-  async getInvitePreview(token: string, requestedEmail : string) {
+  async getInvitePreview(token: string, requestedEmail: string) {
     const inv = await InviteRepo.findPreviewByToken(token);
     if (!inv) throw notFound('Invite not found');
 
@@ -219,14 +227,14 @@ export const InvitesService = {
       throw new HttpError(410, 'Invite expired');
     }
 
-    if (inv.email.toLowerCase() !== requestedEmail.toLowerCase()) { 
-      throw forbidden('This invite is for another email')
+    if (inv.email.toLowerCase() !== requestedEmail.toLowerCase()) {
+      throw forbidden('This invite is for another email');
     }
 
     return {
       orgId: inv.org.id,
       orgName: inv.org.name,
-      unitName: inv.unit?.name ?? null,
+      audienceName: inv.audience?.name ?? null,
       invitedEmail: inv.email,
       parentRole: inv.role,
       roleName: inv.roleRef?.name ?? null,

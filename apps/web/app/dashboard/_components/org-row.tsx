@@ -76,7 +76,7 @@ export default function OrgRow({ org, className }: OrgRowProps) {
   const teamSize = String(meta.teamSize ?? org.teamSize ?? '').trim();
   const focusArea = meta.focusArea as string | undefined;
   const features = meta.features ?? {};
-  const units = meta?.stats?.units ?? org?.unitsCount;
+  const audiences = meta?.stats?.audiences ?? org?.audiencesCount;
   const members =
     meta?.stats?.members ??
     (Array.isArray(org?.members) ? org.members.length : undefined);
@@ -177,11 +177,12 @@ export default function OrgRow({ org, className }: OrgRowProps) {
           </div>
           <div className="mt-1 flex items-center gap-2 text-[11px] text-muted-foreground">
             {since && <span>Since {since}</span>}
-            {Array.isArray(org.myUnitRoles) && org.myUnitRoles.length > 1 && (
-              <span className="hidden sm:inline">
-                • {org.myUnitRoles.length} roles
-              </span>
-            )}
+            {Array.isArray(org.myAudienceRoles) &&
+              org.myAudienceRoles.length > 1 && (
+                <span className="hidden sm:inline">
+                  • {org.myAudienceRoles.length} roles
+                </span>
+              )}
           </div>
           {/* brand line */}
           <div
@@ -244,10 +245,13 @@ export default function OrgRow({ org, className }: OrgRowProps) {
       {/* stats (render what you have) */}
       <div className="min-w-0 sm:justify-self-end">
         <div className="flex flex-wrap items-center gap-3 text-[12px] text-muted-foreground">
-          {typeof units === 'number' && (
+          {typeof audiences === 'number' && (
             <span className="inline-flex items-center gap-1">
               <Boxes className="h-3.5 w-3.5" />
-              <span className="font-medium text-foreground">{units}</span> units
+              <span className="font-medium text-foreground">
+                {audiences}
+              </span>{' '}
+              audiences
             </span>
           )}
           {typeof members === 'number' && (

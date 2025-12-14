@@ -40,12 +40,12 @@ export function DashboardCard({
 export function SnapshotMetric({
   label,
   value,
-  unit,
+  audience,
   tone = 'default',
 }: {
   label: string;
   value: string | number;
-  unit?: string;
+  audience?: string;
   tone?: Tone;
 }) {
   return (
@@ -53,7 +53,7 @@ export function SnapshotMetric({
       <div className="flex items-center justify-between">
         <span className="text-sm text-foreground/80">{label}</span>
         <span className="font-semibold text-lg text-foreground">
-          {unit ? `${unit}` : ''}
+          {audience ? `${audience}` : ''}
           {value}
         </span>
       </div>

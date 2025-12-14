@@ -2,21 +2,27 @@
 import { z } from 'zod';
 import { ParentRole } from '../generated/prisma';
 
-export const BulkInviteItem = z.object({
-  email: z.string().email(),
-  role: z.nativeEnum(ParentRole).optional(),
-  roleId: z.string().optional(),
-  unitId: z.string().optional(),
-  meta: z.any().optional(),
-}).refine(v => v.role || v.roleId, { message: 'Provide either role or roleId' });
+export const BulkInviteItem = z
+  .object({
+    email: z.string().email(),
+    role: z.nativeEnum(ParentRole).optional(),
+    roleId: z.string().optional(),
+    audienceId: z.string().optional(),
+    meta: z.any().optional(),
+  })
+  .refine((v) => v.role || v.roleId, {
+    message: 'Provide either role or roleId',
+  });
 
 export const BulkInviteBody = z.object({
   invites: z.array(BulkInviteItem).min(1).max(200),
-  options: z.object({
-    expiresInDays: z.number().int().min(1).max(30).default(7),
-    sendEmail: z.boolean().default(true),
-    dryRun: z.boolean().default(false),
-  }).default({}),
+  options: z
+    .object({
+      expiresInDays: z.number().int().min(1).max(30).default(7),
+      sendEmail: z.boolean().default(true),
+      dryRun: z.boolean().default(false),
+    })
+    .default({}),
 });
 
 export const BulkInviteStatus = z.enum(['queued', 'running', 'done', 'error']);

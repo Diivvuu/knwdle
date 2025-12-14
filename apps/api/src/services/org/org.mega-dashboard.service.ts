@@ -1,6 +1,5 @@
 import { OrgType, ParentRole } from '../../generated/prisma';
 import { OrgRepo } from '../../repositories/org/org.repo';
-import { getMetaSchema } from '../../lib/org.type.meta';
 import { createGetObjectUrl } from '../../lib/s3';
 import { PERMISSIONS_BY_BASE_ROLE } from '../../middleware/permissions';
 import { badRequest, forbidden, notFound } from '../../lib/https';
@@ -37,14 +36,14 @@ async function getMyRoleForOrg(orgId: string, userId: string) {
     ParentRole.parent,
   ];
 
-  const myUnitRoles = ms.map((m) => ({
+  const myAudienceRoles = ms.map((m) => ({
     role: m.role,
-    unitId: m.unitId ?? null,
+    audienceId: m.audienceId ?? null,
   }));
   const myRole =
     order.find((r) => ms.some((m) => m.role === r)) ?? ms[0]?.role ?? null;
 
-  return { myRole, myUnitRoles };
+  return { myRole, myAudienceRoles };
 }
 
 async function getUserPermissionsFromOrg(orgId: string, userId: string) {
@@ -69,17 +68,11 @@ export const OrgDashboardService = {
       meta?: unknown;
     }
   ) {
-    const schema = getMetaSchema(payload.type);
-    const parsed = schema.safeParse(payload.meta ?? {});
-    if (!parsed.success) {
-      throw badRequest('Invalid meta');
-    }
-
-    const created = await OrgRepo.createOrgWithMainUnit({
+    const created = await OrgRepo.createOrgWithMainAudience({
       name: payload.name,
       type: payload.type,
       teamSize: payload.teamSize,
-      meta: parsed.data,
+      meta: payload.meta ?? {},
       ownerUserId: currentUserId,
     });
     return created;
@@ -100,7 +93,7 @@ export const OrgDashboardService = {
             ? (o.coverUrl as string)
             : extractKeyFromS3Url(o.coverUrl || undefined)) || undefined;
 
-        const [{ myRole, myUnitRoles }, permissions, logoUrl, coverUrl] =
+        const [{ myRole, myAudienceRoles }, permissions, logoUrl, coverUrl] =
           await Promise.all([
             getMyRoleForOrg(o.id, currentUserId),
             getUserPermissionsFromOrg(o.id, currentUserId),
@@ -121,7 +114,7 @@ export const OrgDashboardService = {
           logoUrl: logoUrl ?? null,
           coverUrl: coverUrl ?? null,
           myRole,
-          myUnitRoles,
+          myAudienceRoles,
           permissions,
         };
       })
@@ -137,7 +130,7 @@ export const OrgDashboardService = {
     const org = await OrgRepo.findByIdWithProfile(orgId);
     if (!org) throw notFound('Org not found');
 
-    const { myRole, myUnitRoles } = await getMyRoleForOrg(
+    const { myRole, myAudienceRoles } = await getMyRoleForOrg(
       org.id,
       currentUserId
     );
@@ -167,7 +160,7 @@ export const OrgDashboardService = {
       logoUrl: logoUrl ?? null,
       coverUrl: coverUrl ?? null,
       myRole,
-      myUnitRoles,
+      myAudienceRoles,
     };
   },
 
@@ -196,10 +189,7 @@ export const OrgDashboardService = {
 
     let metaData: any | undefined = undefined;
     if (body.meta !== undefined) {
-      const schema = getMetaSchema(org.type as OrgType);
-      const parsed = schema.safeParse(body.meta);
-      if (!parsed.success) throw badRequest('Invalid meta');
-      metaData = parsed.data;
+      metaData = body.meta;
     }
 
     const d: Record<string, any> = {};

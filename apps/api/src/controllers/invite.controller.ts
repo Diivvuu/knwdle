@@ -56,17 +56,17 @@ export const InvitesController = {
       q: term,
       role,
       status,
-      unitId,
+      audienceId,
       sortKey: rawSortKey = 'createdAt',
       sortDir = 'desc',
     } = q.data;
 
-    const sortKey = rawSortKey === 'unit' ? 'unitId' : rawSortKey;
+    const sortKey = rawSortKey === 'audienceId' ? 'audienceId' : rawSortKey;
     const cur = decodeCursor(cursor || null);
 
     const where: any = { orgId };
     if (role) where.role = role;
-    if (unitId) where.unitId = unitId;
+    if (audienceId) where.audienceId = audienceId;
     if (status === 'pending') where.acceptedBy = null;
     if (status === 'accepted') where.acceptedBy = { not: null };
     if (term) where.email = { contains: term, mode: 'insensitive' };

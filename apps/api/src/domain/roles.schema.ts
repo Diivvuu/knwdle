@@ -1,7 +1,7 @@
 import z from 'zod';
-import { OrgIdParam } from './org.unit-types.schema';
+import { OrgIdParam } from './org.params';
 
-export const scopeEnum = z.enum(['org', 'unit']);
+export const scopeEnum = z.enum(['org', 'audience']);
 
 export const RoleIdParam = z.object({
   id: z.string(),

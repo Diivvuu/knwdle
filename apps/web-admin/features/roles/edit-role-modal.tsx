@@ -63,7 +63,7 @@ export default function EditRoleModal() {
   const [form, setForm] = useState({
     name: '',
     key: '',
-    scope: 'org' as 'org' | 'unit',
+    scope: 'org' as 'org' | 'audience',
     selected: [] as string[],
   });
 
@@ -72,7 +72,7 @@ export default function EditRoleModal() {
     setForm({
       name: role.name,
       key: role.key,
-      scope: (role.scope as 'org' | 'unit') ?? 'org',
+      scope: (role.scope as 'org' | 'audience') ?? 'org',
       selected: (role.permissions ?? []).map((rp) => rp.permission.code),
     });
   }, [open, role]);
@@ -195,7 +195,7 @@ export default function EditRoleModal() {
                 <Select
                   value={form.scope}
                   onValueChange={(v) =>
-                    setForm((f) => ({ ...f, scope: v as 'org' | 'unit' }))
+                    setForm((f) => ({ ...f, scope: v as 'org' | 'audience' }))
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -203,15 +203,15 @@ export default function EditRoleModal() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="org">Organisation wide</SelectItem>
-                    <SelectItem value="unit">
-                      Unit-scope (e.g., class/department)
+                    <SelectItem value="audience">
+                      Audience-scope (e.g., class/department)
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {form.scope === 'org'
                     ? 'Assignable across the entire organisation'
-                    : 'Assignable within a specific unit (e.g., class, department).'}
+                    : 'Assignable within a specific audience (e.g., class, department).'}
                 </p>
               </div>
             </div>

@@ -68,7 +68,7 @@ const EditMemberModal: React.FC = () => {
   // Local form
   const [saving, setSaving] = useState(false);
   const [name, setName] = useState('');
-  const [unitId, setUnitId] = useState<string>('');
+  const [audienceId, setaudienceId] = useState<string>('');
   const [roleValue, setRoleValue] = useState<string>(''); // builtin key or custom roleId
 
   /* ------------------------- Fetching & Hydration ------------------------- */
@@ -96,7 +96,7 @@ const EditMemberModal: React.FC = () => {
   useEffect(() => {
     if (!open || !member) return;
     setName(member.name || '');
-    setUnitId(member.unitId || '');
+    setaudienceId(member.audienceId || '');
     setRoleValue(member.roleId ?? member.role ?? '');
   }, [open, member]);
 
@@ -139,7 +139,7 @@ const EditMemberModal: React.FC = () => {
     const body: Record<string, any> = {
       ...(name.trim() &&
         name.trim() !== (member.name ?? '') && { name: name.trim() }),
-      ...(unitId ? { unitId } : { unitId: null }), // explicit clear
+      ...(audienceId ? { audienceId } : { audienceId: null }), // explicit clear
     };
 
     if (isBuiltin(roleValue)) {
@@ -191,8 +191,8 @@ const EditMemberModal: React.FC = () => {
             </div>
           </div>
           <div>
-            <div className="font-medium">Unit</div>
-            <div className="opacity-80">{member.unitName || '—'}</div>
+            <div className="font-medium">Audience</div>
+            <div className="opacity-80">{member.audienceName || '—'}</div>
           </div>
           <div>
             <div className="font-medium">Joined</div>
@@ -228,7 +228,7 @@ const EditMemberModal: React.FC = () => {
         <ModalHeader>
           <ModalTitle>Edit member</ModalTitle>
           <ModalDescription>
-            Update core details, role and unit. Role-specific profiles will
+            Update core details, role and audience. Role-specific profiles will
             appear here as we wire their APIs.
           </ModalDescription>
         </ModalHeader>
@@ -268,7 +268,7 @@ const EditMemberModal: React.FC = () => {
                   </div>
                 </div>
 
-                {/* Role + Unit */}
+                {/* Role + Audience */}
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <Label className="text-sm font-medium">Role</Label>
@@ -305,15 +305,15 @@ const EditMemberModal: React.FC = () => {
 
                   <div>
                     <Label className="text-sm font-medium">
-                      Unit ID (optional)
+                      Audience ID (optional)
                     </Label>
                     <Input
                       placeholder="e.g. class_8A"
-                      value={unitId}
-                      onChange={(e) => setUnitId(e.target.value)}
+                      value={audienceId}
+                      onChange={(e) => setaudienceId(e.target.value)}
                     />
                     <p className="mt-1 text-xs text-muted-foreground">
-                      Leave blank to clear the member’s unit.
+                      Leave blank to clear the member’s audience.
                     </p>
                   </div>
                 </div>

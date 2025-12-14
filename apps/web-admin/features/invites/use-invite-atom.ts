@@ -8,7 +8,7 @@ export type InviteModalData = {
   orgId: string;
   email: string;
   role: ParentRole;
-  unitId: string | null;
+  audienceId: string | null;
   joinCode: string | null;
   expiresAt: string;
   acceptedBy: string | null;

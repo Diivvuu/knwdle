@@ -39,7 +39,7 @@ type InviteRow = {
   orgId: string;
   email: string;
   role: ParentRole;
-  unitId: string | null;
+  audienceId: string | null;
   joinCode: string | null;
   expiresAt: string;
   acceptedBy: string | null;
@@ -47,7 +47,7 @@ type InviteRow = {
 };
 
 const ROLES = ['admin', 'staff', 'student', 'parent'] as const;
-type SearchBy = 'email' | 'role' | 'unitId';
+type SearchBy = 'email' | 'role' | 'audienceId';
 
 /* ---------- small UI helpers ---------- */
 const RoleIcon: Record<ParentRole, any> = {
@@ -65,7 +65,10 @@ const roleBadgeClass: Record<ParentRole, string> = {
 const emailInitials = (email: string) => {
   const local = String(email ?? '');
   const namePart = local.split('@')[0] || '';
-  const cleaned = namePart.replace(/[^a-zA-Z0-9]/g, '').slice(0, 2).toUpperCase();
+  const cleaned = namePart
+    .replace(/[^a-zA-Z0-9]/g, '')
+    .slice(0, 2)
+    .toUpperCase();
   return cleaned || 'U';
 };
 
@@ -143,7 +146,7 @@ export default function InvitesPage() {
   const searchByParam = (params.get('searchBy') as SearchBy) ?? 'email';
   const q = params.get('q') ?? '';
   const roleParam = (params.get('role') as ParentRole | null) ?? null;
-  const unitId = params.get('unitId') ?? '';
+  const audienceId = params.get('audienceId') ?? '';
   const status =
     (params.get('status') as 'pending' | 'accepted' | null) ?? null;
   const sortKey = params.get('sortKey') ?? '';
@@ -152,7 +155,11 @@ export default function InvitesPage() {
 
   // derived (server)
   const effectiveQ =
-    searchByParam === 'email' ? q : searchByParam === 'unitId' ? unitId : '';
+    searchByParam === 'email'
+      ? q
+      : searchByParam === 'audienceId'
+        ? audienceId
+        : '';
   const effectiveRole = searchByParam === 'role' ? (roleParam ?? '') : '';
 
   // initial fetch
@@ -186,7 +193,8 @@ export default function InvitesPage() {
         q: effectiveQ || undefined,
         role: (effectiveRole as ParentRole) || undefined,
         status: status || undefined,
-        unitId: searchByParam === 'unitId' ? unitId || undefined : undefined,
+        audienceId:
+          searchByParam === 'audienceId' ? audienceId || undefined : undefined,
         sortKey: sortKey || undefined,
         sortDir: sortDir || undefined,
       })
@@ -197,7 +205,7 @@ export default function InvitesPage() {
     searchByParam,
     effectiveQ,
     effectiveRole,
-    unitId,
+    audienceId,
     status,
     sortKey,
     sortDir,
@@ -220,12 +228,12 @@ export default function InvitesPage() {
         render: (r) => <RoleCell role={r.role} />,
       },
       {
-        key: 'unitId',
-        header: 'Unit',
+        key: 'audienceId',
+        header: 'Audience',
         sortable: true,
         render: (r) => (
           <span className="text-xs text-muted-foreground">
-            {r.unitId ?? '—'}
+            {r.audienceId ?? '—'}
           </span>
         ),
       },
@@ -274,7 +282,7 @@ export default function InvitesPage() {
         options: [
           { label: 'Email', value: 'email' },
           { label: 'Role', value: 'role' },
-          { label: 'Unit ID', value: 'unitId' },
+          { label: 'Audience ID', value: 'audienceId' },
         ],
       },
     ],
@@ -299,11 +307,11 @@ export default function InvitesPage() {
       sp.set('searchBy', nextSearchBy);
       sp.delete('q');
       sp.delete('role');
-      sp.delete('unitId');
+      sp.delete('audienceId');
 
       const text = (p.query || '').trim();
       if (nextSearchBy === 'email' && text) sp.set('q', text);
-      if (nextSearchBy === 'unitId' && text) sp.set('unitId', text);
+      if (nextSearchBy === 'audienceId' && text) sp.set('audienceId', text);
       if (nextSearchBy === 'role' && text) sp.set('role', text as ParentRole); // allow typing role
 
       const nextStatus = p.filters.status ?? '';
@@ -347,7 +355,8 @@ export default function InvitesPage() {
         q: effectiveQ || undefined,
         role: (effectiveRole as ParentRole) || undefined,
         status: status || undefined,
-        unitId: searchByParam === 'unitId' ? unitId || undefined : undefined,
+        audienceId:
+          searchByParam === 'audienceId' ? audienceId || undefined : undefined,
         sortKey: sortKey || undefined,
         sortDir: sortDir || undefined,
       })
@@ -387,7 +396,7 @@ export default function InvitesPage() {
         serverSearchMode="manual"
         initialQuery={
           (searchByParam === 'email' && q) ||
-          (searchByParam === 'unitId' && unitId) ||
+          (searchByParam === 'audienceId' && audienceId) ||
           (searchByParam === 'role' && (roleParam ?? '')) ||
           ''
         }
@@ -410,9 +419,9 @@ export default function InvitesPage() {
                   q: effectiveQ || undefined,
                   role: (effectiveRole as ParentRole) || undefined,
                   status: status || undefined,
-                  unitId:
-                    searchByParam === 'unitId'
-                      ? unitId || undefined
+                  audienceId:
+                    searchByParam === 'audienceId'
+                      ? audienceId || undefined
                       : undefined,
                   sortKey: sortKey || undefined,
                   sortDir: sortDir || undefined,
@@ -442,8 +451,8 @@ export default function InvitesPage() {
           searchPlaceholder:
             searchByParam === 'role'
               ? 'Search role (admin, staff, ...)'
-              : searchByParam === 'unitId'
-                ? 'Search unit id…'
+              : searchByParam === 'audienceId'
+                ? 'Search audience id…'
                 : 'Search email…',
         }}
       />

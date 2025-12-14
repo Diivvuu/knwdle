@@ -7,7 +7,7 @@ export const InviteBody = z
     email: z.string().email(),
     role: z.nativeEnum(ParentRole).optional(),
     roleId: z.string().optional(),
-    unitId: z.string().optional(),
+    audienceId: z.string().optional(),
     meta: z.any().optional(),
   })
   .refine((v) => v.role || v.roleId, {
@@ -20,9 +20,9 @@ export const InviteListQuery = z.object({
   q: z.string().trim().min(1).max(200).optional(),
   role: z.nativeEnum(ParentRole).optional(),
   status: z.enum(['pending', 'accepted']).optional(),
-  unitId: z.string().trim().min(1).optional(),
+  audienceId: z.string().trim().min(1).optional(),
   sortKey: z
-    .enum(['createdAt', 'email', 'expiresAt', 'role', 'unit', 'unitId'])
+    .enum(['createdAt', 'email', 'expiresAt', 'role', 'audience', 'audienceId'])
     .optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
 });
@@ -34,7 +34,7 @@ export const InviteSchema = z.object({
   email: z.string().email(),
   role: z.nativeEnum(ParentRole),
   roleId: z.string().nullable().optional(),
-  unitId: z.string().nullable().optional(),
+  audienceId: z.string().nullable().optional(),
   token: z.string(),
   joinCode: z.string(),
   expiresAt: z.string().datetime(),
@@ -51,13 +51,13 @@ export const InviteListResponse = z.object({
 export const AcceptInviteResponse = z.object({
   message: z.string(),
   orgId: z.string(),
-  unitId: z.string().nullable().optional(),
+  audienceId: z.string().nullable().optional(),
 });
 
 export const InvitePreviewSchema = z.object({
   orgId: z.string(),
   orgName: z.string(),
-  unitName: z.string().nullable().optional(),
+  audienceName: z.string().nullable().optional(),
   invitedEmail: z.string().email(),
   parentRole: z.nativeEnum(ParentRole),
   roleName: z.string().nullable().optional(),

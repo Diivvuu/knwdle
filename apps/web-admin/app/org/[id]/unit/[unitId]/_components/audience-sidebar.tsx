@@ -17,15 +17,18 @@ import {
   SidebarMenuItem,
 } from '@workspace/ui/components/sidebar';
 import { Separator } from '@workspace/ui/components/separator';
-import { useUnitDashboardConfig } from '@/hooks/use-unit-dashboard-config';
-import { useSelector } from 'react-redux';
-import { selectUnitDashboardStatus } from '@workspace/state';
-import { useEffect } from 'react';
 
-export function UnitSidebar() {
-  const { id: orgId, unitId } = useParams() as { id: string; unitId: string };
+import { useSelector } from 'react-redux';
+import { useEffect } from 'react';
+import { useAudienceDashboardConfig } from '@/hooks/use-unit-dashboard-config';
+
+export function AudienceSidebar() {
+  const { id: orgId, audienceId } = useParams() as {
+    id: string;
+    audienceId: string;
+  };
   const pathname = usePathname();
-  const { config, loading, error } = useUnitDashboardConfig();
+  const { config, loading, error } = useAudienceDashboardConfig();
   const features = config?.features || [];
   const tables = config?.tables || [];
 
@@ -54,9 +57,9 @@ export function UnitSidebar() {
   const isActive = (path: string) =>
     pathname?.endsWith(path) || pathname?.includes(`/${path}`);
 
-  const status = useSelector(selectUnitDashboardStatus);
+  const status = useSelector(selectAudienceDashboardStatus);
   useEffect(() => {
-    console.log('org unit hook', config, status);
+    console.log('org audience hook', config, status);
   }, [config, status]);
   if (status === 'loading' || !config)
     return (
@@ -83,7 +86,7 @@ export function UnitSidebar() {
       <SidebarContent>
         <SidebarGroup>
           <SidebarGroupLabel>
-            {config.unitType || 'Unit'}{' '}
+            {config.audienceType || 'Audience'}{' '}
             <span className="text-xs text-muted-foreground ml-1">
               ({config.role})
             </span>
@@ -93,7 +96,7 @@ export function UnitSidebar() {
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const active = isActive(item.path);
-              const href = `/org/${orgId}/unit/${unitId}/${item.path}`;
+              const href = `/org/${orgId}/audience/${audienceId}/${item.path}`;
 
               return (
                 <SidebarMenuItem key={item.path}>

@@ -4,24 +4,24 @@ import React, { useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import { motion } from 'framer-motion';
 import {
-  fetchUnitDashboardConfig,
-  fetchUnitHero,
-  fetchUnitSummary,
-  fetchUnitTimetableToday,
-  fetchUnitAnnouncements,
-  fetchUnitAssignments,
-  fetchUnitTests,
-  fetchUnitFees,
-  selectUnitDashboardConfig,
-  selectUnitHero,
-  selectUnitSummary,
-  selectUnitTimetable,
-  selectUnitAnnouncements,
-  selectUnitAssignments,
-  selectUnitTests,
-  selectUnitFees,
-  selectUnitDashboardStatus,
-  selectUnitDashboardError,
+  fetchAudienceDashboardConfig,
+  fetchAudienceHero,
+  fetchAudienceSummary,
+  fetchAudienceTimetableToday,
+  fetchAudienceAnnouncements,
+  fetchAudienceAssignments,
+  fetchAudienceTests,
+  fetchAudienceFees,
+  selectAudienceDashboardConfig,
+  selectAudienceHero,
+  selectAudienceSummary,
+  selectAudienceTimetable,
+  selectAudienceAnnouncements,
+  selectAudienceAssignments,
+  selectAudienceTests,
+  selectAudienceFees,
+  selectAudienceDashboardStatus,
+  selectAudienceDashboardError,
 } from '@workspace/state';
 import { useDispatch, useSelector } from 'react-redux';
 import { AppDispatch } from '@/store/store';
@@ -32,46 +32,54 @@ import { DashboardErrorBanner } from '@workspace/ui/components/app/dashboard/das
 import { DashboardSkeletonGrid } from '@workspace/ui/components/app/dashboard/dashboard-skeleton-grid';
 import { toast } from 'sonner';
 import { Separator } from '@workspace/ui/components/separator';
-import { Award, CalendarDays, FileCheck, FlaskConical, BookOpen, Bell } from 'lucide-react';
+import {
+  Award,
+  CalendarDays,
+  FileCheck,
+  FlaskConical,
+  BookOpen,
+  Bell,
+} from 'lucide-react';
 
-export default function UnitDashboardPage() {
-  const { orgId, unitId } = useParams() as { orgId: string; unitId: string };
+export default function AudienceDashboardPage() {
+  const { orgId, audienceId } = useParams() as {
+    orgId: string;
+    audienceId: string;
+  };
   const dispatch = useDispatch<AppDispatch>();
 
-  const config = useSelector(selectUnitDashboardConfig);
-  const hero = useSelector(selectUnitHero);
-  const summary = useSelector(selectUnitSummary);
-  const timetable = useSelector(selectUnitTimetable);
-  const announcements = useSelector(selectUnitAnnouncements);
-  const assignments = useSelector(selectUnitAssignments);
-  const tests = useSelector(selectUnitTests);
-  const fees = useSelector(selectUnitFees);
-  const status = useSelector(selectUnitDashboardStatus);
-  const error = useSelector(selectUnitDashboardError);
+  const config = useSelector(selectAudienceDashboardConfig);
+  const hero = useSelector(selectAudienceHero);
+  const summary = useSelector(selectAudienceSummary);
+  const timetable = useSelector(selectAudienceTimetable);
+  const announcements = useSelector(selectAudienceAnnouncements);
+  const assignments = useSelector(selectAudienceAssignments);
+  const tests = useSelector(selectAudienceTests);
+  const fees = useSelector(selectAudienceFees);
+  const status = useSelector(selectAudienceDashboardStatus);
+  const error = useSelector(selectAudienceDashboardError);
 
   // ────────────────────── Fetch Data ──────────────────────
   useEffect(() => {
-    if (orgId && unitId) {
+    if (orgId && audienceId) {
       Promise.all([
-        dispatch(fetchUnitDashboardConfig({ orgId, unitId })),
-        dispatch(fetchUnitHero({ orgId, unitId })),
-        dispatch(fetchUnitSummary({ orgId, unitId })),
-        dispatch(fetchUnitTimetableToday({ orgId, unitId })),
-        dispatch(fetchUnitAnnouncements({ orgId, unitId })),
-        dispatch(fetchUnitAssignments({ orgId, unitId })),
-        dispatch(fetchUnitTests({ orgId, unitId })),
-        dispatch(fetchUnitFees({ orgId, unitId })),
-      ]).catch(() => toast.error('Failed to load unit dashboard'));
+        dispatch(fetchAudienceDashboardConfig({ orgId, audienceId })),
+        dispatch(fetchAudienceHero({ orgId, audienceId })),
+        dispatch(fetchAudienceSummary({ orgId, audienceId })),
+        dispatch(fetchAudienceTimetableToday({ orgId, audienceId })),
+        dispatch(fetchAudienceAnnouncements({ orgId, audienceId })),
+        dispatch(fetchAudienceAssignments({ orgId, audienceId })),
+        dispatch(fetchAudienceTests({ orgId, audienceId })),
+        dispatch(fetchAudienceFees({ orgId, audienceId })),
+      ]).catch(() => toast.error('Failed to load audience dashboard'));
     }
-  }, [orgId, unitId, dispatch]);
+  }, [orgId, audienceId, dispatch]);
 
   // ────────────────────── Loading / Error ──────────────────────
   if (status === 'loading') return <DashboardSkeletonGrid count={6} />;
   if (error) return <DashboardErrorBanner message={error} />;
   if (!hero)
-    return (
-      <DashboardErrorBanner message="Unable to load unit details." />
-    );
+    return <DashboardErrorBanner message="Unable to load audience details." />;
 
   const widgets = config?.widgets ?? [];
 
@@ -101,11 +109,11 @@ export default function UnitDashboardPage() {
           <DashboardSection
             title="Assignments Due"
             // accent="purple"
-            actionHref={`/org/${orgId}/unit/${unitId}/assignments`}
+            actionHref={`/org/${orgId}/audience/${audienceId}/assignments`}
           >
             <DashboardPeekList
               items={assignments}
-              renderItem={(a : any) => (
+              renderItem={(a: any) => (
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <FileCheck className="w-3.5 h-3.5 text-purple-500" />
@@ -126,11 +134,11 @@ export default function UnitDashboardPage() {
           <DashboardSection
             title="Upcoming Tests"
             accent="mint"
-            actionHref={`/org/${orgId}/unit/${unitId}/tests`}
+            actionHref={`/org/${orgId}/audience/${audienceId}/tests`}
           >
             <DashboardPeekList
               items={tests}
-              renderItem={(t : any) => (
+              renderItem={(t: any) => (
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <FlaskConical className="w-3.5 h-3.5 text-green-500" />
@@ -148,7 +156,8 @@ export default function UnitDashboardPage() {
 
       case 'fees_summary':
         return (
-          <DashboardSection title="Fees Summary"
+          <DashboardSection
+            title="Fees Summary"
             // accent="orange"
           >
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
@@ -176,7 +185,7 @@ export default function UnitDashboardPage() {
           <DashboardSection title="Today's Timetable" accent="mint">
             <DashboardPeekList
               items={timetable}
-              renderItem={(t : any) => (
+              renderItem={(t: any) => (
                 <div className="flex justify-between text-sm">
                   <span className="flex items-center gap-2">
                     <CalendarDays className="w-3.5 h-3.5 text-blue-500" />
@@ -197,7 +206,7 @@ export default function UnitDashboardPage() {
           <DashboardSection
             title="Announcements"
             // accent="candy"
-            actionHref={`/org/${orgId}/unit/${unitId}/announcements`}
+            actionHref={`/org/${orgId}/audience/${audienceId}/announcements`}
           >
             <DashboardPeekList
               items={announcements}

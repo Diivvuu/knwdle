@@ -202,7 +202,7 @@ export default function CreateRoleModal() {
                 <Select
                   value={form.scope}
                   onValueChange={(v) =>
-                    setForm((f) => ({ ...f, scope: v as 'org' | 'unit' }))
+                    setForm((f) => ({ ...f, scope: v as 'org' | 'audience' }))
                   }
                 >
                   <SelectTrigger className="w-full">
@@ -210,15 +210,15 @@ export default function CreateRoleModal() {
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="org">Organisation wide</SelectItem>
-                    <SelectItem value="unit">
-                      Unit-scoped (e.g., class/department)
+                    <SelectItem value="audience">
+                      Audience-scoped (e.g., class/department)
                     </SelectItem>
                   </SelectContent>
                 </Select>
                 <p className="mt-1 text-xs text-muted-foreground">
                   {form.scope === 'org'
                     ? 'This role can be assigned across the entire organisation'
-                    : 'This role can be assigned within a specific unit (e.g., class, department) during member asisgnment.'}
+                    : 'This role can be assigned within a specific audience (e.g., class, department) during member asisgnment.'}
                 </p>
               </div>
             </div>

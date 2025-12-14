@@ -38,9 +38,9 @@ type SectionNode = NonNullable<
 // Mock data functions for class-specific data
 const mockClassData = {
   basic: {
-    name: "Class 12A",
-    academicYear: "2024-2025",
-    classTeacher: "Ms. Sharma"
+    name: 'Class 12A',
+    academicYear: '2024-2025',
+    classTeacher: 'Ms. Sharma',
   },
   summary: {
     totalStudents: 42,
@@ -48,37 +48,55 @@ const mockClassData = {
     assignmentsDue: 3,
     averagePerformance: 78.5,
     subjectsCount: 8,
-    teachersCount: 5
+    teachersCount: 5,
   },
   attendanceSnapshot: {
     monthlyRate: 92.5,
     presentCount: 38,
-    absentCount: 4
+    absentCount: 4,
   },
   performanceSnapshot: {
     classAverage: 78.5,
     topScore: 95,
-    lowestScore: 62
+    lowestScore: 62,
   },
   upcomingEvents: [
-    { id: 1, title: "Maths Unit Test", date: "Dec 15", type: "exam" },
-    { id: 2, title: "Science Project Submission", date: "Dec 18", type: "assignment" },
-    { id: 3, title: "Parent-Teacher Meeting", date: "Dec 20", type: "meeting" }
+    { id: 1, title: 'Maths Audience Test', date: 'Dec 15', type: 'exam' },
+    {
+      id: 2,
+      title: 'Science Project Submission',
+      date: 'Dec 18',
+      type: 'assignment',
+    },
+    { id: 3, title: 'Parent-Teacher Meeting', date: 'Dec 20', type: 'meeting' },
   ],
   recentActivities: [
-    { id: 1, title: "Physics Assignment Graded", time: "2h ago" },
-    { id: 2, title: "Chemistry Lab Completed", time: "1d ago" },
-    { id: 3, title: "English Essay Submitted", time: "2d ago" }
+    { id: 1, title: 'Physics Assignment Graded', time: '2h ago' },
+    { id: 2, title: 'Chemistry Lab Completed', time: '1d ago' },
+    { id: 3, title: 'English Essay Submitted', time: '2d ago' },
   ],
   studentsPeek: [
-    { id: 1, name: "Rahul Kumar", rollNumber: "1", attendanceStatus: "present" },
-    { id: 2, name: "Priya Singh", rollNumber: "2", attendanceStatus: "present" },
-    { id: 3, name: "Amit Patel", rollNumber: "3", attendanceStatus: "absent" }
-  ]
+    {
+      id: 1,
+      name: 'Rahul Kumar',
+      rollNumber: '1',
+      attendanceStatus: 'present',
+    },
+    {
+      id: 2,
+      name: 'Priya Singh',
+      rollNumber: '2',
+      attendanceStatus: 'present',
+    },
+    { id: 3, name: 'Amit Patel', rollNumber: '3', attendanceStatus: 'absent' },
+  ],
 };
 
 export default function ClassDashboardPage() {
-  const { id: orgId, unitId: classId } = useParams<{ id: string; unitId: string }>();
+  const { id: orgId, audienceId: classId } = useParams<{
+    id: string;
+    audienceId: string;
+  }>();
   const dispatch = useDispatch<AppDispatch>();
 
   /* ─────────────── SELECTORS ─────────────── */
@@ -86,7 +104,7 @@ export default function ClassDashboardPage() {
   const basic = useSelector((s: RootState) =>
     orgId ? s.orgAdmin.basicById[orgId] : undefined
   );
-  
+
   // For class data, we'll use mock data initially
   const classBasic = mockClassData.basic;
   const classSummary = mockClassData.summary;
@@ -128,8 +146,11 @@ export default function ClassDashboardPage() {
             {classBasic.name}
           </h1>
           <p className="text-sm text-muted-foreground">
-            {classBasic.academicYear ? `Academic Year: ${classBasic.academicYear}` : '—'}
-            {classBasic.classTeacher && ` • Class Teacher: ${classBasic.classTeacher}`}
+            {classBasic.academicYear
+              ? `Academic Year: ${classBasic.academicYear}`
+              : '—'}
+            {classBasic.classTeacher &&
+              ` • Class Teacher: ${classBasic.classTeacher}`}
             {org?.name && ` • School: ${org.name}`}
           </p>
         </div>
@@ -137,14 +158,14 @@ export default function ClassDashboardPage() {
       actions={
         <div className="flex gap-2">
           <Link
-            href={`/org/${orgId}/unit/${classId}/attendance`}
+            href={`/org/${orgId}/audience/${classId}/attendance`}
             className="btn btn-outline text-sm flex items-center gap-1"
           >
             <UserCheck size={16} />
             Attendance
           </Link>
           <Link
-            href={`/org/${orgId}/unit/${classId}/settings`}
+            href={`/org/${orgId}/audience/${classId}/settings`}
             className="btn btn-outline text-sm flex items-center gap-1"
           >
             <Settings size={16} />
@@ -185,7 +206,7 @@ export default function ClassDashboardPage() {
                       value: summaryData.averagePerformance,
                       tone: 'honey',
                       icon: <BarChart3 className="size-4" />,
-                      unit: '%',
+                      audience: '%',
                     },
                     {
                       label: 'Subjects',
@@ -214,8 +235,10 @@ export default function ClassDashboardPage() {
                         </div>
                         <div className="text-3xl font-semibold text-foreground/90 tracking-tight">
                           {stat.value}
-                          {stat.unit && (
-                            <span className="text-sm ml-1">{stat.unit}</span>
+                          {stat.audience && (
+                            <span className="text-sm ml-1">
+                              {stat.audience}
+                            </span>
                           )}
                         </div>
                       </div>
@@ -239,7 +262,7 @@ export default function ClassDashboardPage() {
                   <SnapshotMetric
                     label="This Month"
                     value={classAttendanceSnapshot.monthlyRate}
-                    unit="%"
+                    audience="%"
                     tone="mint"
                   />
                   <div className="flex justify-between text-sm text-muted-foreground">
@@ -262,7 +285,7 @@ export default function ClassDashboardPage() {
                   <SnapshotMetric
                     label="Class Average"
                     value={classPerformanceSnapshot.classAverage}
-                    unit="%"
+                    audience="%"
                     tone="honey"
                   />
                   <div className="flex justify-between text-sm text-muted-foreground">
@@ -281,7 +304,7 @@ export default function ClassDashboardPage() {
             node: (
               <DashboardSection
                 title="Upcoming Events"
-                actionHref={`/org/${orgId}/unit/${classId}/events`}
+                actionHref={`/org/${orgId}/audience/${classId}/events`}
                 className="widget-events crayon-card"
               >
                 <DashboardList
@@ -289,9 +312,7 @@ export default function ClassDashboardPage() {
                   renderItem={(event: any) => (
                     <div className="flex justify-between items-center">
                       <div>
-                        <span className="font-medium block">
-                          {event.title}
-                        </span>
+                        <span className="font-medium block">{event.title}</span>
                         <span className="text-xs text-muted-foreground">
                           {event.date}
                         </span>
@@ -312,7 +333,7 @@ export default function ClassDashboardPage() {
             node: (
               <DashboardSection
                 title="Recent Activities"
-                actionHref={`/org/${orgId}/unit/${classId}/activities`}
+                actionHref={`/org/${orgId}/audience/${classId}/activities`}
                 className="widget-activities crayon-card"
               >
                 <DashboardList
@@ -337,16 +358,14 @@ export default function ClassDashboardPage() {
             node: (
               <DashboardSection
                 title="Students Overview"
-                actionHref={`/org/${orgId}/unit/${classId}/students`}
+                actionHref={`/org/${orgId}/audience/${classId}/students`}
                 className="widget-students crayon-card"
               >
                 <DashboardList
                   items={classStudentsPeek}
                   renderItem={(student: any) => (
                     <div className="flex justify-between items-center">
-                      <span className="font-medium">
-                        {student.name}
-                      </span>
+                      <span className="font-medium">{student.name}</span>
                       <div className="flex gap-2 text-xs text-muted-foreground">
                         <span>Roll: {student.rollNumber}</span>
                         <span>•</span>
@@ -372,37 +391,37 @@ export default function ClassDashboardPage() {
                     {
                       key: 'students',
                       title: 'Students List',
-                      href: `/org/${orgId}/unit/${classId}/students`,
+                      href: `/org/${orgId}/audience/${classId}/students`,
                       icon: <Users className="size-4" />,
                     },
                     {
                       key: 'attendance',
                       title: 'Attendance Records',
-                      href: `/org/${orgId}/unit/${classId}/attendance`,
+                      href: `/org/${orgId}/audience/${classId}/attendance`,
                       icon: <UserCheck className="size-4" />,
                     },
                     {
                       key: 'assignments',
                       title: 'Assignments',
-                      href: `/org/${orgId}/unit/${classId}/assignments`,
+                      href: `/org/${orgId}/audience/${classId}/assignments`,
                       icon: <FileText className="size-4" />,
                     },
                     {
                       key: 'timetable',
                       title: 'Class Timetable',
-                      href: `/org/${orgId}/unit/${classId}/timetable`,
+                      href: `/org/${orgId}/audience/${classId}/timetable`,
                       icon: <Calendar className="size-4" />,
                     },
                     {
                       key: 'performance',
                       title: 'Performance Reports',
-                      href: `/org/${orgId}/unit/${classId}/performance`,
+                      href: `/org/${orgId}/audience/${classId}/performance`,
                       icon: <BarChart3 className="size-4" />,
                     },
                     {
                       key: 'notices',
                       title: 'Class Notices',
-                      href: `/org/${orgId}/unit/${classId}/notices`,
+                      href: `/org/${orgId}/audience/${classId}/notices`,
                       icon: <Award className="size-4" />,
                     },
                   ].map((item) => (
@@ -416,7 +435,10 @@ export default function ClassDashboardPage() {
                           {item.icon}
                           <span className="font-medium">{item.title}</span>
                         </div>
-                        <ChevronRight size={14} className="text-muted-foreground" />
+                        <ChevronRight
+                          size={14}
+                          className="text-muted-foreground"
+                        />
                       </div>
                       <div className="h-20 bg-muted/20 border rounded-lg flex items-center justify-center text-sm text-muted-foreground">
                         <div className="text-center">

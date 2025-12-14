@@ -13,7 +13,7 @@ export interface Invite {
   email: string;
   role: ParentRole;
   roleId: string | null;
-  unitId: string | null;
+  audienceId: string | null;
   token: string | null;
   joinCode: string | null;
   expiresAt: string;
@@ -26,7 +26,7 @@ export interface BulkInviteItem {
   email: string;
   role?: ParentRole;
   roleId?: string;
-  unitId?: string;
+  audienceId?: string;
   meta?: Record<string, any>;
 }
 
@@ -113,7 +113,7 @@ export const listInvitesPage = createAsyncThunk<
       q?: string;
       role?: ParentRole;
       status?: 'pending' | 'accepted';
-      unitId?: string;
+      audienceId?: string;
       sortKey?: string;
       sortDir?: 'asc' | 'desc';
     };
@@ -125,7 +125,7 @@ export const listInvitesPage = createAsyncThunk<
     q?: string;
     role?: ParentRole;
     status?: 'pending' | 'accepted';
-    unitId?: string;
+    audienceId?: string;
     sortKey?: string;
     sortDir?: 'asc' | 'desc';
   }
@@ -138,7 +138,7 @@ export const listInvitesPage = createAsyncThunk<
     q,
     role,
     status,
-    unitId,
+    audienceId,
     sortKey,
     sortDir,
   }) => {
@@ -148,7 +148,7 @@ export const listInvitesPage = createAsyncThunk<
     if (q) params.set('q', q);
     if (role) params.set('role', role);
     if (status) params.set('status', status);
-    if (unitId) params.set('unitId', unitId);
+    if (audienceId) params.set('audienceId', audienceId);
     if (sortKey) params.set('sortKey', sortKey);
     if (sortDir) params.set('sortDir', sortDir);
 
@@ -160,7 +160,16 @@ export const listInvitesPage = createAsyncThunk<
       orgId,
       items: data.items as Invite[],
       nextCursor: (data.nextCursor as string) ?? null,
-      fetchedFor: { limit, cursor, q, role, status, unitId, sortKey, sortDir },
+      fetchedFor: {
+        limit,
+        cursor,
+        q,
+        role,
+        status,
+        audienceId,
+        sortKey,
+        sortDir,
+      },
     };
   }
 );
@@ -172,7 +181,7 @@ export const createInvite = createAsyncThunk<
     email: string;
     role?: ParentRole;
     roleId?: string;
-    unitId?: string;
+    audienceId?: string;
     meta?: Record<string, any>;
   },
   { rejectValue: string }
@@ -215,11 +224,11 @@ export const deleteInvite = createAsyncThunk<
 // thunks
 
 export const acceptInviteByJoinCode = createAsyncThunk<
-  { message: string; orgId?: string; unitId?: string },
+  { message: string; orgId?: string; audienceId?: string },
   { code: string }
 >('invites/acceptByCode', async ({ code }) => {
   const { data } = await api.post(`/api/invites/join-code`, { code });
-  return data as { message: string; orgId?: string; unitId?: string };
+  return data as { message: string; orgId?: string; audienceId?: string };
 });
 
 //bulk thunks

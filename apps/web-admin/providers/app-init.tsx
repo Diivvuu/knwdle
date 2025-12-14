@@ -3,7 +3,7 @@
 import { useEffect, useRef } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import type { AppDispatch, RootState } from '@/store/store';
-import { getMe, refreshSession } from '@workspace/state';
+import { getMe, refreshSession, logout } from '@workspace/state';
 
 export default function AppInit() {
   const dispatch = useDispatch<AppDispatch>();
@@ -23,8 +23,12 @@ export default function AppInit() {
         const r = await dispatch(refreshSession());
         if (refreshSession.fulfilled.match(r) && r.payload?.accessToken) {
           await dispatch(getMe()).unwrap();
+          return;
         }
-      } catch {}
+        await dispatch(logout());
+      } catch {
+        await dispatch(logout());
+      }
     })();
   }, [dispatch, accessToken]) ;
 

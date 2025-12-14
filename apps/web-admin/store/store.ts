@@ -6,10 +6,6 @@ import {
   orgMegaDashboardReducer,
   orgMember,
   orgTypeReducer,
-  orgUnitAttendance,
-  orgUnitDashboard,
-  orgUnitReducer,
-  orgUnitTypeReducer,
   rolesReducer,
 } from '@workspace/state';
 import {
@@ -31,11 +27,7 @@ const rootReducer = combineReducers({
   orgAdmin: OrgAdminDashboardReducer,
   roles: rolesReducer,
   invites: invitesReducer,
-  orgUnit: orgUnitReducer,
-  orgUnitTypes: orgUnitTypeReducer,
   orgMembers: orgMember,
-  orgUnitDashboard: orgUnitDashboard,
-  orgUnitAttendance: orgUnitAttendance,
 });
 
 const persistConfig = {

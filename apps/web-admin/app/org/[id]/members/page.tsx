@@ -71,7 +71,7 @@ export default function OrgMembersPage() {
   const search = params.get('search') ?? '';
   const role = params.get('role') ?? '';
   const roleId = params.get('roleId') ?? '';
-  const unitId = params.get('unitId') ?? '';
+  const audienceId = params.get('audienceId') ?? '';
   const limit = Number(params.get('limit') || 25);
 
   // Load roles on mount
@@ -83,7 +83,14 @@ export default function OrgMembersPage() {
   const lastSig = useRef('');
   useEffect(() => {
     if (!orgId) return;
-    const sig = JSON.stringify({ orgId, search, role, roleId, unitId, limit });
+    const sig = JSON.stringify({
+      orgId,
+      search,
+      role,
+      roleId,
+      audienceId,
+      limit,
+    });
     if (lastSig.current === sig) return;
     lastSig.current = sig;
 
@@ -93,13 +100,13 @@ export default function OrgMembersPage() {
         search: search || undefined,
         role: role === 'all' ? undefined : role || undefined,
         roleId: roleId || undefined,
-        unitId: unitId || undefined,
+        audienceId: audienceId || undefined,
         limit,
       })
     );
-  }, [dispatch, orgId, search, role, roleId, unitId, limit]);
+  }, [dispatch, orgId, search, role, roleId, audienceId, limit]);
 
-  const handleDelete = (r:  any) => {};
+  const handleDelete = (r: any) => {};
 
   // Columns
   const columns: Column<any>[] = useMemo(
@@ -135,10 +142,10 @@ export default function OrgMembersPage() {
         },
       },
       {
-        key: 'unitName',
-        header: 'Unit',
+        key: 'audienceName',
+        header: 'Audience',
         sortable: true,
-        render: (r) => <span>{r.unitName || '—'}</span>,
+        render: (r) => <span>{r.audienceName || '—'}</span>,
       },
     ],
     []
@@ -165,8 +172,8 @@ export default function OrgMembersPage() {
       if (query) sp.set('search', query);
       else sp.delete('search');
 
-      if (filters.unitId) sp.set('unitId', filters.unitId);
-      else sp.delete('unitId');
+      if (filters.audienceId) sp.set('audienceId', filters.audienceId);
+      else sp.delete('audienceId');
 
       if (filters.roleId) {
         sp.set('roleId', filters.roleId);
@@ -264,7 +271,7 @@ export default function OrgMembersPage() {
         serverSearchMode="manual"
         initialQuery={search}
         initialPageSize={limit}
-        initialFilters={{ role, roleId, unitId }}
+        initialFilters={{ role, roleId, audienceId }}
         filters={[]}
         toolbarActions={
           <Button
@@ -277,7 +284,7 @@ export default function OrgMembersPage() {
                   search: search || undefined,
                   role: role || undefined,
                   roleId: roleId || undefined,
-                  unitId: unitId || undefined,
+                  audienceId: audienceId || undefined,
                   limit,
                 })
               )
@@ -292,7 +299,7 @@ export default function OrgMembersPage() {
               variant="ghost"
               size="icon"
               className="rounded-md hover:bg-muted"
-              onClick={async() =>  {
+              onClick={async () => {
                 await dispatch(fetchOrgMember({ orgId, memberId: r.id }));
                 setEditState({ open: true, memberId: r.id }); // using your atom
               }}

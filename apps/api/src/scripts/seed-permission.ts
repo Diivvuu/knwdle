@@ -3,8 +3,11 @@ import { prisma } from '../lib/prisma';
 const CODES = [
   { code: 'org.read', name: 'Read organisation' },
   { code: 'org.update', name: 'Update organisation settings' },
-  { code: 'org.unit.manage', name: 'Manage units' },
-  { code: 'org.units.forceDelete', name: 'Force-delete non-empty unit' }, // ⬅️ NEW
+  { code: 'org.audience.manage', name: 'Manage audiences' },
+  {
+    code: 'org.audiences.forceDelete',
+    name: 'Force-delete non-empty audience',
+  }, // ⬅️ NEW
   { code: 'people.invite', name: 'Send invites' },
   { code: 'people.manage', name: 'Manage members and roles' },
   { code: 'people.view', name: 'View members list' },

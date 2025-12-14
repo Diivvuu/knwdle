@@ -9,7 +9,7 @@ interface OrgConnectHero {
     name: string;
     type: string;
   };
-  unit: {
+  audience: {
     id: string | null;
     name: string | null;
     type: string | null;

@@ -21,7 +21,7 @@ import {
   OrgBatchParams,
 } from '../domain/bulk-invite.schema';
 import { BasicError } from '../domain/roles.schema';
-import { OrgIdParam } from '../domain/org.unit-types.schema';
+import { OrgIdParam } from '../domain/org.params';
 
 export function getInviteOpenApiPaths() {
   const registry = new OpenAPIRegistry();

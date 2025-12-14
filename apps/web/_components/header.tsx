@@ -61,7 +61,8 @@ export default function Header() {
   const ref = useRef<HTMLElement>(null);
 
   const { isAuthed, user } = useAuth();
-
+  const showAuthed = mounted && isAuthed; // avoid hydration mismatch on first paint
+  console.log(isAuthed, 'isauthed')
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 8);
     onScroll();
@@ -155,25 +156,7 @@ export default function Header() {
           {/* Right: desktop actions + mobile hamburger (no role switcher) */}
           <div className="flex items-center gap-1 pr-1 sm:pr-2">
             {/* Desktop (auth-aware) */}
-            {!mounted ? (
-              <>
-                <Button
-                  asChild
-                  variant="ghost"
-                  size="sm"
-                  className="hidden sm:inline-flex"
-                >
-                  <Link href="/auth">Login</Link>
-                </Button>
-                <Button
-                  asChild
-                  size="sm"
-                  className="hidden md:inline-flex bg-primary hover:bg-primary/90 text-primary-foreground"
-                >
-                  <Link href="#get-started">Get&nbsp;Started</Link>
-                </Button>
-              </>
-            ) : isAuthed ? (
+            {showAuthed ? (
               <>
                 {/* Dashboard icon button */}
                 <Button
@@ -329,7 +312,7 @@ export default function Header() {
                   </nav>
                   <Separator />
                   <div className="mt-auto space-y-3">
-                    {!isAuthed ? (
+                    {!showAuthed ? (
                       <div className="grid grid-cols-2 gap-3">
                         <SheetClose asChild>
                           <Button

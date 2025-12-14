@@ -22,7 +22,7 @@ import {
   fetchOrgBasic,
   fetchOrgSummary,
   fetchDashboardConfig,
-  fetchUnitsGlance,
+  fetchAudiencesGlance,
   fetchMembersPeek,
   fetchAnnouncementsPeek,
   fetchAttendanceSnapshot,
@@ -63,8 +63,8 @@ export default function OrgAdminDashboardPage() {
     orgId ? s.orgAdmin.dashboardById[orgId] : undefined
   );
 
-  const unitsGlance = useSelector((s: RootState) =>
-    orgId ? (s.orgAdmin.unitsGlanceById[orgId]?.data ?? []) : []
+  const audiencesGlance = useSelector((s: RootState) =>
+    orgId ? (s.orgAdmin.audiencesGlanceById[orgId]?.data ?? []) : []
   );
   const membersPeek = useSelector((s: RootState) =>
     orgId ? (s.orgAdmin.membersPeekById[orgId]?.data ?? []) : []
@@ -95,7 +95,8 @@ export default function OrgAdminDashboardPage() {
     if (!orgId || !config?.data) return;
     const widgets = config.data.widgets ?? [];
 
-    if (widgets.includes('units_glance')) dispatch(fetchUnitsGlance(orgId));
+    if (widgets.includes('audiences_glance'))
+      dispatch(fetchAudiencesGlance(orgId));
     if (widgets.includes('members_peek')) dispatch(fetchMembersPeek(orgId));
     if (widgets.includes('announcements_peek'))
       dispatch(fetchAnnouncementsPeek(orgId));
@@ -124,7 +125,7 @@ export default function OrgAdminDashboardPage() {
     students: 0,
     parent: 0,
   };
-  const unitsCount = summary?.data?.unitsCount ?? 0;
+  const audiencesCount = summary?.data?.audiencesCount ?? 0;
   const pendingInvites = summary?.data?.pendingInvites ?? 0;
 
   /* ─────────────── UI ─────────────── */
@@ -178,8 +179,8 @@ export default function OrgAdminDashboardPage() {
                 <div className="mx-auto max-w-6xl grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 py-3 px-2">
                   {[
                     {
-                      label: 'Units',
-                      value: unitsCount,
+                      label: 'Audiences',
+                      value: audiencesCount,
                       tone: 'mint',
                       icon: <Building2 className="size-4" />,
                     },
@@ -258,7 +259,7 @@ export default function OrgAdminDashboardPage() {
                       <SnapshotMetric
                         label="Average Attendance"
                         value={attendanceSnapshot.avgRate}
-                        unit="%"
+                        audience="%"
                         tone="mint"
                       />
                     ) : (
@@ -288,7 +289,7 @@ export default function OrgAdminDashboardPage() {
                       <SnapshotMetric
                         label="Total Paid"
                         value={feesSnapshot.totalPaid}
-                        unit="₹"
+                        audience="₹"
                         tone="honey"
                       />
                     ) : (
@@ -305,7 +306,7 @@ export default function OrgAdminDashboardPage() {
 
           /* ─────────────── WIDGETS ─────────────── */
           // Always render all widgets (even if empty)
-          ...['announcements_peek', 'members_peek', 'units_glance'].map(
+          ...['announcements_peek', 'members_peek', 'audiences_glance'].map(
             (widget) => {
               if (widget === 'announcements_peek') {
                 return {
@@ -393,15 +394,15 @@ export default function OrgAdminDashboardPage() {
                   ),
                 };
               }
-              if (widget === 'units_glance') {
+              if (widget === 'audiences_glance') {
                 return {
-                  id: 'units',
+                  id: 'audiences',
                   colSpan: 3,
                   node: (
                     <DashboardSection
-                      title="Units at a glance"
-                      actionHref={`/org/${orgId}/units`}
-                      className="widget-units crayon-card"
+                      title="Audiences at a glance"
+                      actionHref={`/org/${orgId}/audiences`}
+                      className="widget-audiences crayon-card"
                     >
                       {loading ? (
                         <div className="space-y-2">
@@ -412,9 +413,9 @@ export default function OrgAdminDashboardPage() {
                             />
                           ))}
                         </div>
-                      ) : unitsGlance.length > 0 ? (
+                      ) : audiencesGlance.length > 0 ? (
                         <DashboardList
-                          items={unitsGlance}
+                          items={audiencesGlance}
                           renderItem={(u: any) => (
                             <div className="flex justify-between">
                               <span className="font-medium">{u.name}</span>

@@ -19,7 +19,7 @@ export interface OrgMember {
   id: string;
   userId: string;
   role: string;
-  unitId?: string | null;
+  audienceId?: string | null;
 }
 
 export interface Org {

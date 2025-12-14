@@ -10,8 +10,8 @@ export interface Member {
   name: string;
   role: string;
   roleId?: string | null;
-  unitId?: string | null;
-  unitName?: string | null;
+  audienceId?: string | null;
+  audienceName?: string | null;
   customRoleName?: string | null;
   createdAt: string;
 }
@@ -44,7 +44,7 @@ export const fetchOrgMembers = createAsyncThunk(
     search?: string;
     role?: string;
     roleId?: string;
-    unitId?: string;
+    audienceId?: string;
     cursor?: string;
     limit?: number;
   }) => {
@@ -61,8 +61,8 @@ export const fetchOrgMembers = createAsyncThunk(
       name: m.user?.name ?? '',
       role: m.role,
       roleId: m.roleId ?? null,
-      unitId: m.unitId ?? null,
-      unitName: m.unit?.name ?? null, // optional
+      audienceId: m.audienceId ?? null,
+      audienceName: m.audience?.name ?? null, // optional
       customRoleName: m.customerRole?.name ?? null,
       createdAt: m.createdAt,
     }));

@@ -3,9 +3,9 @@ import CreateRoleModal from './roles/create-role-modal';
 import EditRoleModal from './roles/edit-role-modal';
 import ConfirmDialog from './confirm/confirm-dialog';
 import AddInviteModal from './invites/add-invite-modal';
-import CreateOrgUnitModal from './org-unit/create-org-unit-modal';
 import CreateMemberModal from './members/create-member-modal';
 import EditMemberModal from './members/edit-member-modal';
+import CreateOrgAudienceModal from './org-unit/create-org-audience-modal';
 
 const Modals = () => {
   return (
@@ -17,8 +17,8 @@ const Modals = () => {
       <EditRoleModal />
       {/* invite modals */}
       <AddInviteModal />
-      {/* org unit */}
-      <CreateOrgUnitModal />
+      {/* org audience */}
+      <CreateOrgAudienceModal />
       {/* <CreateMemberModal /> */}
       <EditMemberModal />
     </>

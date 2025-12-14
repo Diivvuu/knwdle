@@ -1,4 +1,4 @@
-// packages/ui/constants/unitFeatureMap.ts
+// packages/ui/constants/audienceFeatureMap.ts
 import {
   CalendarDays,
   BookOpen,
@@ -77,4 +77,4 @@ export const UNIT_FEATURE_MAP = {
   },
 } as const;
 
-export type UnitFeatureKey = keyof typeof UNIT_FEATURE_MAP;
+export type AudienceFeatureKey = keyof typeof UNIT_FEATURE_MAP;

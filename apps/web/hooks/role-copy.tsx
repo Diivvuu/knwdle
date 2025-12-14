@@ -182,10 +182,11 @@ export const roleCopy: Record<
 
   institutions: {
     headline: 'One platform for Schools & Colleges',
-    subline: 'Organise units, roles, fees and academics — campus to classroom.',
+    subline:
+      'Organise audiences, roles, fees and academics — campus to classroom.',
     primaryCta: { href: '/auth', label: 'Login' },
     secondaryCta: { href: '#features', label: 'View Capabilities' },
-    badges: ['Org Units', 'Roles & Permissions', 'Fees', 'Attendance'],
+    badges: ['Org Audiences', 'Roles & Permissions', 'Fees', 'Attendance'],
     features: [
       {
         title: 'Org Structure',
@@ -211,7 +212,7 @@ export const roleCopy: Record<
     steps: [
       {
         title: 'Model your org',
-        desc: 'Units, roles and permissions — set once, reuse forever.',
+        desc: 'Audiences, roles and permissions — set once, reuse forever.',
         icon: 'Building2',
         media: '/manage.svg',
       },

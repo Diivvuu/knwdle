@@ -2,7 +2,7 @@ import {
   OpenApiGeneratorV3,
   OpenAPIRegistry,
 } from '@asteasolutions/zod-to-openapi';
-import { OrgIdParam } from '../../domain/org.unit-types.schema';
+import { OrgIdParam } from '../../domain/org.params';
 import {
   CreateMemberBody,
   OrgMemberIdParams,
@@ -75,7 +75,7 @@ export function getOrgMembersPaths() {
   registry.registerPath({
     method: 'patch',
     path: '/api/orgs/{orgId}/members/{memberId}',
-    summary: 'Update member role or unit',
+    summary: 'Update member role or audience',
     tags: ['org-members'],
     security: [{ bearerAuth: [] }],
     request: {

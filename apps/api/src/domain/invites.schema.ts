@@ -2,13 +2,17 @@ import { z } from 'zod';
 import { ParentRole } from '../generated/prisma';
 
 // ---------- Core items ----------
-export const InviteItem = z.object({
-  email: z.string().email(),
-  role: z.nativeEnum(ParentRole).optional(),
-  roleId: z.string().optional(),
-  unitId: z.string().optional(),
-  meta: z.any().optional(),
-}).refine((v) => v.role || v.roleId, { message: 'Provide either role or roleId' });
+export const InviteItem = z
+  .object({
+    email: z.string().email(),
+    role: z.nativeEnum(ParentRole).optional(),
+    roleId: z.string().optional(),
+    audienceId: z.string().optional(),
+    meta: z.any().optional(),
+  })
+  .refine((v) => v.role || v.roleId, {
+    message: 'Provide either role or roleId',
+  });
 
 export type InviteItemDTO = z.infer<typeof InviteItem>;
 
@@ -22,8 +26,10 @@ export const InviteListQuery = z.object({
   q: z.string().trim().min(1).max(200).optional(),
   role: z.nativeEnum(ParentRole).optional(),
   status: z.enum(['pending', 'accepted']).optional(),
-  unitId: z.string().trim().min(1).optional(),
-  sortKey: z.enum(['createdAt', 'email', 'expiresAt', 'role', 'unit', 'unitId']).optional(),
+  audienceId: z.string().trim().min(1).optional(),
+  sortKey: z
+    .enum(['createdAt', 'email', 'expiresAt', 'role', 'audience', 'audienceId'])
+    .optional(),
   sortDir: z.enum(['asc', 'desc']).optional(),
 });
 
@@ -40,7 +46,7 @@ export const InviteSchema = z.object({
   email: z.string().email(),
   role: z.nativeEnum(ParentRole),
   roleId: z.string().nullable().optional(),
-  unitId: z.string().nullable().optional(),
+  audienceId: z.string().nullable().optional(),
   token: z.string(),
   joinCode: z.string().nullable().optional(),
   expiresAt: z.string().datetime(),

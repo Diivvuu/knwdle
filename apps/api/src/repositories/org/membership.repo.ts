@@ -3,19 +3,19 @@ import { ParentRole } from '../../generated/prisma';
 import { prisma } from '../../lib/prisma';
 
 export const MembershipRepo = {
-  upsertUnitScoped(params: {
+  upsertAudienceScoped(params: {
     orgId: string;
     userId: string;
-    unitId: string;
+    audienceId: string;
     role: ParentRole;
     roleId?: string;
   }) {
     return prisma.orgMembership.upsert({
       where: {
-        orgId_userId_unitId: {
+        orgId_userId_audienceId: {
           orgId: params.orgId,
           userId: params.userId,
-          unitId: params.unitId,
+          audienceId: params.audienceId,
         },
       },
       update: { role: params.role, roleId: params.roleId },
@@ -24,7 +24,7 @@ export const MembershipRepo = {
         userId: params.userId,
         role: params.role,
         roleId: params.roleId,
-        unitId: params.unitId,
+        audienceId: params.audienceId,
       },
     });
   },
@@ -36,7 +36,7 @@ export const MembershipRepo = {
     roleId?: string;
   }) {
     const updated = await prisma.orgMembership.updateMany({
-      where: { orgId: params.orgId, userId: params.userId, unitId: null },
+      where: { orgId: params.orgId, userId: params.userId, audienceId: null },
       data: { role: params.role, roleId: params.roleId },
     });
     if (updated.count === 0) {

@@ -13,14 +13,8 @@ import { getRolesPaths } from '../docs/org/roles.docs';
 import { getUploadsPaths } from '../docs/uploads.docs';
 import { getOrgAdminDashboardPaths } from '../docs/org/org.admin-dashboard.docs';
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
-import { getOrgUnitTypesPaths } from '../docs/org-unit/org.unit-types.docs';
-import { getOrgUnitsPaths } from '../docs/org-unit/org.unit.docs';
 import { getOrgMembersPaths } from '../docs/org/org.members.docs';
-import { getOrgUnitDashboardPaths } from '../docs/org-unit/org.unit.dashboard.docs';
-import { getOrgConnectDashboardPaths } from '../docs/org/org.connect-dashboard.docs';
 import { getNotificationsPaths } from '../docs/notification.docs';
-import { getOrgUnitAttendancePaths } from '../docs/org-unit/org.unit.attendance.docs';
-import { getOrgUnitAssignmentsPaths } from '../docs/org-unit/org.unit.assignment.docs';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
@@ -46,7 +40,7 @@ function mergeDocs(docs: OpenAPIObject[]): OpenAPIObject {
       title: 'Knwdle API',
       version: '1.0.0',
       description:
-        'REST API for auth, organisation, units, roles, invites, uploads, and dashboard.',
+        'REST API for auth, organisation, audiences, roles, invites, uploads, and dashboard.',
     },
     servers: [{ url: API_PUBLIC_URL }],
     tags: [
@@ -82,14 +76,8 @@ export function buildOpenApiDocument(): OpenAPIObject {
     getRolesPaths(),
     getUploadsPaths(),
     getOrgAdminDashboardPaths(),
-    getOrgUnitTypesPaths(),
-    getOrgUnitsPaths(),
     getOrgMembersPaths(),
-    getOrgUnitDashboardPaths(),
-    getOrgConnectDashboardPaths(),
     getNotificationsPaths(),
-    getOrgUnitAttendancePaths(),
-    getOrgUnitAssignmentsPaths(),
   ];
 
   return mergeDocs(docs);

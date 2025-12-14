@@ -14,11 +14,11 @@ import { useSelector } from 'react-redux';
 import { selectOrgTree } from '@workspace/state';
 import { useTheme } from 'next-themes';
 
-type OrgUnit = {
+type OrgAudience = {
   id: string;
   name: string;
   type: string;
-  children?: OrgUnit[];
+  children?: OrgAudience[];
 };
 
 const nodeWidth = 130;
@@ -45,7 +45,7 @@ function getColors(type: string, isDark: boolean): string {
         DEFAULT: 'bg-gray-200 ring-gray-400 text-gray-900',
       };
 
-  type ToneKey = keyof typeof tone; 
+  type ToneKey = keyof typeof tone;
   const key = type.toUpperCase() as ToneKey;
 
   // ✅ type-safe lookup with fallback
@@ -53,7 +53,7 @@ function getColors(type: string, isDark: boolean): string {
 }
 
 function buildNodesAndEdges(
-  tree: OrgUnit[],
+  tree: OrgAudience[],
   isDark: boolean,
   onNodeClick?: (id: string) => void,
   xStart = 0,
@@ -64,10 +64,18 @@ function buildNodesAndEdges(
   let currentX = xStart;
   let maxWidth = 0;
 
-  for (const unit of tree) {
+  for (const audience of tree) {
     let childrenWidth = 0;
-    if (unit.children?.length) {
-      const res = buildNodesAndEdges(unit.children, isDark, onNodeClick, currentX, yStart + nodeHeight + verticalSpacing, nodes, edges);
+    if (audience.children?.length) {
+      const res = buildNodesAndEdges(
+        audience.children,
+        isDark,
+        onNodeClick,
+        currentX,
+        yStart + nodeHeight + verticalSpacing,
+        nodes,
+        edges
+      );
       childrenWidth = res.width;
     } else {
       childrenWidth = nodeWidth;
@@ -75,20 +83,26 @@ function buildNodesAndEdges(
 
     const nodeX = currentX + childrenWidth / 2 - nodeWidth / 2;
     const nodeY = yStart;
-    const colors = getColors(unit.type, isDark);
+    const colors = getColors(audience.type, isDark);
 
     nodes.push({
-      id: unit.id,
+      id: audience.id,
       type: 'default',
       data: {
         label: (
           <div
-            onClick={() => onNodeClick?.(unit.id)}
+            onClick={() => onNodeClick?.(audience.id)}
             className={`p-3 rounded-lg border-2 border-dashed ring-2 ring-offset-2 ${colors} cursor-pointer select-none hover:scale-[1.03] transition-transform`}
-            style={{ width: nodeWidth, height: nodeHeight, textAlign: 'center' }}
+            style={{
+              width: nodeWidth,
+              height: nodeHeight,
+              textAlign: 'center',
+            }}
           >
-            <div className="font-bold text-lg truncate">{unit.name}</div>
-            <div className="text-xs uppercase tracking-wide">{unit.type}</div>
+            <div className="font-bold text-lg truncate">{audience.name}</div>
+            <div className="text-xs uppercase tracking-wide">
+              {audience.type}
+            </div>
           </div>
         ),
       },
@@ -97,14 +111,17 @@ function buildNodesAndEdges(
       targetPosition: Position.Top,
     });
 
-    if (unit.children?.length) {
-      for (const child of unit.children) {
+    if (audience.children?.length) {
+      for (const child of audience.children) {
         edges.push({
-          id: `e-${unit.id}-${child.id}`,
-          source: unit.id,
+          id: `e-${audience.id}-${child.id}`,
+          source: audience.id,
           target: child.id,
           type: 'smoothstep',
-          markerEnd: { type: MarkerType.ArrowClosed, color: isDark ? '#9ca3af' : '#94a3b8' },
+          markerEnd: {
+            type: MarkerType.ArrowClosed,
+            color: isDark ? '#9ca3af' : '#94a3b8',
+          },
           style: {
             stroke: isDark ? '#9ca3af' : '#94a3b8',
             strokeWidth: 2,
@@ -121,17 +138,24 @@ function buildNodesAndEdges(
   return { nodes, edges, width: maxWidth };
 }
 
-export default function OrgGraphView({ onNodeClick }: { onNodeClick?: (id: string) => void }) {
+export default function OrgGraphView({
+  onNodeClick,
+}: {
+  onNodeClick?: (id: string) => void;
+}) {
   const tree = useSelector(selectOrgTree);
   const { resolvedTheme } = useTheme();
   const isDark = resolvedTheme === 'dark';
 
-  const { nodes, edges } = useMemo(() => buildNodesAndEdges(tree ?? [], isDark, onNodeClick), [tree, isDark, onNodeClick]);
+  const { nodes, edges } = useMemo(
+    () => buildNodesAndEdges(tree ?? [], isDark, onNodeClick),
+    [tree, isDark, onNodeClick]
+  );
 
   if (!tree?.length)
     return (
       <div className="rounded-md border border-dashed p-10 text-center text-muted-foreground">
-        No organisation units to display.
+        No organisation audiences to display.
       </div>
     );
 

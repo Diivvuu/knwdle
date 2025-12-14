@@ -1,6 +1,5 @@
 import { OrgType, ParentRole } from '../../generated/prisma';
 import { forbidden, notFound } from '../../lib/https';
-import { getMetaSchema } from '../../lib/org.type.meta';
 import { decodeCursor } from '../../lib/pagination';
 import { createGetObjectUrl } from '../../lib/s3';
 import { PERMISSIONS_BY_BASE_ROLE } from '../../middleware/permissions';
@@ -15,8 +14,8 @@ export const OrgAdminDashboardService = {
 
     if (!org) throw notFound('Org not found');
 
-    const [unitsCount, membersCount] = await Promise.all([
-      OrgRepo.countUnits(orgId),
+    const [audiencesCount, membersCount] = await Promise.all([
+      OrgRepo.countAudiences(orgId),
       OrgRepo.countMembers(orgId),
     ]);
 
@@ -42,7 +41,7 @@ export const OrgAdminDashboardService = {
       coverKey,
       logoUrl: logoUrl ?? null,
       coverUrl: coverUrl ?? null,
-      aggregates: { unitsCount, membersCount },
+      aggregates: { audiencesCount, membersCount },
     };
   },
 
@@ -50,7 +49,7 @@ export const OrgAdminDashboardService = {
     const exists = await OrgRepo.getOrgTypeAndMeta(orgId);
     if (!exists) throw notFound('Org not found');
     const [
-      unitsCount,
+      audiencesCount,
       adminCount,
       staffCount,
       studentCount,
@@ -58,7 +57,7 @@ export const OrgAdminDashboardService = {
       pendingInvites,
       latestMember,
     ] = await Promise.all([
-      OrgRepo.countUnits(orgId),
+      OrgRepo.countAudiences(orgId),
       OrgRepo.countRoleMembers(orgId, ParentRole.admin),
       OrgRepo.countRoleMembers(orgId, ParentRole.staff),
       OrgRepo.countRoleMembers(orgId, ParentRole.student),
@@ -68,7 +67,7 @@ export const OrgAdminDashboardService = {
     ]);
 
     return {
-      unitsCount,
+      audiencesCount,
       roleCounts: {
         admin: adminCount,
         staff: staffCount,
@@ -82,13 +81,13 @@ export const OrgAdminDashboardService = {
 
   async activity(
     orgId: string,
-    opts: { limit: number; cursor?: string; unitId?: string }
+    opts: { limit: number; cursor?: string; audienceId?: string }
   ) {
     const cur = decodeCursor(opts.cursor ?? null);
     const cursorArg = cur ?? undefined;
     const rows = await OrgRepo.getAuditLogs(
       orgId,
-      opts.unitId,
+      opts.audienceId,
       cursorArg,
       opts.limit
     );
@@ -100,22 +99,7 @@ export const OrgAdminDashboardService = {
     if (!membership) throw forbidden('Not a member');
 
     const org = await OrgRepo.getOrgTypeAndMeta(orgId);
-
-    let featureCaps: string[] = [];
-    if (org?.profile?.meta) {
-      const schema = getMetaSchema(org.type as OrgType);
-      const parsed = schema.safeParse(org.profile.meta);
-
-      if (parsed.success && 'features' in parsed.data) {
-        const features = (parsed.data.features ?? {}) as Record<
-          string,
-          boolean
-        >;
-        featureCaps = Object.entries(features)
-          .filter(([, v]) => v === true)
-          .map(([k]) => `${k}.enabled`);
-      }
-    }
+    const featureCaps: string[] = [];
 
     let permCodes = new Set<string>();
     if (membership.role === ParentRole.admin) {
@@ -124,7 +108,7 @@ export const OrgAdminDashboardService = {
         'people.manage',
         'people.invite',
         'roles.manage',
-        'org.unit.manage',
+        'org.audience.manage',
         'teaching.content.manage',
         'teaching.attendance.manage',
         'comms.announce.manage',
@@ -163,7 +147,7 @@ export const OrgAdminDashboardService = {
 
     const registry = {
       widgets: {
-        units_glance: { requires: ['org.read'] },
+        audiences_glance: { requires: ['org.read'] },
         members_peek: { requires: ['people.read'] },
         announcements_peek: { requires: ['announce.read'] },
         attendance_snapshot: {
@@ -204,16 +188,16 @@ export const OrgAdminDashboardService = {
     };
   },
 
-  async unitsGlance(orgId: string) {
+  async audiencesGlance(orgId: string) {
     const exists = await OrgRepo.getOrgTypeAndMeta(orgId);
     if (!exists) throw notFound('Org not found');
 
-    const units = await OrgRepo.getRecentUnits(orgId);
+    const audiences = await OrgRepo.getRecentAudiences(orgId);
 
-    return units.map((u) => ({
+    return audiences.map((u) => ({
       id: u.id,
       name: u.name,
-      type: u.type,
+      type: null,
       memberCount: u._count.members,
     }));
   },

@@ -40,7 +40,7 @@ export type AuthState = {
 export interface InvitePreview {
   orgId: string;
   orgName: string;
-  unitName?: string | null;
+  audienceName?: string | null;
   invitedEmail?: string;
   parentRole?: ParentRole;
   roleName?: string | null;
@@ -50,7 +50,7 @@ export interface InvitePreview {
 export interface AcceptInviteResponse {
   message: string;
   orgId?: string;
-  unitId?: string | null;
+  audienceId?: string | null;
 }
 
 type InviteUI = {
@@ -121,18 +121,12 @@ export const refreshSession = createAsyncThunk(
     try {
       const res = await api.post('/auth/refresh');
       const { accessToken } = res.data ?? {};
-      // if (accessToken) reviveAuthClient(accessToken);
+      if (accessToken) reviveAuthClient(accessToken);
       return { accessToken: accessToken ?? null };
     } catch (e: any) {
-      console.log('refreshSession error', e?.response?.status);
-
-      // 🔥 if refresh token invalid, force logout
-      if (e.response?.status === 401) {
-        await dispatch(logout()); // ✅ this actually runs the thunk
-        return rejectWithValue('refresh_failed');
-      }
-
-      throw e;
+      // Any refresh failure should log the user out
+      await dispatch(logout());
+      return rejectWithValue('refresh_failed');
     }
   }
 );
@@ -195,7 +189,9 @@ export const verifyAccount = createAsyncThunk(
   'auth/verifyAccount',
   async ({ token }: { token: string }) => {
     const res = await api.get('/auth/verify?token=' + token);
-    return res.data;
+    const { accessToken, user } = res.data;
+    if (accessToken) reviveAuthClient(accessToken);
+    return { accessToken, user };
   }
 );
 
@@ -280,6 +276,10 @@ const authSlice = createSlice({
     b.addCase(refreshSession.fulfilled, (s, a) => {
       if (a.payload.accessToken) s.accessToken = a.payload.accessToken;
     });
+    b.addCase(refreshSession.rejected, (s) => {
+      s.accessToken = null;
+      s.user = null;
+    });
     b.addCase(logout.fulfilled, (s) => {
       s.accessToken = null;
       s.user = null;
@@ -326,14 +326,17 @@ const authSlice = createSlice({
       s.verify.status = 'loading';
       s.verify.error = undefined;
     });
-    b.addCase(verifyAccount.fulfilled, (s) => {
+    b.addCase(verifyAccount.fulfilled, (s, a) => {
       s.verify = s.verify || { status: 'idle' };
       s.verify.status = 'succeeded';
+      s.accessToken = a.payload.accessToken ?? null;
+      s.user = a.payload.user ?? null;
     });
     b.addCase(verifyAccount.rejected, (s, a) => {
       s.verify = s.verify || { status: 'idle' };
       s.verify.status = 'failed';
-      s.verify.error = a.error.message || 'Verification failed';
+      s.verify.error =
+        (a.payload as string) || a.error.message || 'Verification failed';
     });
   },
 });

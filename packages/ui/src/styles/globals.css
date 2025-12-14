@@ -659,7 +659,7 @@ body {
   color: var(--foreground);
 }
 
-.widget-units {
+.widget-audiences {
   background: linear-gradient(
     150deg,
     color-mix(in oklab, var(--teal) 60%, var(--background) 40%),

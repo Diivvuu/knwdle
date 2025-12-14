@@ -9,9 +9,6 @@ import {
   ParentRole,
   createInvite,
   resetCreateInviteStatus,
-  fetchOrgUnits,
-  selectOrgUnits,
-  selectOrgUnitsStatus,
 } from '@workspace/state';
 import { toast } from 'sonner';
 import {
@@ -51,21 +48,21 @@ export default function AddInviteModal() {
   );
   const customRoles = useMemo(() => rolesEntry?.items ?? [], [rolesEntry]);
 
-  // NEW: Units data
-  const units = useSelector(selectOrgUnits);
-  const unitsStatus = useSelector(selectOrgUnitsStatus);
+  // NEW: Audiences data
+  // const audiences = useSelector(selectOrgAudiences);
+  // const audiencesStatus = useSelector(selectOrgAudiencesStatus);
 
   const [mode, setMode] = useState<Mode>('base');
   const [form, setForm] = useState<{
     email: string;
     role: ParentRole;
     roleId?: string;
-    unitId?: string;
-  }>({ email: '', role: 'staff', roleId: undefined, unitId: '' });
+    audienceId?: string;
+  }>({ email: '', role: 'staff', roleId: undefined, audienceId: '' });
 
-  // Fetch units when modal opens
+  // Fetch audiences when modal opens
   useEffect(() => {
-    if (open && orgId) dispatch(fetchOrgUnits(orgId));
+    // if (open && orgId) dispatch(fetchOrgAudiences(orgId));
   }, [open, orgId, dispatch]);
 
   // Handle create invite status
@@ -78,7 +75,7 @@ export default function AddInviteModal() {
     ) {
       toast.success('Invite created');
       setOpen(false);
-      setForm({ email: '', role: 'staff', roleId: undefined, unitId: '' });
+      setForm({ email: '', role: 'staff', roleId: undefined, audienceId: '' });
       dispatch(resetCreateInviteStatus());
     }
     prevStatus.current = createStatus;
@@ -87,7 +84,7 @@ export default function AddInviteModal() {
   useEffect(() => {
     if (open) {
       dispatch(resetCreateInviteStatus());
-      setForm({ email: '', role: 'staff', roleId: undefined, unitId: '' });
+      setForm({ email: '', role: 'staff', roleId: undefined, audienceId: '' });
       setMode('base');
     }
   }, [open, dispatch]);
@@ -108,13 +105,17 @@ export default function AddInviteModal() {
             orgId,
             email: form.email.trim().toLowerCase(),
             roleId: form.roleId!,
-            unitId: form.unitId?.trim() ? form.unitId.trim() : undefined,
+            audienceId: form.audienceId?.trim()
+              ? form.audienceId.trim()
+              : undefined,
           }
         : {
             orgId,
             email: form.email.trim().toLowerCase(),
             role: form.role,
-            unitId: form.unitId?.trim() ? form.unitId.trim() : undefined,
+            audienceId: form.audienceId?.trim()
+              ? form.audienceId.trim()
+              : undefined,
           };
 
     dispatch(createInvite(payload as any));
@@ -236,37 +237,38 @@ export default function AddInviteModal() {
                 </div>
               )}
 
-              {/* Unit dropdown (NEW) */}
-              <div className="md:col-span-2">
-                <Label className="mb-2">Assign to Unit (optional)</Label>
+              {/* Audience dropdown (NEW) */}
+              {/* <div className="md:col-span-2">
+                <Label className="mb-2">Assign to Audience (optional)</Label>
                 <Select
-                  value={form.unitId ?? ''}
+                  value={form.audienceId ?? ''}
                   onValueChange={(v) =>
-                    setForm((f) => ({ ...f, unitId: v || undefined }))
+                    setForm((f) => ({ ...f, audienceId: v || undefined }))
                   }
                 >
                   <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Select a unit" />
+                    <SelectValue placeholder="Select a audience" />
                   </SelectTrigger>
                   <SelectContent>
-                    {unitsStatus === 'loading' && (
+                    {audiencesStatus === 'loading' && (
                       <SelectItem value="none" disabled>
-                        <Loader2 className="size-3 mr-2 animate-spin" /> Loading…
+                        <Loader2 className="size-3 mr-2 animate-spin" />{' '}
+                        Loading…
                       </SelectItem>
                     )}
-                    {units.length === 0 && (
+                    {audiences.length === 0 && (
                       <SelectItem value="none" disabled>
-                        No units found
+                        No audiences found
                       </SelectItem>
                     )}
-                    {units.map((u) => (
+                    {audiences.map((u) => (
                       <SelectItem key={u.id} value={u.id}>
                         {u.name} <span className="text-xs">({u.type})</span>
                       </SelectItem>
                     ))}
                   </SelectContent>
                 </Select>
-              </div>
+              </div> */}
             </div>
           </form>
         </ModalBody>

@@ -18,7 +18,7 @@ export const RolesService = {
     data: {
       key: string;
       name: string;
-      scope: 'org' | 'unit';
+      scope: 'org' | 'audience';
       permissionCodes: string[];
     }
   ) {
@@ -38,7 +38,7 @@ export const RolesService = {
     roleId: string,
     data: {
       name?: string;
-      scope?: 'org' | 'unit';
+      scope?: 'org' | 'audience';
       permissionCodes?: string[];
     }
   ) {

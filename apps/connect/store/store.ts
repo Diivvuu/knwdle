@@ -14,20 +14,16 @@ import {
   authReducer,
   orgConnectDashboard,
   orgMegaDashboardReducer,
-  orgTypeReducer,
-  orgUnitDashboard,
-  orgUnitReducer,
   uploadReducer,
+  orgTypeReducer,
 } from '@workspace/state';
 
 const rootReducer = combineReducers({
   auth: authReducer,
-  orgType: orgTypeReducer,
   org: orgMegaDashboardReducer,
   upload: uploadReducer,
   orgConnectDashboard: orgConnectDashboard,
-  orgUnitDashboard: orgUnitDashboard,
-  orgUnit: orgUnitReducer,
+  orgType: orgTypeReducer,
 });
 
 const persistConfig = {
