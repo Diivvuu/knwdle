@@ -5,7 +5,7 @@ import { useParams, usePathname } from 'next/navigation';
 import { toast } from 'sonner';
 import { Lock, LayoutDashboard } from 'lucide-react';
 import { cn } from '@workspace/ui/lib/utils';
-import { UNIT_FEATURE_MAP } from '@workspace/ui/constants/unit-sidebar';
+import { UNIT_FEATURE_MAP } from '@workspace/ui/constants/audience-sidebar';
 
 import {
   Sidebar,
