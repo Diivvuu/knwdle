@@ -46,17 +46,53 @@ async function getMyRoleForOrg(orgId: string, userId: string) {
   return { myRole, myAudienceRoles };
 }
 
-async function getUserPermissionsFromOrg(orgId: string, userId: string) {
-  const membership = await OrgRepo.getMembership(orgId, userId);
-  if (!membership) return [];
+async function getUserPermissionFromOrg(
+  orgId: string,
+  userId: string
+): Promise<string[]> {
+  const memberships = await OrgRepo.getMemberships(orgId, userId);
+  if (!memberships.length) return [];
 
-  if (membership.role === 'admin') return ['*'];
-  if (membership.roleId) {
-    const role = await OrgRepo.getCustomRolePermissionCodes(membership.roleId);
+  if (
+    memberships.some(
+      (m) => m.role === ParentRole.admin && m.audienceId === null
+    )
+  ) {
+    return ['*'];
+  }
+
+  //org-level custom role
+  const orgScopedCustom = memberships.find(
+    (m) => m.audienceId === null && m.roleId
+  );
+
+  if (orgScopedCustom?.roleId) {
+    const role = await OrgRepo.getCustomRolePermissionCodes(
+      orgScopedCustom.roleId
+    );
     return role?.permissions.map((p) => p.permission.code) ?? [];
   }
-  return PERMISSIONS_BY_BASE_ROLE[membership.role] ?? [];
+
+  // org-level base role fallback
+  const orgScopedBase = memberships.find((m) => m.audienceId === null);
+
+  if (orgScopedBase) {
+    return PERMISSIONS_BY_BASE_ROLE[orgScopedBase.role] ?? [];
+  }
+
+  return [];
 }
+// async function getUserPermissionsFromOrg(orgId: string, userId: string) {
+//   const membership = await OrgRepo.getMembership(orgId, userId);
+//   if (!membership) return [];
+
+//   if (membership.role === 'admin') return ['*'];
+//   if (membership.roleId) {
+//     const role = await OrgRepo.getCustomRolePermissionCodes(membership.roleId);
+//     return role?.permissions.map((p) => p.permission.code) ?? [];
+//   }
+//   return PERMISSIONS_BY_BASE_ROLE[membership.role] ?? [];
+// }
 
 export const OrgDashboardService = {
   async createOrg(
@@ -68,7 +104,7 @@ export const OrgDashboardService = {
       meta?: unknown;
     }
   ) {
-    const created = await OrgRepo.createOrgWithMainAudience({
+    const created = await OrgRepo.createOrg({
       name: payload.name,
       type: payload.type,
       teamSize: payload.teamSize,
@@ -96,7 +132,7 @@ export const OrgDashboardService = {
         const [{ myRole, myAudienceRoles }, permissions, logoUrl, coverUrl] =
           await Promise.all([
             getMyRoleForOrg(o.id, currentUserId),
-            getUserPermissionsFromOrg(o.id, currentUserId),
+            getUserPermissionFromOrg(o.id, currentUserId),
             (async () =>
               logoKey
                 ? await createGetObjectUrl({ key: logoKey, expiresInSec: 300 })

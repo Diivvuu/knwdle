@@ -60,7 +60,7 @@ export function OrgSidebar() {
         {/* ─── Brand Header ─────────────────────────── */}
         <SidebarGroup>
           <div className="flex items-center gap-2 px-4 py-4 border-b border-[var(--sidebar-border)]/70">
-            <div className="relative h-8 w-8 rounded-xl bg-[var(--primary)]/20 grid place-items-center shadow-sm">
+            <div className="relative h-8 w-8 rounded-sm bg-[var(--primary)]/20 grid place-items-center shadow-sm">
               <Sparkles className="h-4 w-4 text-[var(--primary)]" />
             </div>
             <div className="flex flex-col">
@@ -98,7 +98,7 @@ export function OrgSidebar() {
                     <SidebarMenuButton
                       asChild
                       className={cn(
-                        'relative flex items-center gap-3 px-4 py-2.5 rounded-xl text-sm font-medium transition-all duration-200 group hover-lift',
+                        'relative flex items-center gap-3 px-4 py-2.5 rounded-sm text-sm font-medium transition-all duration-200 group hover-lift',
                         active
                           ? 'bg-[var(--primary)]/15 text-[var(--primary)] shadow-[inset_0_0_0_1px_var(--primary)]'
                           : 'hover:bg-[var(--sidebar-accent)]/70 text-[var(--muted-foreground)]'

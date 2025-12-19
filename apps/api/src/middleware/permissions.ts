@@ -36,7 +36,7 @@ export function requirePermission(code: string) {
     if (!userId) return res.status(401).json({ error: 'Unauthenticated' });
 
     const membership = await prisma.orgMembership.findFirst({
-      where: { orgId, userId },
+      where: { orgId, userId, audienceId : null },
       select: { role: true, roleId: true },
     });
     if (!membership) return res.status(403).json({ error: 'Not a member' });

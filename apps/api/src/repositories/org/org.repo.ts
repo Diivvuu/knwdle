@@ -18,38 +18,56 @@ export const OrgRepo = {
     });
   },
 
-  async createOrgWithMainAudience(params: {
-    name: string;
-    type: OrgType;
-    teamSize?: string;
-    meta: any;
-    ownerUserId: string;
-  }) {
-    return prisma.$transaction(async (tx) => {
-      const created = await tx.organisation.create({
-        data: {
-          name: params.name,
-          type: params.type,
-          teamSize: params.teamSize,
-          profile: { create: { meta: params.meta } },
-          members: {
-            create: { userId: params.ownerUserId, role: ParentRole.admin },
+  async createOrg(params: any) {
+    return prisma.organisation.create({
+      data: {
+        name: params.name,
+        type: params.type,
+        profile: { create: { meta: params.meta } },
+        members: {
+          create: {
+            userId: params.ownerUserId,
+            role: ParentRole.admin,
+            audienceId: null,
           },
         },
-        include: { profile: true },
-      });
-
-      await tx.audience.create({
-        data: {
-          orgId: created.id,
-          name: 'Main',
-          parentId: null,
-        },
-      });
-
-      return created;
+      },
     });
   },
+  // async createOrgWithMainAudience(params: {
+  //   name: string;
+  //   type: OrgType;
+  //   teamSize?: string;
+  //   meta: any;
+  //   ownerUserId: string;
+  // }) {
+  //   return prisma.$transaction(async (tx) => {
+  //     const created = await tx.organisation.create({
+  //       data: {
+  //         name: params.name,
+  //         type: params.type,
+  //         teamSize: params.teamSize,
+  //         profile: { create: { meta: params.meta } },
+  //         members: {
+  //           create: { userId: params.ownerUserId, role: ParentRole.admin },
+  //         },
+  //       },
+  //       include: { profile: true },
+  //     });
+
+  //     await tx.audience.create({
+  //       data: {
+  //         orgId: created.id,
+  //         name: 'Main',
+  //         type: 'ACADEMIC',
+  //         level: 'PARENT',
+  //         isExclusive : true,
+  //       },
+  //     });
+
+  //     return created;
+  //   });
+  // },
 
   updateOrgAndProfile(
     id: string,
@@ -149,14 +167,14 @@ export const OrgRepo = {
 
   isMember(orgId: string, userId: string) {
     return prisma.orgMembership.findFirst({
-      where: { orgId, userId },
+      where: { orgId, userId, audienceId: null },
       select: { id: true },
     });
   },
 
   isAdmin(orgId: string, userId: string) {
     return prisma.orgMembership.findFirst({
-      where: { orgId, userId, role: 'admin' },
+      where: { orgId, userId, role: 'admin', audienceId: null },
       select: { id: true },
     });
   },
@@ -178,7 +196,7 @@ export const OrgRepo = {
   getMemberships(orgId: string, userId: string) {
     return prisma.orgMembership.findMany({
       where: { orgId, userId },
-      select: { role: true, audienceId: true },
+      select: { role: true, roleId: true, audienceId: true },
     });
   },
 

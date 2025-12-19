@@ -9,8 +9,8 @@ NODE_ENV=development
 API_PORT=4000
 API_URL=http://localhost:4000
 
-DATABASE_URL=postgresql://knwdle:knwdle_pass@localhost:5432/knwdle_db?schema=public
-SHADOW_DATABASE_URL=postgresql://knwdle:knwdle_pass@localhost:5432/knwdle_db_shadow?schema=public
+DATABASE_URL=postgresql://knwdle:knwdle_pass@localhost:5433/knwdle_db?schema=public
+SHADOW_DATABASE_URL=postgresql://knwdle:knwdle_pass@localhost:5433/knwdle_db_shadow?schema=public
 
 JWT_ACCESS_SECRET=dev-access-secret
 JWT_REFRESH_SECRET=dev-refresh-secret
