@@ -4,16 +4,14 @@ import { api } from '../api';
 /* --------------------------------- Types ---------------------------------- */
 
 export interface Member {
-  id: string;
   userId: string;
   email: string;
   name: string;
-  role: string;
+  orgRole: string | null;
   roleId?: string | null;
   audienceId?: string | null;
-  audienceName?: string | null;
-  customRoleName?: string | null;
-  createdAt: string;
+  audiences: { id: string; name: string }[];
+  createdAt?: string;
 }
 
 type Status = 'idle' | 'loading' | 'succeeded' | 'failed';
@@ -47,27 +45,26 @@ export const fetchOrgMembers = createAsyncThunk(
     audienceId?: string;
     cursor?: string;
     limit?: number;
+    excludeAudienceId?: string;
   }) => {
     const { orgId, ...query } = p;
     const { data } = await api.get(`/api/orgs/${orgId}/members`, {
       params: query,
     });
 
-    // ✅ Normalize backend shape → frontend shape
-    const members = (data.data ?? []).map((m: any) => ({
-      id: m.id,
-      userId: m.userId,
-      email: m.user?.email ?? '',
-      name: m.user?.name ?? '',
-      role: m.role,
-      roleId: m.roleId ?? null,
-      audienceId: m.audienceId ?? null,
-      audienceName: m.audience?.name ?? null, // optional
-      customRoleName: m.customerRole?.name ?? null,
-      createdAt: m.createdAt,
+    const payload = Array.isArray(data.data) ? data.data : [];
+
+    const rows: Member[] = payload.map((u: any) => ({
+      userId: u.userId,
+      email: u.email ?? '',
+      name: u.name ?? '',
+      orgRole: u.orgRole ?? null,
+      roleId: u.roleId ?? null,
+      audienceId: null,
+      audiences: Array.isArray(u.audiences) ? u.audiences : [],
     }));
 
-    return members;
+    return rows;
   }
 );
 
@@ -79,7 +76,19 @@ export const createOrgMember = createAsyncThunk(
       `/api/orgs/${p.orgId}/members`,
       p.body
     );
-    return data;
+    return {
+      userId: (data as any)?.userId ?? (data as any)?.user?.id ?? '',
+      email: (data as any)?.email ?? (data as any)?.user?.email ?? '',
+      name: (data as any)?.name ?? (data as any)?.user?.name ?? '',
+      orgRole: (data as any)?.role ?? null,
+      roleId: (data as any)?.roleId ?? null,
+      audienceId: (data as any)?.audienceId ?? null,
+      audiences:
+        (data as any)?.audiences ??
+        ((data as any)?.audience
+          ? [{ id: (data as any).audience.id, name: (data as any).audience.name }]
+          : []),
+    } as Member;
   }
 );
 
@@ -90,7 +99,19 @@ export const fetchOrgMember = createAsyncThunk(
     const { data } = await api.get<Member>(
       `/api/orgs/${p.orgId}/members/${p.memberId}`
     );
-    return data;
+    return {
+      userId: (data as any)?.userId ?? (data as any)?.user?.id ?? '',
+      email: (data as any)?.email ?? (data as any)?.user?.email ?? '',
+      name: (data as any)?.name ?? (data as any)?.user?.name ?? '',
+      orgRole: (data as any)?.role ?? null,
+      roleId: (data as any)?.roleId ?? null,
+      audienceId: (data as any)?.audienceId ?? null,
+      audiences:
+        (data as any)?.audiences ??
+        ((data as any)?.audience
+          ? [{ id: (data as any).audience.id, name: (data as any).audience.name }]
+          : []),
+    } as Member;
   }
 );
 
@@ -102,7 +123,19 @@ export const updateOrgMember = createAsyncThunk(
       `/api/orgs/${p.orgId}/members/${p.memberId}`,
       p.body
     );
-    return data;
+    return {
+      userId: (data as any)?.userId ?? (data as any)?.user?.id ?? '',
+      email: (data as any)?.email ?? (data as any)?.user?.email ?? '',
+      name: (data as any)?.name ?? (data as any)?.user?.name ?? '',
+      orgRole: (data as any)?.role ?? null,
+      roleId: (data as any)?.roleId ?? null,
+      audienceId: (data as any)?.audienceId ?? null,
+      audiences:
+        (data as any)?.audiences ??
+        ((data as any)?.audience
+          ? [{ id: (data as any).audience.id, name: (data as any).audience.name }]
+          : []),
+    } as Member;
   }
 );
 
@@ -160,20 +193,22 @@ const orgMembersSlice = createSlice({
 
     /* -------- create -------- */
     b.addCase(createOrgMember.fulfilled, (s, a) => {
-      s.members.unshift(a.payload);
+      const idx = s.members.findIndex((m) => m.userId === a.payload.userId);
+      if (idx >= 0) s.members[idx] = a.payload;
+      else s.members.unshift(a.payload);
     });
 
     /* -------- update -------- */
     b.addCase(updateOrgMember.fulfilled, (s, a) => {
-      const idx = s.members.findIndex((m) => m.id === a.payload.id);
+      const idx = s.members.findIndex((m) => m.userId === a.payload.userId);
       if (idx >= 0) s.members[idx] = a.payload;
-      if (s.member?.id === a.payload.id) s.member = a.payload;
+      if (s.member?.userId === a.payload.userId) s.member = a.payload;
     });
 
     /* -------- delete -------- */
     b.addCase(deleteOrgMember.fulfilled, (s, a) => {
-      s.members = s.members.filter((m) => m.id !== a.payload);
-      if (s.member?.id === a.payload) s.member = null;
+      s.members = s.members.filter((m) => m.userId !== a.payload);
+      if (s.member?.userId === a.payload) s.member = null;
     });
   },
 });

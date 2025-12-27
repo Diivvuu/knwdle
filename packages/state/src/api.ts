@@ -7,7 +7,14 @@ let accessToken: string | null = null;
 let refreshing = false;
 let refreshDead = false;
 let loggingOut = false;
-let waiters: Array<() => void> = [];
+
+type QueuedRequest = {
+  resolve: (value: any) => void;
+  reject: (reason?: any) => void;
+  config: any;
+};
+let queue: QueuedRequest[] = [];
+let refreshPromise: Promise<string | null> | null = null;
 
 try {
   if (
@@ -45,8 +52,9 @@ export const hardResetAuthClient = () => {
   } catch {}
   refreshing = false;
   loggingOut = false;
-  waiters.forEach((r) => r());
-  waiters = [];
+  queue.forEach((q) => q.reject(new Error('logout')));
+  queue = [];
+  refreshPromise = null;
   delete api.defaults.headers.common.Authorization;
 };
 
@@ -83,6 +91,7 @@ api.interceptors.response.use(
     if (
       original._retry ||
       loggingOut ||
+      original._skipAuthRefresh ||
       String(original.url || '').includes('/auth/refresh')
     ) {
       throw err;
@@ -91,27 +100,51 @@ api.interceptors.response.use(
     if (status === 401) {
       original._retry = true;
 
-      if (refreshing) {
-        await new Promise<void>((r) => waiters.push(r));
-      } else {
+      const enqueue = () =>
+        new Promise((resolve, reject) => {
+          queue.push({ resolve, reject, config: original });
+        });
+
+      const triggerRefresh = async () => {
         try {
           refreshing = true;
-          const { data } = await api.post('/auth/refresh', undefined, {
-            headers: { Authorization: undefined },
-          });
-          const newToken = (data as any)?.accessToken;
-          if (!newToken) {
-            // server already cleared cookie; let caller handle logout flow
-            throw err;
-          }
+          const { data } = await api.post(
+            '/auth/refresh',
+            undefined,
+            {
+              headers: { Authorization: undefined },
+              _skipAuthRefresh: true,
+            } as any
+          );
+          const newToken = (data as any)?.accessToken ?? null;
+          if (!newToken) throw err;
           setAuthToken(newToken);
+          return newToken;
         } finally {
           refreshing = false;
-          waiters.forEach((r) => r());
-          waiters = [];
         }
+      };
+
+      if (!refreshPromise) {
+        refreshPromise = triggerRefresh()
+          .then((token) => {
+            const pending = queue;
+            queue = [];
+            pending.forEach((p) => p.resolve(api(p.config)));
+            return token;
+          })
+          .catch((e) => {
+            const pending = queue;
+            queue = [];
+            pending.forEach((p) => p.reject(e));
+            throw e;
+          })
+          .finally(() => {
+            refreshPromise = null;
+          });
       }
-      return api(original);
+
+      return enqueue();
     }
 
     throw err;

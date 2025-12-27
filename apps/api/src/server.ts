@@ -12,6 +12,9 @@ import inviteRoutes from './routes/invite.routes';
 import roleRoutes from './routes/roles.routes';
 import uploadRoutes from './routes/uploads.routes';
 import notificationRoutes from './routes/notification.routes';
+import audienceRoutes from './routes/audience.routes';
+import audienceMemberRoutes from './routes/audience.members.routes'
+import attendanceRoutes from './routes/attendance.routes'
 
 import { buildOpenApiDocument } from './lib/openapi';
 
@@ -83,6 +86,9 @@ app.use('/api', orgRoutes);
 app.use('/api', inviteRoutes);
 app.use('/api', roleRoutes);
 app.use('/api', uploadRoutes);
+app.use('/api', audienceRoutes);
+app.use('/api/orgs', audienceMemberRoutes)
+app.use('/api/orgs', attendanceRoutes)
 app.use('/api/notifications', notificationRoutes);
 
 app.use((err: any, req: Request, res: Response, next: NextFunction) => {

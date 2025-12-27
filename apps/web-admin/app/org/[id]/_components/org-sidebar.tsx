@@ -28,7 +28,7 @@ import { Label } from '@workspace/ui/components/label';
 
 const NAV = [
   { label: 'Dashboard', href: 'dashboard', icon: LayoutDashboard },
-  { label: 'Organisations', href: 'organisation', icon: Building2 },
+  { label: 'Audiences', href: 'audience', icon: Building2 },
   { label: 'Members', href: 'members', icon: Users2 },
   { label: 'Roles', href: 'roles', icon: ShieldCheck },
   { label: 'Invites', href: 'invites', icon: Mail },

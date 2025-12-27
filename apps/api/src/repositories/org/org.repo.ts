@@ -112,15 +112,21 @@ export const OrgRepo = {
   },
 
   // ─── MEMBERSHIP ───────────────────────────────────────────────
-  listMembers(where: any, orderBy: any, take: number) {
-    return prisma.orgMembership.findMany({
+  listMembers(orgId: string, where: any, orderBy: any, take: number) {
+    return prisma.user.findMany({
       where,
       take,
       orderBy,
       include: {
-        user: { select: { id: true, name: true, email: true } },
-        audience: { select: { id: true, name: true } },
-        customerRole: { select: { id: true, name: true } },
+        memberships: {
+          where: { orgId },
+          include: {
+            audience: { select: { id: true, name: true } },
+            customerRole: {
+              select: { id: true, name: true, parentRole: true },
+            },
+          },
+        },
       },
     });
   },
@@ -158,6 +164,16 @@ export const OrgRepo = {
   getMember(orgId: string, memberId: string) {
     return prisma.orgMembership.findFirst({
       where: { id: memberId, orgId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        customerRole: { select: { id: true, name: true } },
+      },
+    });
+  },
+
+  getMemberByUser(orgId: string, userId: string) {
+    return prisma.orgMembership.findFirst({
+      where: { orgId, userId, audienceId: null },
       include: {
         user: { select: { id: true, name: true, email: true } },
         customerRole: { select: { id: true, name: true } },
@@ -248,6 +264,17 @@ export const OrgRepo = {
   getMemberWithRole(orgId: string, memberId: string) {
     return prisma.orgMembership.findFirst({
       where: { id: memberId, orgId },
+      include: {
+        user: { select: { id: true, name: true, email: true } },
+        audience: { select: { id: true, name: true } },
+        customerRole: { select: { id: true, name: true, parentRole: true } },
+      },
+    });
+  },
+
+  getMemberWithRoleByUser(orgId: string, userId: string) {
+    return prisma.orgMembership.findFirst({
+      where: { orgId, userId, audienceId: null },
       include: {
         user: { select: { id: true, name: true, email: true } },
         audience: { select: { id: true, name: true } },

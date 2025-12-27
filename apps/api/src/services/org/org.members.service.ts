@@ -6,37 +6,76 @@ import {
   encodeCursor,
   stableOrder,
 } from '../../lib/pagination';
+import { prisma } from '../../lib/prisma';
 import { OrgRepo } from '../../repositories/org/org.repo';
+
 
 export const OrgMemberService = {
   async listMembers(orgId: string, query: any) {
-    const { role, roleId, audienceId, search, cursor } = query;
+    const { role, roleId, audienceId, search, cursor, excludeAudienceId } =
+      query;
     const limit = clampLimit(query.limit);
 
-    const where = {
+    const membershipFilters: any = {
       orgId,
       ...(role && { role }),
       ...(roleId && { roleId }),
       ...(audienceId && { audienceId }),
-      ...(search && {
-        user: {
-          OR: [
-            { name: { contains: search, mode: 'insensitive' } },
-            { email: { contains: search, mode: 'insensitive' } },
-          ],
-        },
-      }),
-      ...buildCursorWhere(decodeCursor(cursor)),
+      ...(excludeAudienceId && { audienceId: null }),
     };
 
-    const members = await OrgRepo.listMembers(where, stableOrder(), limit + 1);
+    const userWhere: any = {
+      ...(search && {
+        OR: [
+          { name: { contains: search, mode: 'insensitive' } },
+          { email: { contains: search, mode: 'insensitive' } },
+        ],
+      }),
+      memberships: {
+        some: membershipFilters,
+        ...(excludeAudienceId && {
+          none: { orgId, audienceId: excludeAudienceId },
+        }),
+      },
+    };
+
+    const cursorWhere = buildCursorWhere(decodeCursor(cursor));
+    if (cursorWhere) {
+      userWhere.AND = [...(userWhere.AND || []), cursorWhere];
+    }
+
+    const users = await OrgRepo.listMembers(
+      orgId,
+      userWhere,
+      stableOrder(),
+      limit + 1
+    );
+
     const nextCursor =
-      members.length > limit
-        ? encodeCursor(members[limit].createdAt, members[limit].id)
+      users.length > limit
+        ? encodeCursor(users[limit].createdAt, users[limit].id)
         : null;
 
+    const data = users.slice(0, limit).map((u) => {
+      const orgMembership = u.memberships.find((m) => m.audienceId === null);
+
+      return {
+        userId: u.id,
+        email: u.email,
+        name: u.name,
+        orgRole: orgMembership?.role ?? null,
+        roleId: orgMembership?.roleId ?? null,
+        audiences: u.memberships
+          .filter((m) => m.audienceId && m.audience)
+          .map((m) => ({
+            id: m.audience!.id,
+            name: m.audience!.name,
+          })),
+      };
+    });
+
     return {
-      data: members.slice(0, limit),
+      data,
       nextCursor,
     };
   },
@@ -56,7 +95,9 @@ export const OrgMemberService = {
       return OrgRepo.updateMember(orgId, memberId, data);
     }
     return prisma?.$transaction(async () => {
-      const member = await OrgRepo.getMemberWithRole(orgId, memberId);
+      const member =
+        (await OrgRepo.getMemberWithRole(orgId, memberId)) ||
+        (await OrgRepo.getMemberWithRoleByUser(orgId, memberId));
       if (!member) throw notFound('Member not found');
 
       const isCurrentAdminType =
@@ -83,13 +124,15 @@ export const OrgMemberService = {
           );
         }
       }
-      return OrgRepo.updateMember(orgId, memberId, data);
+      return OrgRepo.updateMember(orgId, member.id, data);
     });
   },
 
   async removeMember(orgId: string, memberId: string) {
     return prisma?.$transaction(async () => {
-      const member = await OrgRepo.getMemberWithRole(orgId, memberId);
+      const member =
+        (await OrgRepo.getMemberWithRole(orgId, memberId)) ||
+        (await OrgRepo.getMemberWithRoleByUser(orgId, memberId));
       if (!member) throw notFound('Member not found');
 
       const isAdminType =
@@ -102,12 +145,16 @@ export const OrgMemberService = {
           throw badRequest('Cannot delete the only admin in the organisation');
         }
       }
-      return OrgRepo.removeMember(orgId, memberId);
+      return OrgRepo.removeMember(orgId, member.id);
     });
   },
 
   async getMember(orgId: string, memberId: string) {
-    const member = await OrgRepo.getMember(orgId, memberId);
+    let member = await OrgRepo.getMember(orgId, memberId);
+    if (!member) {
+      // also allow lookup by userId (org-scoped membership)
+      member = await OrgRepo.getMemberByUser(orgId, memberId);
+    }
     if (!member) throw notFound('Member not found');
     return member;
   },

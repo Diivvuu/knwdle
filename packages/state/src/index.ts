@@ -20,3 +20,9 @@ export { default as orgConnectDashboard } from './slices/org.connect.dashboard';
 export * from './slices/org.connect.dashboard';
 export { default as orgTypeReducer } from './slices/org-types';
 export * from './slices/org-types';
+export { default as AudienceReducer } from './slices/audience'
+export * from './slices/audience'
+export { default as AudienceMembers } from './slices/audience.members'
+export * from './slices/audience.members'
+export { default as attendanceReducer } from './slices/attendance';
+export * from './slices/attendance';

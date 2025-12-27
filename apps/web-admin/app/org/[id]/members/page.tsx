@@ -128,24 +128,31 @@ export default function OrgMembersPage() {
         header: 'Role',
         sortable: true,
         render: (r) => {
-          const Icon = RoleIcon[r.role] ?? Shield;
+          const roleKey = r.orgRole || '—';
+          const Icon = RoleIcon[roleKey] ?? Shield;
           return (
             <span
               className={cn(
                 'inline-flex items-center gap-1.5 rounded-md px-2 py-0.5 text-xs capitalize font-medium',
-                roleBadgeClass[r.role] || ''
+                roleBadgeClass[roleKey] || ''
               )}
             >
-              <Icon className="h-3.5 w-3.5" /> {r.role}
+              <Icon className="h-3.5 w-3.5" /> {roleKey}
             </span>
           );
         },
       },
       {
-        key: 'audienceName',
-        header: 'Audience',
+        key: 'audiences',
+        header: 'Audiences',
         sortable: true,
-        render: (r) => <span>{r.audienceName || '—'}</span>,
+        render: (r) => (
+          <span>
+            {r.audiences?.length
+              ? r.audiences.map((a: any) => a.name).join(', ')
+              : '—'}
+          </span>
+        ),
       },
     ],
     []
@@ -265,7 +272,7 @@ export default function OrgMembersPage() {
         title=""
         columns={columns}
         rows={members}
-        rowKey={(r) => r.id}
+        rowKey={(r) => r.userId}
         loading={loading}
         handlers={{ onQueryChange: onServerQueryChange }}
         serverSearchMode="manual"
@@ -300,8 +307,8 @@ export default function OrgMembersPage() {
               size="icon"
               className="rounded-md hover:bg-muted"
               onClick={async () => {
-                await dispatch(fetchOrgMember({ orgId, memberId: r.id }));
-                setEditState({ open: true, memberId: r.id }); // using your atom
+                await dispatch(fetchOrgMember({ orgId, memberId: r.userId }));
+                setEditState({ open: true, memberId: r.userId }); // using your atom
               }}
             >
               <Pencil className="h-4 w-4" />

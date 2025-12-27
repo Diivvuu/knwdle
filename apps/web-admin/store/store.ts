@@ -1,5 +1,8 @@
 import { configureStore, combineReducers } from '@reduxjs/toolkit';
 import {
+  attendanceReducer,
+  AudienceMembers,
+  AudienceReducer,
   authReducer,
   invitesReducer,
   OrgAdminDashboardReducer,
@@ -28,6 +31,9 @@ const rootReducer = combineReducers({
   roles: rolesReducer,
   invites: invitesReducer,
   orgMembers: orgMember,
+  audience: AudienceReducer,
+  audienceMembers : AudienceMembers,
+  attendance: attendanceReducer,
 });
 
 const persistConfig = {

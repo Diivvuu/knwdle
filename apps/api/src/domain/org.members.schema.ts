@@ -8,6 +8,7 @@ export const ListMembersQuery = z.object({
   search: z.string().optional(),
   cursor: z.string().optional(),
   limit: z.string().optional(),
+  excludeAudienceId : z.string().optional()
 });
 
 export const CreateMemberBody = z.object({

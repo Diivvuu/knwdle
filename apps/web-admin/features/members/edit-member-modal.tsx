@@ -85,7 +85,7 @@ const EditMemberModal: React.FC = () => {
   useEffect(() => {
     if (!open || !orgId || !memberId) return;
     // If current store member is a different id or null, fetch
-    if (!member || member.id !== memberId) {
+    if (!member || member.userId !== memberId) {
       dispatch(fetchOrgMember({ orgId, memberId })).catch(() => {
         toast.error('Failed to load member');
       });
@@ -97,7 +97,7 @@ const EditMemberModal: React.FC = () => {
     if (!open || !member) return;
     setName(member.name || '');
     setaudienceId(member.audienceId || '');
-    setRoleValue(member.roleId ?? member.role ?? '');
+    setRoleValue(member.roleId ?? member.orgRole ?? '');
   }, [open, member]);
 
   const builtinValues = useMemo<BuiltinRoleValue[]>(
@@ -123,11 +123,11 @@ const EditMemberModal: React.FC = () => {
   );
 
   const missingMember =
-    open && (!member || (memberId && member.id !== memberId));
+    open && (!member || (memberId && member.userId !== memberId));
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!orgId || !member?.id) {
+    if (!orgId || !member?.userId) {
       toast.error('Missing organisation or member context');
       return;
     }
@@ -155,7 +155,7 @@ const EditMemberModal: React.FC = () => {
       await dispatch(
         updateOrgMember({
           orgId,
-          memberId: member.id,
+          memberId: member.userId,
           body,
         })
       ).unwrap();
@@ -174,8 +174,8 @@ const EditMemberModal: React.FC = () => {
     if (!member) return null;
 
     const effectiveRole: string = member.roleId
-      ? member.customRoleName || 'Custom role'
-      : member.role;
+      ? 'Custom role'
+      : member.orgRole || '—';
 
     return (
       <div className="rounded-md border p-3 bg-muted/40">
@@ -192,7 +192,11 @@ const EditMemberModal: React.FC = () => {
           </div>
           <div>
             <div className="font-medium">Audience</div>
-            <div className="opacity-80">{member.audienceName || '—'}</div>
+            <div className="opacity-80">
+              {member.audiences?.length
+                ? member.audiences.map((a: any) => a.name).join(', ')
+                : '—'}
+            </div>
           </div>
           <div>
             <div className="font-medium">Joined</div>

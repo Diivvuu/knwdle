@@ -15,6 +15,7 @@ import { getOrgAdminDashboardPaths } from '../docs/org/org.admin-dashboard.docs'
 import { extendZodWithOpenApi } from '@asteasolutions/zod-to-openapi';
 import { getOrgMembersPaths } from '../docs/org/org.members.docs';
 import { getNotificationsPaths } from '../docs/notification.docs';
+// import { getAudienceOpenApiPaths } from '../docs/audience.docs';
 
 const COOKIE_NAME = process.env.COOKIE_NAME || '__knwdle_session';
 const API_PUBLIC_URL =
@@ -73,6 +74,7 @@ export function buildOpenApiDocument(): OpenAPIObject {
     getInviteOpenApiPaths(),
     getOrgMegaDashboardPaths(),
     getOrgTypePaths(),
+    // getAudienceOpenApiPaths(),
     getRolesPaths(),
     getUploadsPaths(),
     getOrgAdminDashboardPaths(),
